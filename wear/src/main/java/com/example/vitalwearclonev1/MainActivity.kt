@@ -241,6 +241,49 @@ fun VitalWearApp(service: VitalForegroundService?, isBound: Boolean, isAmbient: 
 
     val isCardMissing = remember { mutableStateOf(false) }
 
+    // Sprite helpers for the evolution sequence (kept as locals so both the
+    // connection loop and the dev-jump hook can use them).
+    // Loads the idle frames for a character id off the main thread.
+    suspend fun loadWearFrames(cardName: String, characterId: Int): List<Bitmap> =
+        withContext(Dispatchers.IO) {
+            try {
+                val card = cardManager.getCard(cardName) ?: return@withContext emptyList()
+                val isBem = card is BemCard
+                val sprites = card.spriteData.sprites
+                val indices = monsterManager.getIdleSpriteIndices(characterId, sprites.size, isBem)
+                indices.mapNotNull { SpriteBitmapHandler.getBitmap(sprites[it]) }
+            } catch (e: Exception) {
+                emptyList()
+            }
+        }
+
+    // Portrait frame for the evolution reveal: the new form's battle pose,
+    // shown large like the original hardware's splash before the play sprites.
+    suspend fun loadWearPortrait(cardName: String, characterId: Int): Bitmap? =
+        withContext(Dispatchers.IO) {
+            try {
+                val card = cardManager.getCard(cardName) ?: return@withContext null
+                val isBem = card is BemCard
+                val sprites = card.spriteData.sprites
+                val idx = monsterManager.getPortraitSpriteIndex(characterId, isBem, sprites)
+                SpriteBitmapHandler.getBitmap(sprites[idx])
+            } catch (e: Exception) {
+                null
+            }
+        }
+
+    // Plays the evolution sequence for an explicit form change (dev chips).
+    // Prefers the cached frames for the old form, loading from the card if needed.
+    suspend fun playEvolutionSequence(oldCharId: Int, newCharId: Int, cardName: String) {
+        val oldFrames = framesByCharId[oldCharId]?.takeIf { it.isNotEmpty() }
+            ?: loadWearFrames(cardName, oldCharId)
+        val newFrames = loadWearFrames(cardName, newCharId)
+        if (newFrames.isNotEmpty()) {
+            val portrait = loadWearPortrait(cardName, newCharId)
+            evolutionRequest.value = EvolutionRequest(oldFrames, newFrames, portrait)
+        }
+    }
+
     // Connection Polling Loop
     LaunchedEffect(Unit) {
         while(true) {
@@ -421,46 +464,6 @@ fun VitalWearApp(service: VitalForegroundService?, isBound: Boolean, isAmbient: 
         }
     }
 
-    // Loads the idle frames for a character id off the main thread.
-    suspend fun loadWearFrames(cardName: String, characterId: Int): List<Bitmap> =
-        withContext(Dispatchers.IO) {
-            try {
-                val card = cardManager.getCard(cardName) ?: return@withContext emptyList()
-                val isBem = card is BemCard
-                val sprites = card.spriteData.sprites
-                val indices = monsterManager.getIdleSpriteIndices(characterId, sprites.size, isBem)
-                indices.mapNotNull { SpriteBitmapHandler.getBitmap(sprites[it]) }
-            } catch (e: Exception) {
-                emptyList()
-            }
-        }
-
-    // Portrait frame for the evolution reveal: the new form's battle pose,
-    // shown large like the original hardware's splash before the play sprites.
-    suspend fun loadWearPortrait(cardName: String, characterId: Int): Bitmap? =
-        withContext(Dispatchers.IO) {
-            try {
-                val card = cardManager.getCard(cardName) ?: return@withContext null
-                val isBem = card is BemCard
-                val sprites = card.spriteData.sprites
-                val idx = monsterManager.getPortraitSpriteIndex(characterId, isBem, sprites)
-                SpriteBitmapHandler.getBitmap(sprites[idx])
-            } catch (e: Exception) {
-                null
-            }
-        }
-
-    // Plays the evolution sequence for an explicit form change (dev chips).
-    // Prefers the cached frames for the old form, loading from the card if needed.
-    suspend fun playEvolutionSequence(oldCharId: Int, newCharId: Int, cardName: String) {
-        val oldFrames = framesByCharId[oldCharId]?.takeIf { it.isNotEmpty() }
-            ?: loadWearFrames(cardName, oldCharId)
-        val newFrames = loadWearFrames(cardName, newCharId)
-        if (newFrames.isNotEmpty()) {
-            val portrait = loadWearPortrait(cardName, newCharId)
-            evolutionRequest.value = EvolutionRequest(oldFrames, newFrames, portrait)
-        }
-    }
 
     MaterialTheme {
         Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
