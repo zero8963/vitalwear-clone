@@ -24,6 +24,8 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
+import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
@@ -285,7 +287,7 @@ private fun BinaryRain(
                 paint.color = if (i == 0) android.graphics.Color.rgb(200, 255, 200)
                               else android.graphics.Color.rgb(0, 220, 70)
                 paint.alpha = (a * 255).toInt()
-                drawIntoCanvas { it.nativeCanvas.drawText(bit, x, y, paint) }
+                drawIntoCanvas { nativeCanvas.drawText(bit, x, y, paint) }
             }
         }
     }
