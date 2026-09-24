@@ -98,6 +98,9 @@ fun WorkoutDashboard(syncManager: PhoneHealthSyncManager, workoutManager: Workou
     val context = LocalContext.current
     var steps by remember { mutableLongStateOf(0L) }
     var calories by remember { mutableIntStateOf(0) }
+    // TEMPORARY: shows raw Health Connect read diagnostics while we verify
+    // Samsung step parity. Remove once numbers are confirmed matching.
+    var diagText by remember { mutableStateOf("reading...") }
     
     // Use a trigger to force re-fetch of custom routines
     var refreshTrigger by remember { mutableIntStateOf(0) }
@@ -107,6 +110,7 @@ fun WorkoutDashboard(syncManager: PhoneHealthSyncManager, workoutManager: Workou
         val stats = syncManager.getDailyStats()
         steps = stats.first
         calories = stats.second
+        diagText = syncManager.lastDiagnostics
     }
 
     LazyColumn(
@@ -126,6 +130,8 @@ fun WorkoutDashboard(syncManager: PhoneHealthSyncManager, workoutManager: Workou
                         ActivityStat(label = "Steps", value = steps.toString(), icon = Icons.Default.DirectionsWalk, color = Color.Green)
                         ActivityStat(label = "Calories", value = calories.toString(), icon = Icons.Default.Whatshot, color = Color.Red)
                     }
+                    Spacer(Modifier.height(8.dp))
+                    Text(diagText, color = Color.Gray, fontSize = 10.sp)
                 }
             }
         }
