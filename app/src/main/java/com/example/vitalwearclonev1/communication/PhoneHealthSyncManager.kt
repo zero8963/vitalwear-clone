@@ -193,6 +193,7 @@ class PhoneHealthSyncManager(private val context: Context) {
         var samsungSteps = -1L
         var allSteps = -1L
         var readError = "none"
+        var originsDiag = ""
 
         val client = getClient()
         // TEMP DIAG: attempt the reads directly instead of gating on
@@ -244,6 +245,35 @@ class PhoneHealthSyncManager(private val context: Context) {
                         dataOriginFilter = calsOrigin
                     )
                 )[TotalCaloriesBurnedRecord.ENERGY_TOTAL]?.inKilocalories ?: 0.0
+
+                // TEMP DIAG (2026-09-24): per-package raw step sums for today, to
+                // find which writer holds Samsung Health's full total. Raw sums
+                // can overlap; this is only for diagnosis, not the final number.
+                val originSteps = mutableMapOf<String, Long>()
+                try {
+                    var pageToken: String? = null
+                    do {
+                        val page = client.readRecords(
+                            ReadRecordsRequest(
+                                StepsRecord::class,
+                                timeRangeFilter = range,
+                                pageToken = pageToken
+                            )
+                        )
+                        for (rec in page.records) {
+                            val pkg = rec.metadata.dataOrigin.packageName
+                            originSteps[pkg] = (originSteps[pkg] ?: 0L) + rec.count
+                        }
+                        pageToken = page.pageToken
+                    } while (pageToken != null)
+                } catch (e: Exception) {
+                    Timber.w(e, "Per-origin step read failed")
+                }
+                val topOrigins = originSteps.entries
+                    .sortedByDescending { it.value }
+                    .take(4)
+                    .joinToString(",") { "${it.key.substringAfterLast('.')}=${it.value}" }
+                originsDiag = topOrigins.ifEmpty { "none" }
             } catch (e: Exception) {
                 readError = "${e.javaClass.simpleName}: ${e.message}"
                 Timber.w(e, "Health Connect aggregate failed")
@@ -269,7 +299,7 @@ class PhoneHealthSyncManager(private val context: Context) {
 
         lastDiagString =
             "perm=$permCheck | samsung=$samsungSteps | all=$allSteps | gps=$gpsSteps | " +
-            "final=$finalSteps | path=$path | err=$readError"
+            "final=$finalSteps | path=$path | err=$readError | origins=$originsDiag"
         Timber.tag("VitalWear/Steps").d(lastDiagString)
         Timber.d("Combined Stats: source=$stepsSource HealthSteps=$steps, GpsSteps=$gpsSteps, FinalSteps=$finalSteps")
 
