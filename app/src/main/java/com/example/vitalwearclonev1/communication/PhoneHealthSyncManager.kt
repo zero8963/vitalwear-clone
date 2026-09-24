@@ -185,6 +185,39 @@ class PhoneHealthSyncManager(private val context: Context) {
 
     suspend fun getDailyStats(): Pair<Long, Int> = getDailyStatsWithDiag().first
 
+    /**
+     * Samsung parity (2026-09-24): sum the raw step records for the given
+     * origins instead of using aggregate(). Health Connect's aggregate merges
+     * overlapping phone+watch intervals and undercounts vs the Samsung Health
+     * app, which displays the straight sum of its own records (verified
+     * on-device: raw sum 10,898 vs Samsung display 10,883, aggregate 7,991).
+     */
+    private suspend fun sumStepsForOrigins(
+        client: HealthConnectClient,
+        range: TimeRangeFilter,
+        origins: Set<DataOrigin>
+    ): Long {
+        var total = 0L
+        try {
+            var pageToken: String? = null
+            do {
+                val page = client.readRecords(
+                    ReadRecordsRequest(
+                        StepsRecord::class,
+                        timeRangeFilter = range,
+                        dataOriginFilter = origins,
+                        pageToken = pageToken
+                    )
+                )
+                for (rec in page.records) total += rec.count
+                pageToken = page.pageToken
+            } while (pageToken != null)
+        } catch (e: Exception) {
+            Timber.w(e, "Raw Samsung step sum failed")
+        }
+        return total
+    }
+
     suspend fun getDailyStatsWithDiag(): Pair<Pair<Long, Int>, String> {
         var steps = 0L
         var calories = 0.0
@@ -211,14 +244,9 @@ class PhoneHealthSyncManager(private val context: Context) {
                 val samsungOrigin = setOf(DataOrigin(SAMSUNG_HEALTH_PACKAGE))
 
                 // 1) Prefer Samsung Health's own records -> matches the Samsung
-                //    Health app exactly.
-                samsungSteps = client.aggregate(
-                    AggregateRequest(
-                        metrics = setOf(StepsRecord.COUNT_TOTAL),
-                        timeRangeFilter = range,
-                        dataOriginFilter = samsungOrigin
-                    )
-                )[StepsRecord.COUNT_TOTAL] ?: 0L
+                //    Health app exactly (raw sum, NOT aggregate: aggregate
+                //    merges overlaps and undercounts vs Samsung's display).
+                samsungSteps = sumStepsForOrigins(client, range, samsungOrigin)
 
                 steps = if (samsungSteps > 0) {
                     stepsSource = "samsung"
