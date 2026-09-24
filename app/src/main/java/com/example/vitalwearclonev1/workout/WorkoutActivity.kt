@@ -98,19 +98,18 @@ fun WorkoutDashboard(syncManager: PhoneHealthSyncManager, workoutManager: Workou
     val context = LocalContext.current
     var steps by remember { mutableLongStateOf(0L) }
     var calories by remember { mutableIntStateOf(0) }
-    // TEMPORARY: shows raw Health Connect read diagnostics while we verify
-    // Samsung step parity. Remove once numbers are confirmed matching.
-    var diagText by remember { mutableStateOf("reading...") }
+    // TEMP DIAG (2026-09-24): shows where the step number came from. REMOVE later.
+    var diagText by remember { mutableStateOf("diag: loading...") }
     
     // Use a trigger to force re-fetch of custom routines
     var refreshTrigger by remember { mutableIntStateOf(0) }
     val customRoutines = remember(refreshTrigger) { workoutManager.getCustomRoutines() }
 
     LaunchedEffect(Unit) {
-        val stats = syncManager.getDailyStats()
+        val (stats, diag) = syncManager.getDailyStatsWithDiag()
         steps = stats.first
         calories = stats.second
-        diagText = syncManager.lastDiagnostics
+        diagText = diag
     }
 
     LazyColumn(
@@ -130,8 +129,9 @@ fun WorkoutDashboard(syncManager: PhoneHealthSyncManager, workoutManager: Workou
                         ActivityStat(label = "Steps", value = steps.toString(), icon = Icons.Default.DirectionsWalk, color = Color.Green)
                         ActivityStat(label = "Calories", value = calories.toString(), icon = Icons.Default.Whatshot, color = Color.Red)
                     }
+                    // TEMP DIAG (2026-09-24): on-screen read-path diagnostics. REMOVE later.
                     Spacer(Modifier.height(8.dp))
-                    Text(diagText, color = Color.Gray, fontSize = 10.sp)
+                    Text(diagText, color = Color.Gray, fontSize = 11.sp)
                 }
             }
         }
@@ -367,7 +367,13 @@ fun ActiveWorkoutScreen(routine: WorkoutRoutine, onComplete: () -> Unit) {
     val scope = rememberCoroutineScope()
 
     fun moveToNext(isCompleted: Boolean) {
-        if (isCompleted) completedCount++
+        if (isCompleted) {
+            completedCount++
+            // A finished exercise heals critical condition (15 min off the timer).
+            if (monsterManager.recordExerciseCompleted()) {
+                android.widget.Toast.makeText(context, "Your Digimon has recovered from critical condition!", android.widget.Toast.LENGTH_LONG).show()
+            }
+        }
         
         if (currentExerciseIndex < routine.exercises.size - 1) {
             currentExerciseIndex++

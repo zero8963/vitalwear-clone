@@ -19,6 +19,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
+import kotlinx.coroutines.withContext
 import timber.log.Timber
 import java.io.ByteArrayOutputStream
 import java.io.DataOutputStream
@@ -28,19 +29,8 @@ import java.time.temporal.ChronoUnit
 
 class PhoneHealthSyncManager(private val context: Context) {
 
-    companion object {
-        // Samsung Health's package — used to read ITS numbers first so the app
-        // matches the Samsung Health watch-face complication 1:1.
-        private const val SAMSUNG_HEALTH_PACKAGE = "com.sec.android.app.shealth"
-        private const val LOG_TAG = "VitalWear/Steps"
-
-        /** Sessions shorter than this don't count as workouts — filters out
-         *  auto-detected junk like a 3-minute walk. */
-        private const val MIN_WORKOUT_MINUTES = 10L
-    }
-
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-
+    
     val permissions = setOf(
         HealthPermission.getReadPermission(StepsRecord::class),
         HealthPermission.getReadPermission(ActiveCaloriesBurnedRecord::class),
@@ -48,14 +38,6 @@ class PhoneHealthSyncManager(private val context: Context) {
         HealthPermission.getReadPermission(ExerciseSessionRecord::class),
         HealthPermission.getReadPermission(WeightRecord::class)
     )
-
-    /**
-     * TEMPORARY diagnostic readout of the last getDailyStats() call.
-     * Shown on the Workout screen while we verify Samsung step parity.
-     * Remove once numbers are confirmed matching.
-     */
-    var lastDiagnostics: String = "no read yet"
-        private set
 
     fun getSdkStatus(): Int {
         return try {
@@ -69,12 +51,8 @@ class PhoneHealthSyncManager(private val context: Context) {
         return try {
             if (getSdkStatus() == HealthConnectClient.SDK_AVAILABLE) {
                 HealthConnectClient.getOrCreate(context)
-            } else {
-                Timber.tag(LOG_TAG).w("Health Connect not available (status=${getSdkStatus()})")
-                null
-            }
+            } else null
         } catch (e: Exception) {
-            Timber.tag(LOG_TAG).e(e, "Failed to create Health Connect client")
             null
         }
     }
@@ -83,7 +61,6 @@ class PhoneHealthSyncManager(private val context: Context) {
         return try {
             getClient()?.permissionController?.getGrantedPermissions()?.containsAll(permissions) == true
         } catch (e: Exception) {
-            Timber.tag(LOG_TAG).w(e, "Permission check threw")
             false
         }
     }
@@ -91,11 +68,9 @@ class PhoneHealthSyncManager(private val context: Context) {
     fun startPeriodicSync() {
         scope.launch {
             while (true) {
-                if (hasAllPermissions()) {
-                    syncNow()
-                } else {
-                    Timber.w("Missing Health Connect permissions, sync skipped")
-                }
+                // TEMP DIAG (2026-09-24): don't gate on the permission pre-check.
+                // Attempt the reads directly; exceptions are caught inside syncNow().
+                syncNow()
                 kotlinx.coroutines.delay(120000) // Sync every 2 minutes for better accuracy
             }
         }
@@ -103,20 +78,16 @@ class PhoneHealthSyncManager(private val context: Context) {
 
     suspend fun syncNow() {
         val stats = getDailyStats()
-
+        
         try {
             Timber.d("Starting Health Sync with combined GPS/Health data...")
             val startOfDay = ZonedDateTime.now().truncatedTo(ChronoUnit.DAYS).toInstant()
             val endOfDay = Instant.now()
-
+            
             val client = getClient()
             val startTime = Instant.now().minus(1, ChronoUnit.HOURS)
             var hasNewWorkout = false
-
-            // NOTE: reads are attempted directly (try/catch) instead of gating
-            // on hasAllPermissions() — the gate was suspected of silently
-            // skipping reads on some devices. A denied read throws
-            // SecurityException, which the surrounding try/catch handles.
+            
             if (client != null) {
                 val workoutResponse = client.readRecords(
                     ReadRecordsRequest(
@@ -126,10 +97,6 @@ class PhoneHealthSyncManager(private val context: Context) {
                 )
                 hasNewWorkout = workoutResponse.records.isNotEmpty()
             }
-
-            // Samsung Health workout healing: every exercise session that lands
-            // in Health Connect counts like one of the app's own workouts.
-            creditNewExerciseSessions()
 
             // Fetch latest Weight for accurate calorie math on watch side if needed
             var weightKg = 75.0
@@ -144,6 +111,9 @@ class PhoneHealthSyncManager(private val context: Context) {
                 )
                 weightKg = weightResponse.records.firstOrNull()?.weight?.inKilograms ?: 75.0
             }
+
+            // Samsung Health workouts count as healing workouts too.
+            creditNewExerciseSessions()
 
             sendToWatch(stats.first, stats.second, hasNewWorkout, startOfDay.toEpochMilli(), weightKg.toFloat())
         } catch (e: Exception) {
@@ -195,101 +165,122 @@ class PhoneHealthSyncManager(private val context: Context) {
         }
     }
 
-    suspend fun getDailyStats(): Pair<Long, Int> {
+    companion object {
+        /** Samsung Health's package name. Filtering Health Connect reads to this
+         *  origin makes our numbers match the Samsung Health app 1:1, instead of
+         *  summing every app that ever wrote steps. Requires "Share with Health
+         *  Connect" turned ON in Samsung Health settings. */
+        private const val SAMSUNG_HEALTH_PACKAGE = "com.sec.android.app.shealth"
+
+        /** Sessions shorter than this don't count as workouts — filters out
+         *  auto-detected junk like a 3-minute walk. */
+        private const val MIN_WORKOUT_MINUTES = 10L
+    }
+
+    // TEMP DIAGNOSTIC (2026-09-24): one-line summary of where today's step
+    // number came from. Shown under the Daily Activity card in the Workout
+    // screen. REMOVE once Samsung parity is confirmed.
+    var lastDiagString: String = "diag: not run yet"
+        private set
+
+    suspend fun getDailyStats(): Pair<Long, Int> = getDailyStatsWithDiag().first
+
+    suspend fun getDailyStatsWithDiag(): Pair<Pair<Long, Int>, String> {
         var steps = 0L
         var calories = 0.0
-        var samsungSteps = -1L   // -1 = read never attempted
-        var allSteps = -1L       // -1 = read never attempted
-        var path = "no_client"
+        var stepsSource = "none"
+        var permCheck = false
+        var samsungSteps = -1L
+        var allSteps = -1L
+        var readError = "none"
 
         val client = getClient()
-        val permOk = try {
-            hasAllPermissions()
+        // TEMP DIAG: attempt the reads directly instead of gating on
+        // hasAllPermissions(). We still record what the pre-check says.
+        try {
+            permCheck = hasAllPermissions()
         } catch (e: Exception) {
-            false
+            readError = "permCheck threw ${e.javaClass.simpleName}"
         }
-
         if (client != null) {
-            // Attempt the read directly instead of gating on permOk: a truly
-            // denied read throws SecurityException, which we catch below.
-            // (The old gate was suspected of silently skipping reads.)
-            val startOfDay = ZonedDateTime.now().truncatedTo(ChronoUnit.DAYS).toInstant()
-            val endOfDay = Instant.now()
-
-            // 1) Samsung Health first — matches the Samsung Health watch-face
-            //    complication 1:1 instead of summing every writer on the phone.
             try {
+                val startOfDay = ZonedDateTime.now().truncatedTo(ChronoUnit.DAYS).toInstant()
+                val endOfDay = Instant.now()
+                val range = TimeRangeFilter.between(startOfDay, endOfDay)
+                val samsungOrigin = setOf(DataOrigin(SAMSUNG_HEALTH_PACKAGE))
+
+                // 1) Prefer Samsung Health's own records -> matches the Samsung
+                //    Health app exactly.
                 samsungSteps = client.aggregate(
                     AggregateRequest(
                         metrics = setOf(StepsRecord.COUNT_TOTAL),
-                        timeRangeFilter = TimeRangeFilter.between(startOfDay, endOfDay),
-                        dataOriginFilter = setOf(DataOrigin(SAMSUNG_HEALTH_PACKAGE))
+                        timeRangeFilter = range,
+                        dataOriginFilter = samsungOrigin
                     )
                 )[StepsRecord.COUNT_TOTAL] ?: 0L
-                val samsungCals = client.aggregate(
-                    AggregateRequest(
-                        metrics = setOf(TotalCaloriesBurnedRecord.ENERGY_TOTAL),
-                        timeRangeFilter = TimeRangeFilter.between(startOfDay, endOfDay),
-                        dataOriginFilter = setOf(DataOrigin(SAMSUNG_HEALTH_PACKAGE))
-                    )
-                )[TotalCaloriesBurnedRecord.ENERGY_TOTAL]?.inKilocalories ?: 0.0
-                path = "samsung_ok"
-                steps = samsungSteps
-                calories = samsungCals
-            } catch (e: Exception) {
-                path = "samsung_fail:${e.javaClass.simpleName}"
-                Timber.tag(LOG_TAG).w(e, "Samsung-origin read failed")
-            }
 
-            // 2) Fallback: all writers, for when Samsung Health shares nothing.
-            if (steps == 0L) {
-                try {
+                steps = if (samsungSteps > 0) {
+                    stepsSource = "samsung"
+                    samsungSteps
+                } else {
+                    // 2) Fallback: whatever Health Connect has (Samsung sharing
+                    //    is off, or this is not a Samsung phone).
                     allSteps = client.aggregate(
                         AggregateRequest(
                             metrics = setOf(StepsRecord.COUNT_TOTAL),
-                            timeRangeFilter = TimeRangeFilter.between(startOfDay, endOfDay)
+                            timeRangeFilter = range
                         )
                     )[StepsRecord.COUNT_TOTAL] ?: 0L
-                    val allCals = client.aggregate(
-                        AggregateRequest(
-                            metrics = setOf(TotalCaloriesBurnedRecord.ENERGY_TOTAL),
-                            timeRangeFilter = TimeRangeFilter.between(startOfDay, endOfDay)
-                        )
-                    )[TotalCaloriesBurnedRecord.ENERGY_TOTAL]?.inKilocalories ?: 0.0
-                    path += "+fallback_ok"
-                    steps = allSteps
-                    calories = allCals
-                } catch (e: Exception) {
-                    path += "+fallback_fail:${e.javaClass.simpleName}"
-                    Timber.tag(LOG_TAG).w(e, "Fallback aggregate failed")
+                    stepsSource = if (allSteps > 0) "health-connect" else "none"
+                    allSteps
                 }
+
+                // Same origin policy for calories so the two stay consistent.
+                val calsOrigin = if (stepsSource == "samsung") samsungOrigin else emptySet()
+                calories = client.aggregate(
+                    AggregateRequest(
+                        metrics = setOf(TotalCaloriesBurnedRecord.ENERGY_TOTAL),
+                        timeRangeFilter = range,
+                        dataOriginFilter = calsOrigin
+                    )
+                )[TotalCaloriesBurnedRecord.ENERGY_TOTAL]?.inKilocalories ?: 0.0
+            } catch (e: Exception) {
+                readError = "${e.javaClass.simpleName}: ${e.message}"
+                Timber.w(e, "Health Connect aggregate failed")
             }
         } else {
-            Timber.tag(LOG_TAG).w("Health Connect client null, skipping read")
+            readError = "HealthConnectClient null (SDK unavailable?)"
         }
 
-        // GPS Fetch — only wins when Health Connect has zero steps
-        // (broken-sensor fallback). Never overrides real Health Connect data,
-        // otherwise the app and the Samsung-based watch face drift apart.
+        // GPS fallback: only for phones whose sensors feed nothing into Health
+        // Connect at all (broken sensor case). A real Health Connect number
+        // always wins over the GPS estimate.
         val gpsPrefs = context.getSharedPreferences("gps_tracking_prefs", Context.MODE_PRIVATE)
         val gpsSteps = gpsPrefs.getInt("steps", 0).toLong()
         val gpsCals = gpsPrefs.getFloat("calories", 0f).toDouble()
 
-        val finalSteps = if (steps == 0L && gpsSteps > 0) gpsSteps else steps
-        val finalCals = if (calories == 0.0 && gpsCals > 0) gpsCals else calories
-        if (finalSteps != steps) path += "+gps_won"
+        val finalSteps = if (steps > 0) steps else gpsSteps
+        val finalCals = if (calories > 0) calories else gpsCals
+        val path = when {
+            steps > 0 -> stepsSource
+            gpsSteps > 0 -> "gps_won"
+            else -> "all_zero"
+        }
 
-        lastDiagnostics = "perm=$permOk | samsung=$samsungSteps | all=$allSteps | gps=$gpsSteps | final=$finalSteps | path=$path"
-        Timber.tag(LOG_TAG).d(lastDiagnostics)
+        lastDiagString =
+            "perm=$permCheck | samsung=$samsungSteps | all=$allSteps | gps=$gpsSteps | " +
+            "final=$finalSteps | path=$path | err=$readError"
+        Timber.tag("VitalWear/Steps").d(lastDiagString)
+        Timber.d("Combined Stats: source=$stepsSource HealthSteps=$steps, GpsSteps=$gpsSteps, FinalSteps=$finalSteps")
 
-        return Pair(finalSteps, finalCals.toInt())
+        return Pair(Pair(finalSteps, finalCals.toInt()), lastDiagString)
     }
 
     suspend fun sendWorkoutSession(routineName: String, caloriesBurned: Int) {
         try {
             val nodes = Wearable.getNodeClient(context).connectedNodes.await()
             val messageClient = Wearable.getMessageClient(context)
-
+            
             val payload = ByteArrayOutputStream().use { bos ->
                 val dos = DataOutputStream(bos)
                 dos.writeUTF(routineName)
@@ -297,7 +288,7 @@ class PhoneHealthSyncManager(private val context: Context) {
                 dos.flush()
                 bos.toByteArray()
             }
-
+            
             for (node in nodes) {
                 messageClient.sendMessage(node.id, "/WORKOUT_SESSION", payload).await()
             }
@@ -311,7 +302,7 @@ class PhoneHealthSyncManager(private val context: Context) {
         try {
             val nodes = Wearable.getNodeClient(context).connectedNodes.await()
             val messageClient = Wearable.getMessageClient(context)
-
+            
             val payload = ByteArrayOutputStream().use { bos ->
                 val dos = DataOutputStream(bos)
                 dos.writeLong(steps)
@@ -327,7 +318,7 @@ class PhoneHealthSyncManager(private val context: Context) {
                 Timber.w("No connected Wear OS nodes found for health sync")
                 return
             }
-
+            
             for (node in nodes) {
                 messageClient.sendMessage(node.id, "/HEALTH_SYNC", payload).await()
             }

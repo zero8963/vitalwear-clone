@@ -6,11 +6,30 @@ import com.example.vitalwearclonev1.card.CardManager
 import com.example.vitalwearclonev1.card.DimCardAdapter
 import com.example.vitalwearclonev1.card.DigimonBaseStats
 import timber.log.Timber
+import com.github.cfogrady.vb.dim.card.BemCard
+import com.github.cfogrady.vb.dim.card.Card
 import com.github.cfogrady.vb.dim.sprite.SpriteData
 
 class MonsterManager(private val context: Context) {
 
     private val prefs: SharedPreferences = context.getSharedPreferences("monster_prefs", Context.MODE_PRIVATE)
+
+    // One-shot guard for the base-stat migration in getMonster (per process).
+    private var baseStatsMigrationDone = false
+
+    companion object {
+        /** DIM stats are uint16 (up to 65535). Dividing by 100 maps them onto
+         *  the app's battle balance (the old flat-500-HP scale) so training
+         *  bonuses stay the main progression and the card's species differences
+         *  survive proportionally. */
+        // Two card families, two scales: BEMs store stats in the thousands,
+        // classic DIMs in single digits. Each is normalized into the same
+        // battle range so training stays dominant on both.
+        private const val BEM_STAT_SCALE = 100
+        private const val DIM_STAT_SCALE = 2
+        /** Bump when seeding/normalization changes; triggers a re-seed. */
+        private const val BASE_STATS_VERSION = 3
+    }
 
     data class MonsterState(
         val cardName: String,
@@ -50,7 +69,9 @@ class MonsterManager(private val context: Context) {
         val consecutiveBattles: Int = 0,
         val lastActiveDay: Long = 0,
         val lastCareTick: Long = 0,
-        val lastSyncedSteps: Int = 0
+        val lastSyncedSteps: Int = 0,
+        val consecutiveLosses: Int = 0,
+        val criticalRemainingMs: Long = 0L
     )
 
     fun getCurrentMonster(): MonsterState? = getMonster("current_")
@@ -100,6 +121,13 @@ class MonsterManager(private val context: Context) {
         val cardName = prefs.getString(prefix + "card", null) ?: return null
         val characterId = prefs.getInt(prefix + "character_id", -1)
         if (characterId == -1) return null
+        // Base-stat migration (2026-09-23): v0 = pre-DIM-stats save
+        // (500/0 defaults); v1 = raw card values (up to 65535, ~16k damage).
+        // v2 normalizes. Active monster only, never the frozen stored one.
+        if (prefix == "current_" && !baseStatsMigrationDone) {
+            baseStatsMigrationDone = true
+            migrateBaseStats(cardName, characterId)
+        }
         return MonsterState(
             cardName,
             characterId,
@@ -138,7 +166,9 @@ class MonsterManager(private val context: Context) {
             prefs.getInt(prefix + "care_consecutive_battles", 0),
             prefs.getLong(prefix + "last_active_day", 0L),
             prefs.getLong(prefix + "last_care_tick", 0L),
-            prefs.getInt(prefix + "last_synced_steps", 0)
+            prefs.getInt(prefix + "last_synced_steps", 0),
+            prefs.getInt(prefix + "consecutive_losses", 0),
+            prefs.getLong(prefix + "critical_remaining_ms", 0L)
         )
     }
 
@@ -182,6 +212,8 @@ class MonsterManager(private val context: Context) {
             .putLong(prefix + "last_active_day", state.lastActiveDay)
             .putLong(prefix + "last_care_tick", state.lastCareTick)
             .putInt(prefix + "last_synced_steps", state.lastSyncedSteps)
+            .putInt(prefix + "consecutive_losses", state.consecutiveLosses)
+            .putLong(prefix + "critical_remaining_ms", state.criticalRemainingMs)
             .apply()
     }
 
@@ -224,6 +256,8 @@ class MonsterManager(private val context: Context) {
             .remove(prefix + "last_active_day")
             .remove(prefix + "last_care_tick")
             .remove(prefix + "last_synced_steps")
+            .remove(prefix + "consecutive_losses")
+            .remove(prefix + "critical_remaining_ms")
             .remove(prefix + "last_neglect_penalty")
             .remove(prefix + "evolution_paused")
             .remove(prefix + "adv_level")
@@ -268,6 +302,7 @@ class MonsterManager(private val context: Context) {
             .putInt("current_speed_bonus", spd)
             .putInt("current_defense_bonus", def)
             .putBoolean("current_evolution_paused", false)
+            .putBoolean("current_is_expired", false)
             .putInt("current_adv_level", 0)
             .putInt("current_adv_steps", 0)
             .putBoolean("current_adv_mode", false)
@@ -385,7 +420,7 @@ class MonsterManager(private val context: Context) {
      */
     fun recordBattleResult(won: Boolean): Boolean {
         val current = getCurrentMonster() ?: return false
-        val careTick = CareManager.recordBattle(toCareState(current))
+        val careTick = CareManager.recordBattle(toCareState(current), won)
         persistCare("current_", careTick.state)
 
         val newWins = current.currentWins + if (won) 1 else 0
@@ -403,8 +438,13 @@ class MonsterManager(private val context: Context) {
 
         for (warning in careTick.warnings) Timber.w(warning)
         if (careTick.died) {
-            Timber.w("Digimon died (overwork) — clearing active monster")
+            val cause = if (!won && current.criticalRemainingMs > 0) "critical" else "overwork"
+            Timber.w("Digimon died ($cause) — clearing active monster")
             clearSlot("current_")
+            prefs.edit()
+                .putBoolean("current_is_expired", true)
+                .putString("current_death_cause", cause)
+                .apply()
             return true
         }
         return false
@@ -426,6 +466,24 @@ class MonsterManager(private val context: Context) {
             .putInt("current_trophies", current.trophies + 1)
             .putInt("current_stage_trophies", current.stageTrophies + 1)
             .apply()
+    }
+
+    /** Why the active monster died: "neglect", "overwork", or "critical". */
+    fun getDeathCause(): String = prefs.getString("current_death_cause", "neglect") ?: "neglect"
+
+    /**
+     * A completed exercise shaves 15 minutes off the critical healing timer
+     * (two exercises heal it fully). No-op when not critical. Only ever
+     * touches the ACTIVE slot — a stored partner's timer stays frozen.
+     * @return true if this exercise healed the Digimon out of critical.
+     */
+    fun recordExerciseCompleted(): Boolean {
+        val current = getCurrentMonster() ?: return false
+        if (current.criticalRemainingMs <= 0) return false
+        val care = CareManager.recordExercise(toCareState(current))
+        persistCare("current_", care)
+        Timber.d("Exercise completed during critical: ${CareManager.formatCriticalMs(care.criticalRemainingMs)} left")
+        return care.criticalRemainingMs <= 0
     }
 
     /**
@@ -502,6 +560,7 @@ class MonsterManager(private val context: Context) {
         if (tick.died) {
             Timber.w("Digimon died (neglect) — clearing active monster")
             clearSlot("current_")
+            prefs.edit().putBoolean("current_is_expired", true).apply()
             return true
         }
         return false
@@ -569,16 +628,37 @@ class MonsterManager(private val context: Context) {
      * Reads the DIM-baked base stats for [characterId] on [cardName] and stores
      * them on the monster so battles use the card's real HP/AP.
      */
+    /**
+     * Re-seeds stored base stats when the seeding scheme changes. Safe to run
+     * often: no-ops once the stored version is current, and only marks the
+     * version when the card actually loaded.
+     */
+    private fun migrateBaseStats(cardName: String, characterId: Int) {
+        if (characterId == -1) return
+        if (prefs.getInt("current_base_stats_version", 0) >= BASE_STATS_VERSION) return
+        if (applyCardBaseStats(cardName, characterId) != null) {
+            prefs.edit().putInt("current_base_stats_version", BASE_STATS_VERSION).apply()
+            Timber.d("Base stats migrated to v$BASE_STATS_VERSION for $cardName#$characterId")
+        }
+    }
+
+    private fun normalizeBaseStat(raw: Int, isBem: Boolean): Int {
+        return if (isBem) raw / BEM_STAT_SCALE else raw * DIM_STAT_SCALE
+    }
+
     fun applyCardBaseStats(cardName: String, characterId: Int): DigimonBaseStats? {
         return try {
             val card = CardManager(context).getCard(cardName) ?: return null
             val stats = DimCardAdapter.getBaseStats(card, characterId) ?: return null
+            val isBem = card is BemCard
+            val normHp = normalizeBaseStat(stats.hp, isBem)
+            val normAp = normalizeBaseStat(stats.ap, isBem)
             prefs.edit()
-                .putInt("current_base_hp", stats.hp)
-                .putInt("current_base_ap", stats.ap)
+                .putInt("current_base_hp", normHp)
+                .putInt("current_base_ap", normAp)
                 .putInt("current_attribute", stats.attribute)
                 .apply()
-            Timber.d("Applied DIM base stats $cardName#$characterId: HP=${stats.hp} AP=${stats.ap}")
+            Timber.d("Applied DIM base stats $cardName#$characterId: HP=$normHp AP=$normAp")
             stats
         } catch (t: Throwable) {
             Timber.e(t, "applyCardBaseStats failed")
@@ -586,12 +666,55 @@ class MonsterManager(private val context: Context) {
         }
     }
 
+    /**
+     * The DIM card programs two attacks per character: the small (regular)
+     * attack and the big (critical) attack. These IDs select the attack's
+     * appearance from the Bracelet's effect library -- so a modded DIM picks
+     * its Digimon's attack visuals by setting these IDs.
+     * Returns (smallAttackId, bigAttackId).
+     */
+    fun getAttackIds(card: Card<*, *, *, *, *, *>, characterId: Int): Pair<Int, Int>? {
+        return try {
+            val stats = DimCardAdapter.getBaseStats(card, characterId) ?: return null
+            Pair(stats.smallAttackId, stats.bigAttackId)
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    /** Name-based convenience: loads the card first, then delegates. */
+    fun getAttackIds(cardName: String, characterId: Int): Pair<Int, Int>? {
+        val card = CardManager(context).getCard(cardName) ?: return null
+        return getAttackIds(card, characterId)
+    }
+
+    /**
+     * Critical-hit chance from the card's programmed big-attack pool chance.
+     * The DIM stores each attack's selection odds; the big attack lands as a
+     * crit. Clamped to a sane band; 15% when the card has no data.
+     */
+    fun getCritChance(card: Card<*, *, *, *, *, *>, characterId: Int): Float {
+        return try {
+            val stats = DimCardAdapter.getBaseStats(card, characterId) ?: return 0.15f
+            if (stats.secondPoolBattleChance <= 0) return 0.15f
+            (stats.secondPoolBattleChance / 100f).coerceIn(0.05f, 0.35f)
+        } catch (e: Exception) { 0.15f }
+    }
+
+    /** Name-based convenience: loads the card first, then delegates. */
+    fun getCritChance(cardName: String, characterId: Int): Float {
+        val card = CardManager(context).getCard(cardName) ?: return 0.15f
+        return getCritChance(card, characterId)
+    }
+
     private fun toCareState(current: MonsterState): CareState = CareState(
         maxLifespanHours = current.maxLifespanHours,
         lifespanHoursRemaining = current.lifespanHoursRemaining,
         careMistakes = current.careMistakes,
         consecutiveBattles = current.consecutiveBattles,
-        lastActiveDay = current.lastActiveDay
+        lastActiveDay = current.lastActiveDay,
+        consecutiveLosses = current.consecutiveLosses,
+        criticalRemainingMs = current.criticalRemainingMs
     )
 
     private fun persistCare(prefix: String, state: CareState) {
@@ -601,6 +724,8 @@ class MonsterManager(private val context: Context) {
             .putInt(prefix + "care_mistakes", state.careMistakes)
             .putInt(prefix + "care_consecutive_battles", state.consecutiveBattles)
             .putLong(prefix + "last_active_day", state.lastActiveDay)
+            .putInt(prefix + "consecutive_losses", state.consecutiveLosses)
+            .putLong(prefix + "critical_remaining_ms", state.criticalRemainingMs)
             .apply()
     }
 
@@ -640,6 +765,7 @@ class MonsterManager(private val context: Context) {
             .putInt("current_sp", sp)
             .putInt("current_win_ratio", winRatio)
             .putInt("current_trophies", trophies)
+            .putBoolean("current_is_expired", false)
             .putLong("current_time_alive", 0) 
             .apply()
 
@@ -661,8 +787,29 @@ class MonsterManager(private val context: Context) {
         applyCardBaseStats(cardName, characterId)
     }
 
+    fun isExpired(): Boolean {
+        return prefs.getBoolean("current_is_expired", false)
+    }
+
     fun devJump(forward: Boolean) {
         val current = getCurrentMonster() ?: return
+        if (forward) {
+            val candidates = getEvolutionCandidates()
+            val pick = if (candidates.isNotEmpty()) {
+                val available = candidates.filter { it.requirementsMet }
+                if (available.isNotEmpty()) {
+                    available.maxByOrNull { it.path.requiredTrophies * 1000 + it.path.requiredVitalValues }!!
+                } else {
+                    candidates.maxByOrNull { c -> c.progress.count { it.met } } ?: candidates.first()
+                }
+            } else null
+            
+            if (pick != null) {
+                evolveTo(pick.path.toIndex, pick.path.hoursUntilEvolution)
+                return
+            }
+        }
+        
         var nextId = if (forward) current.characterId + 1 else current.characterId - 1
         if (nextId < 0) nextId = 0
         

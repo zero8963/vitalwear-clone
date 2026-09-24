@@ -48,6 +48,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
@@ -94,6 +95,9 @@ import java.util.Locale
 
 import android.content.ServiceConnection
 import android.os.IBinder
+import androidx.compose.ui.text.style.TextAlign
+import com.example.vitalwearclonev1.monster.CareManager
+import com.example.vitalwearclonev1.monster.CareTuning
 import androidx.wear.ambient.AmbientModeSupport
 import com.example.vitalwearclonev1.sensor.VitalForegroundService
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -105,6 +109,7 @@ class MainActivity : FragmentActivity(), AmbientModeSupport.AmbientCallbackProvi
     private var vitalService: VitalForegroundService? = null
     private val _serviceBound = mutableStateOf(false)
     private val _isAmbient = mutableStateOf(false)
+    private val _burnInProtection = mutableStateOf(false)
 
     private val serviceConnection = object : ServiceConnection {
         override fun onServiceConnected(name: android.content.ComponentName?, service: IBinder?) {
@@ -151,7 +156,7 @@ class MainActivity : FragmentActivity(), AmbientModeSupport.AmbientCallbackProvi
         }
 
         setContent {
-            VitalWearApp(vitalService, _serviceBound.value, _isAmbient.value)
+            VitalWearApp(vitalService, _serviceBound.value, _isAmbient.value, _burnInProtection.value)
         }
     }
 
@@ -173,6 +178,7 @@ class MainActivity : FragmentActivity(), AmbientModeSupport.AmbientCallbackProvi
     override fun getAmbientCallback(): AmbientModeSupport.AmbientCallback = object : AmbientModeSupport.AmbientCallback() {
         override fun onEnterAmbient(ambientDetails: Bundle?) {
             super.onEnterAmbient(ambientDetails)
+            _burnInProtection.value = ambientDetails?.getBoolean(AmbientModeSupport.EXTRA_BURN_IN_PROTECTION, false) ?: false
             _isAmbient.value = true
         }
         override fun onExitAmbient() {
@@ -200,7 +206,7 @@ class MainActivity : FragmentActivity(), AmbientModeSupport.AmbientCallbackProvi
 }
 
 @Composable
-fun VitalWearApp(service: VitalForegroundService?, isBound: Boolean, isAmbient: Boolean) {
+fun VitalWearApp(service: VitalForegroundService?, isBound: Boolean, isAmbient: Boolean, burnInProtection: Boolean) {
     val context = androidx.compose.ui.platform.LocalContext.current
     val monsterManager = remember { MonsterManager(context) }
     val cardManager = remember { CardManager(context) }
@@ -213,6 +219,7 @@ fun VitalWearApp(service: VitalForegroundService?, isBound: Boolean, isAmbient: 
     val scope = rememberCoroutineScope()
     
     val monsterState = remember { mutableStateOf(monsterManager.getCurrentMonster()) }
+    val isExpiredState = remember { mutableStateOf(monsterManager.isExpired()) }
     val backgroundSprite = remember { mutableStateOf<Bitmap?>(null) }
     val idleSprites = remember { mutableStateOf<List<Bitmap>>(emptyList()) }
     val currentFrame = remember { mutableIntStateOf(0) }
@@ -241,8 +248,6 @@ fun VitalWearApp(service: VitalForegroundService?, isBound: Boolean, isAmbient: 
 
     val isCardMissing = remember { mutableStateOf(false) }
 
-    // Sprite helpers for the evolution sequence (kept as locals so both the
-    // connection loop and the dev-jump hook can use them).
     // Loads the idle frames for a character id off the main thread.
     suspend fun loadWearFrames(cardName: String, characterId: Int): List<Bitmap> =
         withContext(Dispatchers.IO) {
@@ -284,8 +289,8 @@ fun VitalWearApp(service: VitalForegroundService?, isBound: Boolean, isAmbient: 
         }
     }
 
-    // Connection Polling Loop
-    LaunchedEffect(Unit) {
+    // Connection Polling Loop (slowed in ambient to save battery)
+    LaunchedEffect(isAmbient) {
         while(true) {
             try {
                 val nodes = Wearable.getNodeClient(context).connectedNodes.await()
@@ -293,7 +298,7 @@ fun VitalWearApp(service: VitalForegroundService?, isBound: Boolean, isAmbient: 
             } catch (e: Exception) {
                 isPhoneConnected.value = false
             }
-            delay(10000)
+            delay(if (isAmbient) 60000 else 10000)
         }
     }
 
@@ -305,8 +310,10 @@ fun VitalWearApp(service: VitalForegroundService?, isBound: Boolean, isAmbient: 
     // Refresh UI state periodically to reflect background updates from Service.
     // Also detects evolutions (the service evolves in the background) and plays
     // the classic black + white-light digivolution sequence for them.
-    LaunchedEffect(Unit) {
+    // Slowed to once a minute in ambient mode to save battery.
+    LaunchedEffect(isAmbient) {
         while (true) {
+            isExpiredState.value = monsterManager.isExpired()
             val fresh = monsterManager.getCurrentMonster()
             if (fresh != null) {
                 val lastSeenKey = "last_char_" + fresh.cardName
@@ -338,13 +345,13 @@ fun VitalWearApp(service: VitalForegroundService?, isBound: Boolean, isAmbient: 
                     }
                 }
             }
-            delay(5000)
+            delay(if (isAmbient) 60000 else 5000)
         }
     }
 
-    // Animation Loop
-    LaunchedEffect(idleSprites.value) {
-        if (idleSprites.value.size > 1) {
+    // Animation Loop (paused in ambient: the ambient screen shows a static frame)
+    LaunchedEffect(idleSprites.value, isAmbient) {
+        if (!isAmbient && idleSprites.value.size > 1) {
             while (true) {
                 currentFrame.intValue = (currentFrame.intValue + 1) % idleSprites.value.size
                 delay(500)
@@ -464,106 +471,149 @@ fun VitalWearApp(service: VitalForegroundService?, isBound: Boolean, isAmbient: 
         }
     }
 
-
     MaterialTheme {
         Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
-            when (currentScreen.value) {
-                "GAME" -> {
-                    val pagerState = rememberPagerState(pageCount = { 2 })
-                    Scaffold(
-                        vignette = { Vignette(vignettePosition = VignettePosition.TopAndBottom) }
-                    ) {
-                        HorizontalPager(state = pagerState) { page ->
-                            when (page) {
-                                0 -> MonsterScreen(
-                                    backgroundSprite.value,
-                                    if (idleSprites.value.isNotEmpty()) idleSprites.value[currentFrame.intValue % idleSprites.value.size] else null,
-                                    currentTime.value,
-                                    totalSteps,
-                                    totalCalories,
-                                    monsterState.value?.cardName ?: "",
-                                    isCardMissing.value,
-                                    monsterState.value == null,
-                                    isAmbient
-                                )
-                                1 -> MenuScreen(
-                                isPhoneConnected.value,
-                                monsterState.value,
-                                monsterManager,
-                                onNavigate = { screen, exercise ->
-                                    currentScreen.value = screen
-                                    selectedExercise.value = exercise
-                                    if (screen == "GAME") {
-                                        monsterState.value = monsterManager.getCurrentMonster()
-                                    }
-                                },
-                                onDevJump = { forward ->
-                                    val before = monsterManager.getCurrentMonster()
-                                    if (before != null) {
-                                        // devJump moves exactly one step (clamped at 0): pre-seed
-                                        // the detector so it doesn't replay this jump later.
-                                        val newId = (if (forward) before.characterId + 1 else before.characterId - 1).coerceAtLeast(0)
-                                        evoPrefs.edit().putInt("last_char_" + before.cardName, newId).apply()
-                                        monsterManager.devJump(forward)
-                                        val after = monsterManager.getCurrentMonster()
-                                        monsterState.value = after
-                                        if (after != null && after.characterId != before.characterId) {
-                                            scope.launch {
-                                                playEvolutionSequence(before.characterId, after.characterId, before.cardName)
-                                            }
+            if (isExpiredState.value) {
+                Box(modifier = Modifier.fillMaxSize().background(Color.Black), contentAlignment = Alignment.Center) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(16.dp)) {
+                        Text("Your Digimon has expired", color = Color.Red, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                        Spacer(Modifier.height(6.dp))
+                        val deathText = when (monsterManager.getDeathCause()) {
+                            "critical" -> "It lost its final battle while in critical condition."
+                            "overwork" -> "It was overworked in battle."
+                            else -> "It passed away due to lack of care."
+                        }
+                        Text(deathText, color = Color.White, fontSize = 10.sp, textAlign = TextAlign.Center)
+                        Spacer(Modifier.height(12.dp))
+                        Chip(
+                            label = { Text("Go to Lab", fontSize = 11.sp) },
+                            onClick = {
+                                isExpiredState.value = false
+                                currentScreen.value = "LAB"
+                            },
+                            colors = ChipDefaults.primaryChipColors(backgroundColor = Color(0, 80, 150)),
+                            modifier = Modifier.height(32.dp)
+                        )
+                    }
+                }
+            } else if (isAmbient) {
+                // Ambient mode: always show the dimmed glanceable view, never
+                // menus/battle/training — bright interactive screens burn
+                // OLED pixels and battery in ambient mode.
+                MonsterScreen(
+                    backgroundSprite.value,
+                    if (idleSprites.value.isNotEmpty()) idleSprites.value[currentFrame.intValue % idleSprites.value.size] else null,
+                    currentTime.value,
+                    totalSteps,
+                    totalCalories,
+                    monsterState.value?.cardName ?: "",
+                    isCardMissing.value,
+                    monsterState.value == null,
+                    isAmbient,
+                    monsterState.value,
+                    burnInProtection
+                )
+            } else {
+                when (currentScreen.value) {
+                    "GAME" -> {
+                        val pagerState = rememberPagerState(pageCount = { 2 })
+                        Scaffold(
+                            vignette = { Vignette(vignettePosition = VignettePosition.TopAndBottom) }
+                        ) {
+                            HorizontalPager(state = pagerState) { page ->
+                                when (page) {
+                                    0 -> MonsterScreen(
+                                        backgroundSprite.value,
+                                        if (idleSprites.value.isNotEmpty()) idleSprites.value[currentFrame.intValue % idleSprites.value.size] else null,
+                                        currentTime.value,
+                                        totalSteps,
+                                        totalCalories,
+                                        monsterState.value?.cardName ?: "",
+                                        isCardMissing.value,
+                                        monsterState.value == null,
+                                        isAmbient,
+                                        monsterState.value,
+                                        burnInProtection
+                                    )
+                                    1 -> MenuScreen(
+                                    isPhoneConnected.value,
+                                    monsterState.value,
+                                    monsterManager,
+                                    onNavigate = { screen, exercise ->
+                                        currentScreen.value = screen
+                                        selectedExercise.value = exercise
+                                        if (screen == "GAME") {
+                                            monsterState.value = monsterManager.getCurrentMonster()
                                         }
-                                        currentScreen.value = "GAME"
+                                    },
+                                    onDevJump = { forward ->
+                                        val before = monsterManager.getCurrentMonster()
+                                        if (before != null) {
+                                            // devJump moves exactly one step (clamped at 0): pre-seed
+                                            // the detector so it doesn't replay this jump later.
+                                            val newId = (if (forward) before.characterId + 1 else before.characterId - 1).coerceAtLeast(0)
+                                            evoPrefs.edit().putInt("last_char_" + before.cardName, newId).apply()
+                                            monsterManager.devJump(forward)
+                                            val after = monsterManager.getCurrentMonster()
+                                            monsterState.value = after
+                                            if (after != null && after.characterId != before.characterId) {
+                                                scope.launch {
+                                                    playEvolutionSequence(before.characterId, after.characterId, before.cardName)
+                                                }
+                                            }
+                                            currentScreen.value = "GAME"
+                                        }
                                     }
+                                )
                                 }
-                            )
                             }
                         }
                     }
-                }
-                "BATTLE" -> {
-                    val seed = activeOpponent.value?.seed ?: System.currentTimeMillis()
-                    BattleScreen(monsterState.value, activeOpponent.value, seed, cardManager, monsterManager) { result ->
-                        val won = result == "WIN!"
-                        monsterManager.recordBattleResult(won)
-                        if (won) {
-                            if (activeOpponent.value?.isBoss == true) {
-                                monsterManager.completeAdventureLevel()
+                    "BATTLE" -> {
+                        val seed = activeOpponent.value?.seed ?: System.currentTimeMillis()
+                        BattleScreen(monsterState.value, activeOpponent.value, seed, cardManager, monsterManager) { result ->
+                            val won = result == "WIN!"
+                            monsterManager.recordBattleResult(won)
+                            if (won) {
+                                if (activeOpponent.value?.isBoss == true) {
+                                    monsterManager.completeAdventureLevel()
+                                }
+                            } else if (activeOpponent.value?.isBoss == true) {
+                                monsterManager.resetAdventureSteps()
                             }
-                        } else if (activeOpponent.value?.isBoss == true) {
-                            monsterManager.resetAdventureSteps()
-                        }
-                        currentScreen.value = "GAME"
-                        monsterState.value = monsterManager.getCurrentMonster()
-                    }
-                }
-                "TRAINING" -> TrainingScreen(selectedExercise.value, service) { 
-                    currentScreen.value = "GAME"
-                    monsterState.value = monsterManager.getCurrentMonster()
-                }
-                "LAB" -> LabScreen(cardManager, monsterManager) { 
-                    currentScreen.value = "GAME"
-                    monsterState.value = monsterManager.getCurrentMonster()
-                }
-                "SYNC" -> SyncScreen(sensorManager, monsterManager) {
-                    currentScreen.value = "GAME"
-                    monsterState.value = monsterManager.getCurrentMonster()
-                }
-                "WORKOUTS" -> WorkoutListScreen(onBack = { currentScreen.value = "GAME" }) { ex ->
-                    selectedExercise.value = ex
-                    currentScreen.value = "TRAINING"
-                }
-                "STORAGE" -> StorageScreen(
-                    monsterManager,
-                    onNavigate = { screen, exercise ->
-                        currentScreen.value = screen
-                        selectedExercise.value = exercise
-                        if (screen == "GAME") {
+                            currentScreen.value = "GAME"
                             monsterState.value = monsterManager.getCurrentMonster()
                         }
                     }
-                ) {
-                    currentScreen.value = "GAME"
-                    monsterState.value = monsterManager.getCurrentMonster()
+                    "TRAINING" -> TrainingScreen(selectedExercise.value, service) { 
+                        currentScreen.value = "GAME"
+                        monsterState.value = monsterManager.getCurrentMonster()
+                    }
+                    "LAB" -> LabScreen(cardManager, monsterManager) { 
+                        currentScreen.value = "GAME"
+                        monsterState.value = monsterManager.getCurrentMonster()
+                    }
+                    "SYNC" -> SyncScreen(sensorManager, monsterManager) {
+                        currentScreen.value = "GAME"
+                        monsterState.value = monsterManager.getCurrentMonster()
+                    }
+                    "WORKOUTS" -> WorkoutListScreen(onBack = { currentScreen.value = "GAME" }) { ex ->
+                        selectedExercise.value = ex
+                        currentScreen.value = "TRAINING"
+                    }
+                    "STORAGE" -> StorageScreen(
+                        monsterManager,
+                        onNavigate = { screen, exercise ->
+                            currentScreen.value = screen
+                            selectedExercise.value = exercise
+                            if (screen == "GAME") {
+                                monsterState.value = monsterManager.getCurrentMonster()
+                            }
+                        }
+                    ) {
+                        currentScreen.value = "GAME"
+                        monsterState.value = monsterManager.getCurrentMonster()
+                    }
                 }
             }
 
@@ -620,8 +670,14 @@ fun SyncScreen(sensorManager: VitalSensorManager, monsterManager: MonsterManager
 }
 
 @Composable
-fun MonsterScreen(background: Bitmap?, monster: Bitmap?, time: String, steps: Int, calories: Int, cardName: String, isCardMissing: Boolean, isWaiting: Boolean, isAmbient: Boolean) {
-    Box(modifier = Modifier.fillMaxSize()) {
+fun MonsterScreen(background: Bitmap?, monster: Bitmap?, time: String, steps: Int, calories: Int, cardName: String, isCardMissing: Boolean, isWaiting: Boolean, isAmbient: Boolean, monsterState: MonsterManager.MonsterState?, burnInProtection: Boolean) {
+    // Burn-in protection: nudge static content a few pixels on a slow cycle so
+    // long ambient sessions don't etch the sprite/text into OLED screens.
+    // Recomputed whenever the once-per-minute ambient clock tick recomposes us.
+    val burnInCycle = if (isAmbient && burnInProtection) ((System.currentTimeMillis() / 600000L) % 4).toInt() else 0
+    val shiftX = when (burnInCycle) { 1 -> 4.dp; 3 -> (-4).dp; else -> 0.dp }
+    val shiftY = when (burnInCycle) { 2 -> 4.dp; 3 -> (-4).dp; else -> 0.dp }
+    Box(modifier = Modifier.fillMaxSize().offset(x = shiftX, y = shiftY)) {
         if (!isAmbient) {
             background?.let { Image(it.asImageBitmap(), "BG", Modifier.fillMaxSize(), contentScale = ContentScale.FillBounds) }
         }
@@ -633,11 +689,23 @@ fun MonsterScreen(background: Bitmap?, monster: Bitmap?, time: String, steps: In
                 Text("Please import card on phone", color = Color.Gray, fontSize = 10.sp)
             }
         } else {
-            if (isAmbient) {
-                // Simplistic static monster for ambient mode
-                monster?.let { Image(it.asImageBitmap(), "Monster", Modifier.align(Alignment.BottomCenter).padding(bottom = 24.dp).size(72.dp)) }
-            } else {
-                monster?.let { Image(it.asImageBitmap(), "Monster", Modifier.align(Alignment.BottomCenter).padding(bottom = 24.dp).size(72.dp)) }
+            // Static frame in ambient (the animation loop is paused there);
+            // slightly dimmed to cut OLED wear and battery use.
+            monster?.let {
+                Image(
+                    it.asImageBitmap(), "Monster",
+                    Modifier.align(Alignment.BottomCenter).padding(bottom = 24.dp).size(72.dp)
+                        .then(if (isAmbient) Modifier.alpha(0.85f) else Modifier)
+                )
+            }
+            // Poor-condition skull: at 3 straight losses, stays through critical.
+            if (monsterState != null && CareManager.showSkull(monsterState.consecutiveLosses, monsterState.criticalRemainingMs)) {
+                Text(
+                    // White in ambient: the ambient background is pure black,
+                    // so the normal black skull would be invisible.
+                    "☠", color = if (isAmbient) Color.White else Color.Black, fontSize = 20.sp,
+                    modifier = Modifier.align(Alignment.BottomCenter).offset(x = (-26).dp, y = (-64).dp)
+                )
             }
         }
 
@@ -645,6 +713,11 @@ fun MonsterScreen(background: Bitmap?, monster: Bitmap?, time: String, steps: In
             val stepsText = String.format(Locale.getDefault(), "%04d", steps)
             val calsText = String.format(Locale.getDefault(), "%04d", calories)
             Text(time, fontSize = 36.sp, fontWeight = FontWeight.ExtraBold, color = Color.White)
+            if (monsterState != null && monsterState.criticalRemainingMs > 0) {
+                Text("⚠ CRITICAL ${CareManager.formatCriticalMs(monsterState.criticalRemainingMs)}", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color.Red)
+            } else if (monsterState != null && monsterState.consecutiveLosses >= CareTuning.SKULL_WARNING_LOSSES) {
+                Text("${monsterState.consecutiveLosses} straight losses", fontSize = 11.sp, color = Color.Yellow)
+            }
             Text("© $stepsText", fontSize = 16.sp, color = Color.White)
             Text("Cals $calsText", fontSize = 16.sp, color = Color.White)
         }
@@ -929,13 +1002,32 @@ fun BattleScreen(state: MonsterManager.MonsterState?, opponent: BattleOpponent?,
 
     // Health States
     val myMaxHP = remember { ((state?.baseHp ?: 500) + (state?.healthBonus ?: 0)).toFloat() }
-    val enemyMaxHP = remember { ((opponent?.hp ?: 0) + 500).toFloat() }
+    val enemyMaxHP = remember { if (opponent != null) opponent.hp.toFloat() else 500f }
     var myCurrentHP by remember { mutableFloatStateOf(myMaxHP) }
     var enemyCurrentHP by remember { mutableFloatStateOf(enemyMaxHP) }
     
     var battleLog by remember { mutableStateOf("READY?") }
 
+    // VB-style attack cutscene: null = wide view, "me"/"enemy" = camera on attacker
+    val cutscene = remember { mutableStateOf<String?>(null) }
+    val myCrit = remember { mutableStateOf(false) }
+    val enemyCrit = remember { mutableStateOf(false) }
+    val impactFlash = remember { mutableStateOf(false) }
+    // DIM-programmed attack IDs: (small = regular, big = critical)
+    val myAttackIds = remember { mutableStateOf(Pair(0, 0)) }
+    val enemyAttackIds = remember { mutableStateOf(Pair(0, 0)) }
+    val effectProgress = remember { androidx.compose.animation.core.Animatable(0f) }
+
+    // Drives the attack effect animation while the cutscene is on screen
+    LaunchedEffect(cutscene.value) {
+        if (cutscene.value != null) {
+            effectProgress.snapTo(0f)
+            effectProgress.animateTo(1f, androidx.compose.animation.core.tween(650))
+        }
+    }
+
     LaunchedEffect(Unit) {
+        var enemyCritChance = 0.15f
         withContext(Dispatchers.IO) {
             try {
                 if (state != null) {
@@ -945,9 +1037,11 @@ fun BattleScreen(state: MonsterManager.MonsterState?, opponent: BattleOpponent?,
                         val sprites = it.spriteData.sprites
                         val myIdle1 = SpriteBitmapHandler.getBitmap(sprites[monsterManager.getIdleSpriteIndices(state.characterId, sprites.size, isBem)[0]])
                         val myIdle2 = SpriteBitmapHandler.getBitmap(sprites[monsterManager.getIdleSpriteIndices(state.characterId, sprites.size, isBem)[1]])
-                        val myAtk = SpriteBitmapHandler.getBitmap(sprites[monsterManager.getBattleSpriteIndex(state.characterId, sprites.size, isBem)])
+                        val myAtkIdxRaw = monsterManager.getBattleSpriteIndex(state.characterId, sprites.size, isBem)
+                        val myAtk = SpriteBitmapHandler.getBitmap(sprites[myAtkIdxRaw])
                         val myWin = SpriteBitmapHandler.getBitmap(sprites[monsterManager.getWinSpriteIndex(state.characterId, sprites.size, isBem)])
                         val myLose = SpriteBitmapHandler.getBitmap(sprites[monsterManager.getLoseSpriteIndex(state.characterId, sprites.size, isBem)])
+                        myAttackIds.value = monsterManager.getAttackIds(it, state.characterId) ?: Pair(0, 0)
                         mySprites.value = mapOf("IDLE1" to myIdle1, "IDLE2" to myIdle2, "ATK" to myAtk, "WIN" to myWin, "LOSE" to myLose)
 
                         val enCard = if (opponent != null) (cardManager.getCard(opponent.cardName) ?: cardManager.getCardById(opponent.dimId)) else null
@@ -965,16 +1059,42 @@ fun BattleScreen(state: MonsterManager.MonsterState?, opponent: BattleOpponent?,
 
                         val enIdle1 = SpriteBitmapHandler.getBitmap(enSprites[if (idleIndices[0] < enSprites.size) idleIndices[0] else 0])
                         val enIdle2 = SpriteBitmapHandler.getBitmap(enSprites[if (idleIndices.size > 1 && idleIndices[1] < enSprites.size) idleIndices[1] else 0])
-                        val enAtk = SpriteBitmapHandler.getBitmap(enSprites[monsterManager.getBattleSpriteIndex(finalEnemyId, enSprites.size, cardIsBem).let { if (it < enSprites.size) it else 0 }])
+                        val enAtkRawIdx = monsterManager.getBattleSpriteIndex(finalEnemyId, enSprites.size, cardIsBem).let { if (it < enSprites.size) it else 0 }
+                        val enAtk = SpriteBitmapHandler.getBitmap(enSprites[enAtkRawIdx])
                         val enWin = SpriteBitmapHandler.getBitmap(enSprites[monsterManager.getWinSpriteIndex(finalEnemyId, enSprites.size, cardIsBem).let { if (it < enSprites.size) it else 0 }])
                         val enLose = SpriteBitmapHandler.getBitmap(enSprites[monsterManager.getLoseSpriteIndex(finalEnemyId, enSprites.size, cardIsBem).let { if (it < enSprites.size) it else 0 }])
-                        
+                        enemyAttackIds.value = monsterManager.getAttackIds(enemyCard, finalEnemyId) ?: Pair(0, 0)
+                        enemyCritChance = monsterManager.getCritChance(enemyCard, finalEnemyId)
+
                         enemySprites.value = mapOf("IDLE1" to enIdle1, "IDLE2" to enIdle2, "ATK" to enAtk, "WIN" to enWin, "LOSE" to enLose)
                     }
                 }
             } catch (e: Exception) { }
         }
         
+        val myCritChance = monsterManager.getCritChance(state?.cardName ?: "", state?.characterId ?: 0)
+
+        // VB-style attack cutscene: camera jumps to the attacker, plays the
+        // DIM-programmed attack (small = regular, big = critical), impact
+        // flash lands with the damage, then the camera pulls back out.
+        suspend fun playAttackCutscene(
+            attackerIsMe: Boolean,
+            isCrit: Boolean,
+            applyDamage: () -> Unit,
+            logText: String
+        ) {
+            if (attackerIsMe) myCrit.value = isCrit else enemyCrit.value = isCrit
+            cutscene.value = if (attackerIsMe) "me" else "enemy"
+            delay(650)
+            applyDamage()
+            battleLog = logText
+            impactFlash.value = true
+            delay(280)
+            impactFlash.value = false
+            cutscene.value = null
+            delay(180)
+        }
+
         delay(1500)
 
         // Multi-round Battle Loop
@@ -992,44 +1112,77 @@ fun BattleScreen(state: MonsterManager.MonsterState?, opponent: BattleOpponent?,
             val enRoll = if (opponent?.isInitiator == true) r3 else r1
             val enDmgRoll = if (opponent?.isInitiator == true) r4 else r2
 
-            // Turn 1: Player Attacks
-            val myDodgeChance = ((opponent?.spd ?: 0) / 5000f).coerceIn(0.05f, 0.4f)
-            if (myRoll > myDodgeChance) {
-                val damage = ((state?.attackBonus ?: 0) / 4 + myDmgRoll).toFloat()
-                enemyCurrentHP = (enemyCurrentHP - damage).coerceAtLeast(0f)
-                battleLog = "HIT! -$damage"
-            } else {
-                battleLog = "DODGED!"
-            }
-            
-            launch {
-                isMyAttacking.value = true
-                myOffset.animateTo(40f, tween(200, easing = LinearEasing))
-                myOffset.animateTo(0f, tween(100))
-                isMyAttacking.value = false
-            }
-            delay(300)
-            
-            if (enemyCurrentHP <= 0) break
-            delay(800)
+            if (opponent?.isInitiator == true) {
+                // Local player attacks first
+                val myDodgeChance = ((opponent?.spd ?: 0) / 5000f).coerceIn(0.05f, 0.4f)
+                if (myRoll > myDodgeChance) {
+                    val isCrit = battleRandom.nextFloat() < myCritChance
+                    val rawDmg = (((state?.baseAp ?: 0) + (state?.attackBonus ?: 0)) / 4 + myDmgRoll).toFloat()
+                    val damage = if (isCrit) rawDmg * 1.5f else rawDmg
+                    playAttackCutscene(
+                        attackerIsMe = true, isCrit = isCrit,
+                        applyDamage = { enemyCurrentHP = (enemyCurrentHP - damage).coerceAtLeast(0f) },
+                        logText = (if (isCrit) "CRITICAL! " else "") + "HIT! -$damage"
+                    )
+                } else {
+                    battleLog = "DODGED!"
+                    delay(500)
+                }
+                
+                if (enemyCurrentHP <= 0) break
+                delay(800)
 
-            // Turn 2: Enemy Attacks
-            val enDodgeChance = ((state?.speedBonus ?: 0) / 5000f).coerceIn(0.05f, 0.4f)
-            if (enRoll > enDodgeChance) {
-                val damage = ((opponent?.atk ?: 0) / 4 + enDmgRoll).toFloat()
-                myCurrentHP = (myCurrentHP - damage).coerceAtLeast(0f)
-                battleLog = "ENEMY HIT!"
+                // Enemy attacks second
+                val enDodgeChance = ((state?.speedBonus ?: 0) / 5000f).coerceIn(0.05f, 0.4f)
+                if (enRoll > enDodgeChance) {
+                    val isCrit = battleRandom.nextFloat() < enemyCritChance
+                    val rawDmg = ((opponent?.atk ?: 0) / 4 + enDmgRoll).toFloat()
+                    val damage = if (isCrit) rawDmg * 1.5f else rawDmg
+                    playAttackCutscene(
+                        attackerIsMe = false, isCrit = isCrit,
+                        applyDamage = { myCurrentHP = (myCurrentHP - damage).coerceAtLeast(0f) },
+                        logText = (if (isCrit) "CRITICAL! " else "") + "ENEMY HIT! -$damage"
+                    )
+                } else {
+                    battleLog = "YOU DODGED!"
+                    delay(500)
+                }
             } else {
-                battleLog = "YOU DODGED!"
-            }
+                // Enemy attacks first
+                val enDodgeChance = ((state?.speedBonus ?: 0) / 5000f).coerceIn(0.05f, 0.4f)
+                if (enRoll > enDodgeChance) {
+                    val isCrit = battleRandom.nextFloat() < enemyCritChance
+                    val rawDmg = ((opponent?.atk ?: 0) / 4 + enDmgRoll).toFloat()
+                    val damage = if (isCrit) rawDmg * 1.5f else rawDmg
+                    playAttackCutscene(
+                        attackerIsMe = false, isCrit = isCrit,
+                        applyDamage = { myCurrentHP = (myCurrentHP - damage).coerceAtLeast(0f) },
+                        logText = (if (isCrit) "CRITICAL! " else "") + "ENEMY HIT! -$damage"
+                    )
+                } else {
+                    battleLog = "YOU DODGED!"
+                    delay(500)
+                }
+                
+                if (myCurrentHP <= 0) break
+                delay(800)
 
-            launch {
-                isEnemyAttacking.value = true
-                enemyOffset.animateTo(-40f, tween(200, easing = LinearEasing))
-                enemyOffset.animateTo(0f, tween(100))
-                isEnemyAttacking.value = false
+                // Local player attacks second
+                val myDodgeChance = ((opponent?.spd ?: 0) / 5000f).coerceIn(0.05f, 0.4f)
+                if (myRoll > myDodgeChance) {
+                    val isCrit = battleRandom.nextFloat() < myCritChance
+                    val rawDmg = (((state?.baseAp ?: 0) + (state?.attackBonus ?: 0)) / 4 + myDmgRoll).toFloat()
+                    val damage = if (isCrit) rawDmg * 1.5f else rawDmg
+                    playAttackCutscene(
+                        attackerIsMe = true, isCrit = isCrit,
+                        applyDamage = { enemyCurrentHP = (enemyCurrentHP - damage).coerceAtLeast(0f) },
+                        logText = (if (isCrit) "CRITICAL! " else "") + "HIT! -$damage"
+                    )
+                } else {
+                    battleLog = "DODGED!"
+                    delay(500)
+                }
             }
-            delay(300)
             
             round++
             delay(1000)
@@ -1053,7 +1206,7 @@ fun BattleScreen(state: MonsterManager.MonsterState?, opponent: BattleOpponent?,
 
     LaunchedEffect(Unit) {
         while(true) {
-            attackFrame.intValue = (attackFrame.intValue + 1) % 2
+            attackFrame.intValue = (attackFrame.intValue + 1) % 3
             delay(100)
         }
     }
@@ -1061,7 +1214,17 @@ fun BattleScreen(state: MonsterManager.MonsterState?, opponent: BattleOpponent?,
     Box(Modifier.fillMaxSize().background(Color(0xFF220000)), contentAlignment = Alignment.Center) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text(battleLog, fontSize = 18.sp, color = Color.Yellow, fontWeight = FontWeight.ExtraBold)
-            
+
+            if ((state?.criticalRemainingMs ?: 0L) > 0L && battlePhase.value != BattlePhase.RESULT) {
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    "⚠ CRITICAL: a loss here will kill your Digimon!",
+                    color = Color.Red, fontSize = 10.sp, fontWeight = FontWeight.Bold,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.padding(horizontal = 12.dp)
+                )
+            }
+
             Spacer(Modifier.height(10.dp))
             
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center, modifier = Modifier.fillMaxWidth()) {
@@ -1092,6 +1255,47 @@ fun BattleScreen(state: MonsterManager.MonsterState?, opponent: BattleOpponent?,
                 }
             }
             Text(enemyName.value, color = Color.Cyan, fontSize = 10.sp)
+        }
+
+        // ---- VB-style attack cutscene: full-screen camera on the attacker ----
+        cutscene.value?.let { side ->
+            val attackerIsMe = side == "me"
+            val sprites = if (attackerIsMe) mySprites.value else enemySprites.value
+            val isCritNow = if (attackerIsMe) myCrit.value else enemyCrit.value
+            // DIM-programmed attack: small ID for regular hits, big ID for crits
+            val ids = if (attackerIsMe) myAttackIds.value else enemyAttackIds.value
+            val attackId = if (isCritNow) ids.second else ids.first
+            Box(
+                Modifier.fillMaxSize().background(Color.Black),
+                contentAlignment = Alignment.Center
+            ) {
+                // The Bracelet's attack effect, full screen
+                AttackEffectCanvas(
+                    attackId = attackId,
+                    progress = effectProgress.value,
+                    modifier = Modifier.fillMaxSize()
+                )
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    if (isCritNow) {
+                        Text(
+                            "CRITICAL!", color = Color.Red, fontSize = 26.sp,
+                            fontWeight = FontWeight.ExtraBold
+                        )
+                        Spacer(Modifier.height(6.dp))
+                    }
+                    // The attacker lunges through its attack pose while the effect plays
+                    val poseBmp = if (attackFrame.intValue % 3 == 2) sprites["ATK"] else sprites["IDLE1"]
+                    poseBmp?.let { Image(it.asImageBitmap(), "Attacking", Modifier.size(110.dp)) }
+                    Spacer(Modifier.height(6.dp))
+                    Text(
+                        if (attackerIsMe) "My attack!" else "Rival attack!",
+                        color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+        }
+        if (impactFlash.value) {
+            Box(Modifier.fillMaxSize().background(Color.White.copy(alpha = 0.35f)))
         }
     }
 }
@@ -1157,8 +1361,8 @@ suspend fun challengePhone(context: Context, state: MonsterManager.MonsterState?
                 dos.write(state.cardName.toByteArray(java.nio.charset.Charset.defaultCharset()))
                 dos.writeByte(0)
                 dos.writeInt(state.characterId)
-                dos.writeInt(state.attackBonus)
-                dos.writeInt(state.healthBonus)
+                dos.writeInt(state.baseAp + state.attackBonus)
+                dos.writeInt(state.baseHp + state.healthBonus)
                 dos.writeInt(state.speedBonus)
                 dos.writeInt(state.defenseBonus)
                 dos.writeLong(System.currentTimeMillis())
@@ -1194,8 +1398,8 @@ suspend fun hostP2P(context: Context, state: MonsterManager.MonsterState?) {
                 dos.write(state.cardName.toByteArray(java.nio.charset.Charset.defaultCharset()))
                 dos.writeByte(0)
                 dos.writeInt(state.characterId)
-                dos.writeInt(state.attackBonus)
-                dos.writeInt(state.healthBonus)
+                dos.writeInt(state.baseAp + state.attackBonus)
+                dos.writeInt(state.baseHp + state.healthBonus)
                 dos.writeInt(state.speedBonus)
                 dos.writeInt(state.defenseBonus)
                 dos.writeLong(System.currentTimeMillis())

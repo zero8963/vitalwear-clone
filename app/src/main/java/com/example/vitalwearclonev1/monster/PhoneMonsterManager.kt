@@ -5,12 +5,31 @@ import android.content.SharedPreferences
 import com.example.vitalwearclonev1.card.CardManager
 import com.example.vitalwearclonev1.card.DimCardAdapter
 import com.example.vitalwearclonev1.card.DigimonBaseStats
+import com.github.cfogrady.vb.dim.card.BemCard
+import com.github.cfogrady.vb.dim.card.Card
 import com.github.cfogrady.vb.dim.sprite.SpriteData
 import timber.log.Timber
 
 class PhoneMonsterManager(private val context: Context) {
 
     private val prefs: SharedPreferences = context.getSharedPreferences("phone_monster_prefs", Context.MODE_PRIVATE)
+
+    // One-shot guard for the base-stat migration in getCurrentMonster (per process).
+    private var baseStatsMigrationDone = false
+
+    companion object {
+        /** DIM stats are uint16 (up to 65535). Dividing by 100 maps them onto
+         *  the app's battle balance (the old flat-500-HP scale) so training
+         *  bonuses stay the main progression and the card's species differences
+         *  survive proportionally. */
+        // Two card families, two scales: BEMs store stats in the thousands,
+        // classic DIMs in single digits. Each is normalized into the same
+        // battle range so training stays dominant on both.
+        private const val BEM_STAT_SCALE = 100
+        private const val DIM_STAT_SCALE = 2
+        /** Bump when seeding/normalization changes; triggers a re-seed. */
+        private const val BASE_STATS_VERSION = 3
+    }
 
     data class MonsterState(
         val cardName: String,
@@ -54,7 +73,9 @@ class PhoneMonsterManager(private val context: Context) {
         val consecutiveBattles: Int = 0,
         val lastActiveDay: Long = 0L,
         val lastCareTick: Long = 0L,
-        val lastSyncedSteps: Int = 0
+        val lastSyncedSteps: Int = 0,
+        val consecutiveLosses: Int = 0,
+        val criticalRemainingMs: Long = 0L
     )
 
     fun getCurrentMonster(): MonsterState? {
@@ -88,6 +109,13 @@ class PhoneMonsterManager(private val context: Context) {
         val stageWins = prefs.getInt("current_stage_wins", 0)
         val stageVitalPoints = prefs.getInt("current_stage_vital_points", 0)
         val stageTrophies = prefs.getInt("current_stage_trophies", 0)
+        // Base-stat migration (2026-09-23): v0 = hatched before DIM stats
+        // existed (500/0 defaults, fought with 0 base AP); v1 = seeded with
+        // RAW card values (up to 65535, dealt ~16k damage). v2 normalizes.
+        if (!baseStatsMigrationDone) {
+            baseStatsMigrationDone = true
+            migrateBaseStats(cardName, characterId)
+        }
         val baseHp = prefs.getInt("current_base_hp", 500)
         val baseAp = prefs.getInt("current_base_ap", 0)
         val lifespanHoursRemaining = prefs.getFloat("current_lifespan_remaining", 0f).toDouble()
@@ -97,9 +125,11 @@ class PhoneMonsterManager(private val context: Context) {
         val lastActiveDay = prefs.getLong("current_last_active_day", 0L)
         val lastCareTick = prefs.getLong("current_last_care_tick", 0L)
         val lastSyncedSteps = prefs.getInt("current_last_synced_steps", 0)
+        val consecutiveLosses = prefs.getInt("current_consecutive_losses", 0)
+        val criticalRemainingMs = prefs.getLong("current_critical_remaining_ms", 0L)
         
         if (characterId == -1) return null
-        return MonsterState(cardName, characterId, stage, timeAlive, evolutionTime, attackBonus, healthBonus, speedBonus, defenseBonus, isPaused, currentWins, winsRequired, xp, level, raw, nickname, isBem, attribute, mood, steps, bp, sp, winRatio, trophies, losses, vitalPoints, stageBattles, stageWins, stageVitalPoints, stageTrophies, baseHp, baseAp, lifespanHoursRemaining, maxLifespanHours, careMistakes, consecutiveBattles, lastActiveDay, lastCareTick, lastSyncedSteps)
+        return MonsterState(cardName, characterId, stage, timeAlive, evolutionTime, attackBonus, healthBonus, speedBonus, defenseBonus, isPaused, currentWins, winsRequired, xp, level, raw, nickname, isBem, attribute, mood, steps, bp, sp, winRatio, trophies, losses, vitalPoints, stageBattles, stageWins, stageVitalPoints, stageTrophies, baseHp, baseAp, lifespanHoursRemaining, maxLifespanHours, careMistakes, consecutiveBattles, lastActiveDay, lastCareTick, lastSyncedSteps, consecutiveLosses, criticalRemainingMs)
     }
 
     fun setCurrentMonster(
@@ -140,6 +170,7 @@ class PhoneMonsterManager(private val context: Context) {
             .putInt("current_speed_bonus", spd)
             .putInt("current_defense_bonus", def)
             .putBoolean("current_evolution_paused", false)
+            .putBoolean("current_is_expired", false)
             .putInt("current_wins", wins)
             .putInt("wins_required", winsReq)
             .putInt("current_xp", xp)
@@ -195,7 +226,7 @@ class PhoneMonsterManager(private val context: Context) {
      */
     fun recordBattleResult(won: Boolean): Boolean {
         val current = getCurrentMonster() ?: return false
-        val careTick = CareManager.recordBattle(toCareState(current))
+        val careTick = CareManager.recordBattle(toCareState(current), won)
         persistCare(careTick.state)
 
         val newWins = current.currentWins + if (won) 1 else 0
@@ -213,7 +244,8 @@ class PhoneMonsterManager(private val context: Context) {
 
         for (warning in careTick.warnings) Timber.w(warning)
         if (careTick.died) {
-            onDigimonDeath("overwork")
+            val cause = if (!won && current.criticalRemainingMs > 0) "critical" else "overwork"
+            onDigimonDeath(cause)
             return true
         }
         return false
@@ -360,21 +392,83 @@ class PhoneMonsterManager(private val context: Context) {
      * Reads the DIM-baked base stats for [characterId] on [cardName] and stores
      * them on the monster so battles use the card's real HP/AP.
      */
+    /**
+     * Re-seeds stored base stats when the seeding scheme changes. Safe to run
+     * often: no-ops once the stored version is current, and only marks the
+     * version when the card actually loaded.
+     */
+    private fun migrateBaseStats(cardName: String, characterId: Int) {
+        if (characterId == -1) return
+        if (prefs.getInt("current_base_stats_version", 0) >= BASE_STATS_VERSION) return
+        if (applyCardBaseStats(cardName, characterId) != null) {
+            prefs.edit().putInt("current_base_stats_version", BASE_STATS_VERSION).apply()
+            Timber.d("Base stats migrated to v$BASE_STATS_VERSION for $cardName#$characterId")
+        }
+    }
+
+    private fun normalizeBaseStat(raw: Int, isBem: Boolean): Int {
+        return if (isBem) raw / BEM_STAT_SCALE else raw * DIM_STAT_SCALE
+    }
+
     fun applyCardBaseStats(cardName: String, characterId: Int): DigimonBaseStats? {
         return try {
             val card = CardManager(context).getCard(cardName) ?: return null
             val stats = DimCardAdapter.getBaseStats(card, characterId) ?: return null
+            val isBem = card is BemCard
+            val normHp = normalizeBaseStat(stats.hp, isBem)
+            val normAp = normalizeBaseStat(stats.ap, isBem)
             prefs.edit()
-                .putInt("current_base_hp", stats.hp)
-                .putInt("current_base_ap", stats.ap)
+                .putInt("current_base_hp", normHp)
+                .putInt("current_base_ap", normAp)
                 .putInt("current_attribute", stats.attribute)
                 .apply()
-            Timber.d("Applied DIM base stats $cardName#$characterId: HP=${stats.hp} AP=${stats.ap}")
+            Timber.d("Applied DIM base stats $cardName#$characterId: HP=$normHp AP=$normAp")
             stats
         } catch (t: Throwable) {
             Timber.e(t, "applyCardBaseStats failed")
             null
         }
+    }
+
+    /**
+     * The DIM card programs two attacks per character: the small (regular)
+     * attack and the big (critical) attack. These IDs select the attack's
+     * appearance from the Bracelet's effect library -- so a modded DIM picks
+     * its Digimon's attack visuals by setting these IDs.
+     * Returns (smallAttackId, bigAttackId).
+     */
+    fun getAttackIds(card: Card<*, *, *, *, *, *>, characterId: Int): Pair<Int, Int>? {
+        return try {
+            val stats = DimCardAdapter.getBaseStats(card, characterId) ?: return null
+            Pair(stats.smallAttackId, stats.bigAttackId)
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    /** Name-based convenience: loads the card first, then delegates. */
+    fun getAttackIds(cardName: String, characterId: Int): Pair<Int, Int>? {
+        val card = CardManager(context).getCard(cardName) ?: return null
+        return getAttackIds(card, characterId)
+    }
+
+    /**
+     * Critical-hit chance from the card's programmed big-attack pool chance.
+     * The DIM stores each attack's selection odds; the big attack lands as a
+     * crit. Clamped to a sane band; 15% when the card has no data.
+     */
+    fun getCritChance(card: Card<*, *, *, *, *, *>, characterId: Int): Float {
+        return try {
+            val stats = DimCardAdapter.getBaseStats(card, characterId) ?: return 0.15f
+            if (stats.secondPoolBattleChance <= 0) return 0.15f
+            (stats.secondPoolBattleChance / 100f).coerceIn(0.05f, 0.35f)
+        } catch (e: Exception) { 0.15f }
+    }
+
+    /** Name-based convenience: loads the card first, then delegates. */
+    fun getCritChance(cardName: String, characterId: Int): Float {
+        val card = CardManager(context).getCard(cardName) ?: return 0.15f
+        return getCritChance(card, characterId)
     }
 
     /**
@@ -396,16 +490,42 @@ class PhoneMonsterManager(private val context: Context) {
             "current_base_hp", "current_base_ap",
             "current_lifespan_remaining", "current_max_lifespan",
             "current_care_mistakes", "current_care_consecutive_battles",
-            "current_last_active_day", "current_last_care_tick", "current_last_synced_steps"
+            "current_last_active_day", "current_last_care_tick", "current_last_synced_steps",
+            "current_consecutive_losses", "current_critical_remaining_ms", "current_death_cause"
         )
         val edit = prefs.edit()
         keys.forEach { edit.remove(it) }
         edit.apply()
     }
 
+    fun isExpired(): Boolean {
+        return prefs.getBoolean("current_is_expired", false)
+    }
+
     private fun onDigimonDeath(cause: String) {
         Timber.w("Digimon died ($cause) — clearing monster")
         clearMonster()
+        prefs.edit()
+            .putBoolean("current_is_expired", true)
+            .putString("current_death_cause", cause)
+            .apply()
+    }
+
+    /** Why the current monster died: "neglect", "overwork", or "critical". */
+    fun getDeathCause(): String = prefs.getString("current_death_cause", "neglect") ?: "neglect"
+
+    /**
+     * A completed exercise shaves 15 minutes off the critical healing timer
+     * (two exercises heal it fully). No-op when not critical.
+     * @return true if this exercise healed the Digimon out of critical.
+     */
+    fun recordExerciseCompleted(): Boolean {
+        val current = getCurrentMonster() ?: return false
+        if (current.criticalRemainingMs <= 0) return false
+        val care = CareManager.recordExercise(toCareState(current))
+        persistCare(care)
+        Timber.d("Exercise completed during critical: ${CareManager.formatCriticalMs(care.criticalRemainingMs)} left")
+        return care.criticalRemainingMs <= 0
     }
 
     private fun toCareState(current: MonsterState): CareState = CareState(
@@ -413,7 +533,9 @@ class PhoneMonsterManager(private val context: Context) {
         lifespanHoursRemaining = current.lifespanHoursRemaining,
         careMistakes = current.careMistakes,
         consecutiveBattles = current.consecutiveBattles,
-        lastActiveDay = current.lastActiveDay
+        lastActiveDay = current.lastActiveDay,
+        consecutiveLosses = current.consecutiveLosses,
+        criticalRemainingMs = current.criticalRemainingMs
     )
 
     private fun persistCare(state: CareState) {
@@ -423,52 +545,28 @@ class PhoneMonsterManager(private val context: Context) {
             .putInt("current_care_mistakes", state.careMistakes)
             .putInt("current_care_consecutive_battles", state.consecutiveBattles)
             .putLong("current_last_active_day", state.lastActiveDay)
+            .putInt("current_consecutive_losses", state.consecutiveLosses)
+            .putLong("current_critical_remaining_ms", state.criticalRemainingMs)
             .apply()
     }
 
     fun evolve() {
         val current = getCurrentMonster() ?: return
         
-        val nextId = current.characterId + 1
-        
-        // Check if next character is a secret one (usually index 16+ on DIMs)
-        if (!current.isBem && nextId >= 16) {
-            if (!isCardSecretUnlocked(current.cardName)) {
-                Timber.d("Secret evolution $nextId is locked for card ${current.cardName}")
-                return
-            }
-        }
-        
-        // Evolution limit: allow up to 18 for DIMs if secret is unlocked, otherwise 16.
-        // BEMs have a much higher limit.
-        val maxId = if (current.isBem) 32 else 18
-        
-        if (nextId >= maxId) {
-            Timber.d("Reached final evolution for card ${current.cardName}")
+        val candidates = getEvolutionCandidates()
+        if (candidates.isEmpty()) {
+            Timber.d("No evolution paths found for card ${current.cardName}")
             return
         }
         
-        val nextStage = current.stage + 1
+        val available = candidates.filter { it.requirementsMet }
+        val pick = if (available.isNotEmpty()) {
+            available.maxByOrNull { it.path.requiredTrophies * 1000 + it.path.requiredVitalValues }!!
+        } else {
+            candidates.maxByOrNull { c -> c.progress.count { it.met } } ?: candidates.first()
+        }
         
-        // Randomize next requirement
-        val nextWinsRequired = if (nextStage > 0) (3..15).random() else 0
-
-        prefs.edit()
-            .putInt("current_character_id", nextId)
-            .putInt("current_stage", nextStage)
-            .putLong("current_time_alive", 0)
-            .putInt("current_stage_battles", 0)
-            .putInt("current_stage_wins", 0)
-            .putInt("current_stage_vital_points", 0)
-            .putInt("current_stage_trophies", 0)
-            .putInt("wins_required", nextWinsRequired)
-            .apply()
-
-        // Fresh form: reseed care clock + pull the new form's DIM base stats.
-        val today = System.currentTimeMillis() / 86400000L
-        persistCare(CareManager.initialForStage(nextStage, today))
-        prefs.edit().putLong("current_last_care_tick", System.currentTimeMillis()).apply()
-        applyCardBaseStats(current.cardName, nextId)
+        evolveTo(pick.path.toIndex, pick.path.hoursUntilEvolution)
     }
 
     fun forceEvolve() {

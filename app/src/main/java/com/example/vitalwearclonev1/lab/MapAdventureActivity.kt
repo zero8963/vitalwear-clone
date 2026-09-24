@@ -49,6 +49,8 @@ import kotlinx.coroutines.withContext
 import kotlin.math.abs
 import kotlin.math.atan2
 import kotlin.random.Random
+import com.example.vitalwearclonev1.ui.AttackEffectCanvas
+import com.example.vitalwearclonev1.ui.attackEffectColor
 
 class MapAdventureActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -115,7 +117,9 @@ data class GridProjectile(
     val speed: Float,
     val damage: Float,
     val isPlayer: Boolean,
-    var isDead: Boolean = false
+    var isDead: Boolean = false,
+    val isBig: Boolean = false,
+    val attackId: Int = 0
 )
 
 @Composable
@@ -182,6 +186,12 @@ fun NetworldAdventure(
     
     var isAttackingAnim by remember { mutableStateOf(false) }
     var isFacingLeft by remember { mutableStateOf(false) }
+    // DIM-programmed attack IDs: (small = regular, big = critical)
+    val attackIds = remember(cardName, charId) { phoneManager.getAttackIds(cardName, charId) ?: Pair(0, 0) }
+    // Localized attack-effect burst shown around the player when firing
+    val attackFxId = remember { mutableStateOf<Int?>(null) }
+    val attackFxProgress = remember { androidx.compose.animation.core.Animatable(0f) }
+    val critChance = remember(cardName, charId) { phoneManager.getCritChance(cardName, charId) }
 
     fun generateArea(lvl: Int) {
         roads.clear()
@@ -413,6 +423,8 @@ fun NetworldAdventure(
                         enemies = enemies, projectiles = projectiles,
                         playerSprites = playerSprites.value, enemySprites = enemySprites,
                         isAttacking = isAttackingAnim,
+                        attackFxId = attackFxId.value,
+                        attackFxProgress = attackFxProgress.value,
                         battlePrograms = battlePrograms,
                         onUseProgram = { program ->
                             when (program) {
@@ -445,17 +457,28 @@ fun NetworldAdventure(
                         },
                         onAttack = { type ->
                             isAttackingAnim = true
+                            // Roll the DIM-programmed attacks: big attack lands as a crit (1.5x).
+                            val isBig = Random.nextFloat() < critChance
+                            val usedAttackId = if (isBig) attackIds.second else attackIds.first
+                            val dmgMult = if (isBig) 1.5f else 1f
+                            // Flash the DIM-programmed attack effect around the player
+                            attackFxId.value = usedAttackId
+                            scope.launch {
+                                attackFxProgress.snapTo(0f)
+                                attackFxProgress.animateTo(1f, androidx.compose.animation.core.tween(400))
+                                attackFxId.value = null
+                            }
                             if (type == "SWORD") {
                                 val tx = playerBattleX + 1
-                                enemies.forEachIndexed { i, e -> 
+                                enemies.forEachIndexed { i, e ->
                                     if (!e.isDead && e.gridX == tx && abs(e.gridY - playerBattleY) <= 1) {
-                                        enemies[i] = e.copy(hp = e.hp - (250f + currentAtk), isHurt = true)
+                                        enemies[i] = e.copy(hp = e.hp - (250f + currentAtk) * dmgMult, isHurt = true)
                                         scope.launch { delay(200); if (i < enemies.size) enemies[i] = enemies[i].copy(isHurt = false) }
                                         if (enemies[i].hp <= 0) enemies[i] = enemies[i].copy(isDead = true, hp = 0f)
                                     }
                                 }
                             } else {
-                                projectiles.add(GridProjectile(Random.nextInt(10000), playerBattleX.toFloat() + 0.5f, playerBattleY, 0.45f, 60f + currentAtk/2, true))
+                                projectiles.add(GridProjectile(Random.nextInt(10000), playerBattleX.toFloat() + 0.5f, playerBattleY, 0.45f, (60f + currentAtk/2) * dmgMult, true, isBig = isBig, attackId = usedAttackId))
                             }
                             scope.launch { delay(250); isAttackingAnim = false }
                         }
@@ -579,6 +602,8 @@ fun GridBattleScreen(
     enemies: List<GridEntity>, projectiles: List<GridProjectile>,
     playerSprites: Map<String, Bitmap>, enemySprites: List<Bitmap>,
     isAttacking: Boolean,
+    attackFxId: Int?,
+    attackFxProgress: Float,
     battlePrograms: List<BattleProgramType>,
     onUseProgram: (BattleProgramType) -> Unit,
     onMove: (Int, Int) -> Unit, onAttack: (String) -> Unit
@@ -635,9 +660,26 @@ fun GridBattleScreen(
             }
             Box(Modifier.size(width = cellSize * 6, height = cellSize * 3)) {
                 // Character in Battle: Reverted scaleX = -1f to fix facing backwards issue
-                val pBmp = if (isAttacking) playerSprites["ATTACK"] else playerSprites["IDLE"]
+                val pBmp = if (isAttacking) {
+                    playerSprites["ATTACK"] ?: playerSprites["IDLE"]
+                } else playerSprites["IDLE"]
                 pBmp?.let {
                     Image(it.asImageBitmap(), null, Modifier.size(cellSize).offset { IntOffset((playerX * cellSizePx).toInt(), (playerY * cellSizePx).toInt()) }.graphicsLayer { scaleX = -1f })
+                }
+                // DIM-programmed attack effect bursting around the attacker
+                attackFxId?.let { fxId ->
+                    val fxSize = cellSize * 2.5f
+                    val fxPx = with(density) { fxSize.toPx() }
+                    Box(
+                        Modifier.size(fxSize).offset {
+                            IntOffset(
+                                (playerX * cellSizePx + cellSizePx / 2 - fxPx / 2).toInt(),
+                                (playerY * cellSizePx + cellSizePx / 2 - fxPx / 2).toInt()
+                            )
+                        }
+                    ) {
+                        AttackEffectCanvas(attackId = fxId, progress = attackFxProgress, modifier = Modifier.fillMaxSize())
+                    }
                 }
                 enemies.forEach { e ->
                     if (!e.isDead) {
@@ -647,7 +689,7 @@ fun GridBattleScreen(
                         Box(Modifier.width(cellSize).height(4.dp).offset { IntOffset((e.gridX * cellSizePx).toInt(), (e.gridY * cellSizePx).toInt() - 12) }.background(Color.Red)) { Box(Modifier.fillMaxWidth(e.hp / e.maxHp).fillMaxHeight().background(Color.Green)) }
                     }
                 }
-                projectiles.forEach { p -> Box(Modifier.size(10.dp).offset { IntOffset((p.gridX * cellSizePx).toInt() + 20, (p.gridY * cellSizePx).toInt() + 20) }.background(if (p.isPlayer) Color.Cyan else Color.Magenta, CircleShape).border(1.dp, Color.White, CircleShape)) }
+                projectiles.forEach { p -> Box(Modifier.size(if (p.isBig) 18.dp else 10.dp).offset { IntOffset((p.gridX * cellSizePx).toInt() + 20, (p.gridY * cellSizePx).toInt() + 20) }.background(if (p.isPlayer) attackEffectColor(p.attackId) else Color.Magenta, CircleShape).border(1.dp, Color.White, CircleShape)) }
             }
         }
         Row(Modifier.fillMaxWidth().padding(bottom = 60.dp), Arrangement.SpaceBetween) {

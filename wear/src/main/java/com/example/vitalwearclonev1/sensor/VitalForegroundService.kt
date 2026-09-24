@@ -5,6 +5,7 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.Service
+import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.os.Binder
@@ -15,7 +16,12 @@ import com.example.vitalwearclonev1.monster.MonsterManager
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import androidx.wear.watchface.complications.datasource.ComplicationDataSourceUpdateRequester
+import com.example.vitalwearclonev1.complication.DigimonComplicationService
+import com.example.vitalwearclonev1.monster.CareManager
 import timber.log.Timber
+import com.google.android.gms.wearable.Wearable
+import kotlinx.coroutines.tasks.await
 
 import android.content.pm.ServiceInfo
 
@@ -40,6 +46,8 @@ class VitalForegroundService : Service() {
     private var lastStepCount = 0
     private var lastCalories = 0
     private var lastEvoCheck = 0L
+    private var lastComplicationSig: String? = null
+    private var lastHealthSyncRequest = 0L
 
     private val healthSyncReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
@@ -103,10 +111,37 @@ class VitalForegroundService : Service() {
         startTrackingLoop()
     }
 
+    /** Ask the phone for its latest Health Connect numbers (Samsung origin).
+     *  Fire-and-forget: the phone replies via /HEALTH_SYNC, which lands in
+     *  healthSyncReceiver and rebaselines the step counter. */
+    private suspend fun requestHealthSyncFromPhone() {
+        try {
+            val nodes = Wearable.getNodeClient(this@VitalForegroundService).connectedNodes.await()
+            if (nodes.isEmpty()) return
+            val messageClient = Wearable.getMessageClient(this@VitalForegroundService)
+            for (node in nodes) {
+                messageClient.sendMessage(node.id, "/REQUEST_HEALTH_SYNC", null).await()
+            }
+            Timber.d("Requested health sync from phone")
+        } catch (e: Exception) {
+            Timber.w(e, "Health sync request failed")
+        }
+    }
+
     private fun startTrackingLoop() {
         scope.launch {
             while (true) {
                 delay(5000) // Poll every 5 seconds
+                
+                // Pull fresh Samsung Health numbers from the phone every 10 min.
+                // The phone answers even when its app UI is closed
+                // (WatchCommunicationService is a WearableListenerService).
+                // Silent: no toast, no notification spam.
+                val nowMs = System.currentTimeMillis()
+                if (nowMs - lastHealthSyncRequest >= 600_000) {
+                    lastHealthSyncRequest = nowMs
+                    scope.launch(Dispatchers.IO) { requestHealthSyncFromPhone() }
+                }
                 
                 val currentSteps = sensorManager.stepCount.value
                 val currentCals = sensorManager.calories.value
@@ -174,7 +209,37 @@ class VitalForegroundService : Service() {
                         updateNotification("Training: $activeExercise (${_workoutCountdown.value} s)")
                     }
                 }
+
+                // Watch-face complication: push an update only when what the
+                // face shows would actually change (sprite, skull, critical
+                // minute). UPDATE_PERIOD_SECONDS=0, so nothing polls us.
+                pushComplicationUpdateIfNeeded()
             }
+        }
+    }
+
+    private fun pushComplicationUpdateIfNeeded() {
+        try {
+            val state = monsterManager.getCurrentMonster()
+            val sig = if (state == null) {
+                "none"
+            } else {
+                val skull = CareManager.showSkull(state.consecutiveLosses, state.criticalRemainingMs)
+                // Minute bucket: the critical countdown on the face ticks
+                // about once a minute instead of every 5 seconds.
+                val critMin = state.criticalRemainingMs / 60000
+                "${state.cardName}#${state.characterId}|$skull|$critMin"
+            }
+            if (sig != lastComplicationSig) {
+                lastComplicationSig = sig
+                ComplicationDataSourceUpdateRequester.create(
+                    this,
+                    ComponentName(this, DigimonComplicationService::class.java),
+                ).requestUpdateAll()
+                Timber.d("Watch-face complication update pushed: $sig")
+            }
+        } catch (e: Exception) {
+            Timber.e(e, "Watch-face complication update check failed")
         }
     }
 
@@ -195,6 +260,8 @@ class VitalForegroundService : Service() {
         activeExercise?.let {
             monsterManager.addTrainingBonus(it)
             monsterManager.addVitalPoints(2) // placeholder: each workout earns VP
+            // A finished exercise heals critical condition (15 min off the timer).
+            monsterManager.recordExerciseCompleted()
             Timber.i("Workout completed in background: $it")
         }
         updateNotification("Workout Complete! Digimon Powered Up.")

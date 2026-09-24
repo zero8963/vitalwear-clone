@@ -52,6 +52,29 @@
             android:foregroundServiceType="health"
             android:exported="false" />
 
+        <!-- Live Digimon data for the VitalWear watch face (WFF). -->
+        <service
+            android:name=".complication.DigimonComplicationService"
+            android:exported="true"
+            android:label="Digimon Partner"
+            android:permission="com.google.android.wearable.permission.BIND_COMPLICATION_PROVIDER">
+            <intent-filter>
+                <action android:name="android.support.wearable.complications.ACTION_COMPLICATION_UPDATE_REQUEST" />
+                <!-- AndroidX action: some watch software discovers providers
+                     through this one instead of (or in addition to) the legacy
+                     action above. The service handles both. -->
+                <action android:name="androidx.wear.watchface.complications.datasource.ComplicationDataSourceService" />
+            </intent-filter>
+            <meta-data
+                android:name="android.support.wearable.complications.SUPPORTED_TYPES"
+                android:value="SMALL_IMAGE,SHORT_TEXT" />
+            <!-- 0 = no periodic polling; the foreground service pushes updates
+                 only when what the face shows actually changes. -->
+            <meta-data
+                android:name="android.support.wearable.complications.UPDATE_PERIOD_SECONDS"
+                android:value="0" />
+        </service>
+
     </application>
 
 </manifest>

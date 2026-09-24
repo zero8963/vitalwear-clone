@@ -14,6 +14,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.vitalwearclonev1.card.CardManager
@@ -23,7 +24,6 @@ import com.example.vitalwearclonev1.monster.BattleOpponent
 import com.example.vitalwearclonev1.monster.PhoneMonsterManager
 import com.github.cfogrady.vb.dim.card.BemCard
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlin.random.Random
 
@@ -54,29 +54,49 @@ fun BattleScene(
     val attackFrame = remember { mutableIntStateOf(0) }
     val isMyAttacking = remember { mutableStateOf(false) }
     val isEnemyAttacking = remember { mutableStateOf(false) }
-    val scope = rememberCoroutineScope()
     val battleRandom = remember { Random(seed) }
 
     // Health States
     val myState = remember { monsterManager.getCurrentMonster() }
     val myMaxHP = remember { ((myState?.baseHp ?: 500) + (myState?.healthBonus ?: 0)).toFloat() }
-    val enemyMaxHP = remember { (opponent.hp + 500).toFloat() }
+    val enemyMaxHP = remember { opponent.hp.toFloat() }
     var myCurrentHP by remember { mutableFloatStateOf(myMaxHP) }
     var enemyCurrentHP by remember { mutableFloatStateOf(enemyMaxHP) }
     
     var battleLog by remember { mutableStateOf("READY?") }
 
+    // VB-style attack cutscene: null = wide view, "me"/"enemy" = camera on attacker
+    val cutscene = remember { mutableStateOf<String?>(null) }
+    val myCrit = remember { mutableStateOf(false) }
+    val enemyCrit = remember { mutableStateOf(false) }
+    val impactFlash = remember { mutableStateOf(false) }
+    // DIM-programmed attack IDs: (small = regular, big = critical)
+    val myAttackIds = remember { mutableStateOf(Pair(0, 0)) }
+    val enemyAttackIds = remember { mutableStateOf(Pair(0, 0)) }
+    val effectProgress = remember { androidx.compose.animation.core.Animatable(0f) }
+
+    // Drives the attack effect animation while the cutscene is on screen
+    LaunchedEffect(cutscene.value) {
+        if (cutscene.value != null) {
+            effectProgress.snapTo(0f)
+            effectProgress.animateTo(1f, androidx.compose.animation.core.tween(650))
+        }
+    }
+
     LaunchedEffect(Unit) {
+        var enemyCritChance = 0.15f
         // Load Sprites
         withContext(kotlinx.coroutines.Dispatchers.IO) {
             val myCard = cardManager.getCard(myCardName)
             myCard?.let {
                 val isBem = it is BemCard
                 val s = it.spriteData.sprites
+                val atkLegacyIdx = monsterManager.getBattleSpriteIndex(myCharId, isBem)
+                myAttackIds.value = monsterManager.getAttackIds(it, myCharId) ?: Pair(0, 0)
                 mySprites.value = mapOf(
                     "IDLE1" to SpriteBitmapHandler.getBitmap(s[monsterManager.getIdleSpriteIndices(myCharId, isBem)[0]]),
                     "IDLE2" to SpriteBitmapHandler.getBitmap(s[monsterManager.getIdleSpriteIndices(myCharId, isBem)[1]]),
-                    "ATK" to SpriteBitmapHandler.getBitmap(s[monsterManager.getBattleSpriteIndex(myCharId, isBem)]),
+                    "ATK" to SpriteBitmapHandler.getBitmap(s[atkLegacyIdx]),
                     "WIN" to SpriteBitmapHandler.getBitmap(s[monsterManager.getWinSpriteIndex(myCharId, isBem)]),
                     "LOSE" to SpriteBitmapHandler.getBitmap(s[monsterManager.getLoseSpriteIndex(myCharId, isBem)])
                 )
@@ -98,6 +118,8 @@ fun BattleScene(
                 val atkIdx = monsterManager.getBattleSpriteIndex(opponent.characterId, cardIsBem).let { if (it < s.size) it else 0 }
                 val winIdx = monsterManager.getWinSpriteIndex(opponent.characterId, cardIsBem).let { if (it < s.size) it else 0 }
                 val loseIdx = monsterManager.getLoseSpriteIndex(opponent.characterId, cardIsBem).let { if (it < s.size) it else 0 }
+                enemyAttackIds.value = monsterManager.getAttackIds(enCard, opponent.characterId) ?: Pair(0, 0)
+                enemyCritChance = monsterManager.getCritChance(enCard, opponent.characterId)
 
                 enemySprites.value = mapOf(
                     "IDLE1" to SpriteBitmapHandler.getBitmap(s[idle1]),
@@ -122,6 +144,8 @@ fun BattleScene(
                     val atkIdx = monsterManager.getBattleSpriteIndex(opponent.characterId, cardIsBem).let { if (it < s.size) it else 0 }
                     val winIdx = monsterManager.getWinSpriteIndex(opponent.characterId, cardIsBem).let { if (it < s.size) it else 0 }
                     val loseIdx = monsterManager.getLoseSpriteIndex(opponent.characterId, cardIsBem).let { if (it < s.size) it else 0 }
+                    enemyAttackIds.value = monsterManager.getAttackIds(it, opponent.characterId) ?: Pair(0, 0)
+                    enemyCritChance = monsterManager.getCritChance(it, opponent.characterId)
 
                     enemySprites.value = mapOf(
                         "IDLE1" to SpriteBitmapHandler.getBitmap(s[idle1]),
@@ -133,6 +157,29 @@ fun BattleScene(
                 }
             }
 
+        }
+
+        val myCritChance = monsterManager.getCritChance(myCardName, myCharId)
+
+        // VB-style attack cutscene: camera jumps to the attacker, plays the
+        // DIM-programmed attack (small = regular, big = critical), impact
+        // flash lands with the damage, then the camera pulls back out.
+        suspend fun playAttackCutscene(
+            attackerIsMe: Boolean,
+            isCrit: Boolean,
+            applyDamage: () -> Unit,
+            logText: String
+        ) {
+            if (attackerIsMe) myCrit.value = isCrit else enemyCrit.value = isCrit
+            cutscene.value = if (attackerIsMe) "me" else "enemy"
+            delay(650)
+            applyDamage()
+            battleLog = logText
+            impactFlash.value = true
+            delay(280)
+            impactFlash.value = false
+            cutscene.value = null
+            delay(180)
         }
 
         delay(1500)
@@ -152,46 +199,78 @@ fun BattleScene(
             val enRoll = if (opponent.isInitiator) r3 else r1
             val enDmgRoll = if (opponent.isInitiator) r4 else r2
 
-            // Turn 1: Player Attacks
-            val myDodgeChance = (opponent.spd / 5000f).coerceIn(0.05f, 0.4f)
-            if (myRoll > myDodgeChance) {
-                val damage = (((myState?.baseAp ?: 0) + (myState?.attackBonus ?: 0)) / 4 + myDmgRoll).toFloat()
-                enemyCurrentHP = (enemyCurrentHP - damage).coerceAtLeast(0f)
-                battleLog = "HIT! -$damage"
-            } else {
-                battleLog = "DODGED!"
-            }
-            
-            // Animation
-            launch {
-                isMyAttacking.value = true
-                myOffset.animateTo(60f, tween(200, easing = FastOutLinearInEasing))
-                myOffset.animateTo(0f, tween(100))
-                isMyAttacking.value = false
-            }
-            delay(300)
-            
-            if (enemyCurrentHP <= 0) break
-            delay(800)
+            if (opponent.isInitiator) {
+                // Local player attacks first
+                val myDodgeChance = (opponent.spd / 5000f).coerceIn(0.05f, 0.4f)
+                if (myRoll > myDodgeChance) {
+                    val isCrit = battleRandom.nextFloat() < myCritChance
+                    val rawDmg = (((myState?.baseAp ?: 0) + (myState?.attackBonus ?: 0)) / 4 + myDmgRoll).toFloat()
+                    val damage = if (isCrit) rawDmg * 1.5f else rawDmg
+                    playAttackCutscene(
+                        attackerIsMe = true, isCrit = isCrit,
+                        applyDamage = { enemyCurrentHP = (enemyCurrentHP - damage).coerceAtLeast(0f) },
+                        logText = (if (isCrit) "CRITICAL! " else "") + "HIT! -$damage"
+                    )
+                } else {
+                    battleLog = "DODGED!"
+                    delay(500)
+                }
 
-            // Turn 2: Enemy Attacks
-            val enDodgeChance = ((myState?.speedBonus ?: 0) / 5000f).coerceIn(0.05f, 0.4f)
-            if (enRoll > enDodgeChance) {
-                val damage = (opponent.atk / 4 + enDmgRoll).toFloat()
-                myCurrentHP = (myCurrentHP - damage).coerceAtLeast(0f)
-                battleLog = "ENEMY HIT! -$damage"
+                if (enemyCurrentHP <= 0) break
+                delay(800)
+
+                // Enemy attacks second
+                val enDodgeChance = ((myState?.speedBonus ?: 0) / 5000f).coerceIn(0.05f, 0.4f)
+                if (enRoll > enDodgeChance) {
+                    val isCrit = battleRandom.nextFloat() < enemyCritChance
+                    val rawDmg = (opponent.atk / 4 + enDmgRoll).toFloat()
+                    val damage = if (isCrit) rawDmg * 1.5f else rawDmg
+                    playAttackCutscene(
+                        attackerIsMe = false, isCrit = isCrit,
+                        applyDamage = { myCurrentHP = (myCurrentHP - damage).coerceAtLeast(0f) },
+                        logText = (if (isCrit) "CRITICAL! " else "") + "ENEMY HIT! -$damage"
+                    )
+                } else {
+                    battleLog = "YOU DODGED!"
+                    delay(500)
+                }
             } else {
-                battleLog = "YOU DODGED!"
+                // Enemy attacks first
+                val enDodgeChance = ((myState?.speedBonus ?: 0) / 5000f).coerceIn(0.05f, 0.4f)
+                if (enRoll > enDodgeChance) {
+                    val isCrit = battleRandom.nextFloat() < enemyCritChance
+                    val rawDmg = (opponent.atk / 4 + enDmgRoll).toFloat()
+                    val damage = if (isCrit) rawDmg * 1.5f else rawDmg
+                    playAttackCutscene(
+                        attackerIsMe = false, isCrit = isCrit,
+                        applyDamage = { myCurrentHP = (myCurrentHP - damage).coerceAtLeast(0f) },
+                        logText = (if (isCrit) "CRITICAL! " else "") + "ENEMY HIT! -$damage"
+                    )
+                } else {
+                    battleLog = "YOU DODGED!"
+                    delay(500)
+                }
+
+                if (myCurrentHP <= 0) break
+                delay(800)
+
+                // Local player attacks second
+                val myDodgeChance = (opponent.spd / 5000f).coerceIn(0.05f, 0.4f)
+                if (myRoll > myDodgeChance) {
+                    val isCrit = battleRandom.nextFloat() < myCritChance
+                    val rawDmg = (((myState?.baseAp ?: 0) + (myState?.attackBonus ?: 0)) / 4 + myDmgRoll).toFloat()
+                    val damage = if (isCrit) rawDmg * 1.5f else rawDmg
+                    playAttackCutscene(
+                        attackerIsMe = true, isCrit = isCrit,
+                        applyDamage = { enemyCurrentHP = (enemyCurrentHP - damage).coerceAtLeast(0f) },
+                        logText = (if (isCrit) "CRITICAL! " else "") + "HIT! -$damage"
+                    )
+                } else {
+                    battleLog = "DODGED!"
+                    delay(500)
+                }
             }
 
-            launch {
-                isEnemyAttacking.value = true
-                enemyOffset.animateTo(-60f, tween(200, easing = FastOutLinearInEasing))
-                enemyOffset.animateTo(0f, tween(100))
-                isEnemyAttacking.value = false
-            }
-            delay(300)
-            
             round++
             delay(1000)
         }
@@ -214,7 +293,7 @@ fun BattleScene(
 
     LaunchedEffect(Unit) {
         while(true) {
-            attackFrame.intValue = (attackFrame.intValue + 1) % 2
+            attackFrame.intValue = (attackFrame.intValue + 1) % 3
             delay(100)
         }
     }
@@ -225,7 +304,17 @@ fun BattleScene(
                 text = battleLog,
                 color = Color.Yellow, fontSize = 32.sp, fontWeight = FontWeight.ExtraBold
             )
-            
+
+            if ((myState?.criticalRemainingMs ?: 0L) > 0L && phase.value != BattlePhase.RESULT) {
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    text = "⚠ CRITICAL: losing this battle will kill your Digimon!",
+                    color = Color.Red, fontSize = 15.sp, fontWeight = FontWeight.Bold,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.padding(horizontal = 24.dp)
+                )
+            }
+
             Spacer(Modifier.height(40.dp))
             
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center, modifier = Modifier.fillMaxWidth()) {
@@ -260,6 +349,47 @@ fun BattleScene(
             
             Spacer(Modifier.height(20.dp))
             Text(opponent.name, color = Color.Cyan, fontSize = 18.sp)
+        }
+
+        // ---- VB-style attack cutscene: full-screen camera on the attacker ----
+        cutscene.value?.let { side ->
+            val attackerIsMe = side == "me"
+            val sprites = if (attackerIsMe) mySprites.value else enemySprites.value
+            val isCritNow = if (attackerIsMe) myCrit.value else enemyCrit.value
+            // DIM-programmed attack: small ID for regular hits, big ID for crits
+            val ids = if (attackerIsMe) myAttackIds.value else enemyAttackIds.value
+            val attackId = if (isCritNow) ids.second else ids.first
+            Box(
+                Modifier.fillMaxSize().background(Color.Black),
+                contentAlignment = Alignment.Center
+            ) {
+                // The Bracelet's attack effect, full screen
+                AttackEffectCanvas(
+                    attackId = attackId,
+                    progress = effectProgress.value,
+                    modifier = Modifier.fillMaxSize()
+                )
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    if (isCritNow) {
+                        Text(
+                            "CRITICAL!", color = Color.Red, fontSize = 42.sp,
+                            fontWeight = FontWeight.ExtraBold
+                        )
+                        Spacer(Modifier.height(12.dp))
+                    }
+                    // The attacker lunges through its attack pose while the effect plays
+                    val poseBmp = if (attackFrame.intValue % 3 == 2) sprites["ATK"] else sprites["IDLE1"]
+                    poseBmp?.let { Image(it.asImageBitmap(), "Attacking", Modifier.size(200.dp)) }
+                    Spacer(Modifier.height(12.dp))
+                    Text(
+                        if (attackerIsMe) "My attack!" else "Rival attack!",
+                        color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+        }
+        if (impactFlash.value) {
+            Box(Modifier.fillMaxSize().background(Color.White.copy(alpha = 0.35f)))
         }
     }
 }

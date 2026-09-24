@@ -30,16 +30,24 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.graphics.Shadow
+import androidx.compose.ui.geometry.Offset
+import com.example.vitalwearclonev1.monster.CareManager
+import com.example.vitalwearclonev1.monster.CareTuning
 import androidx.health.connect.client.PermissionController
 import com.example.vitalwearclonev1.card.CardManager
 import com.example.vitalwearclonev1.card.StandaloneImportCardActivity
 import com.example.vitalwearclonev1.common.SpriteBitmapHandler
+import com.example.vitalwearclonev1.game.EducationalGameActivity
 import com.example.vitalwearclonev1.lab.DigimonLabActivity
 import com.example.vitalwearclonev1.ui.EvolutionAnimation
 import com.example.vitalwearclonev1.ui.EvolutionRequest
 import com.example.vitalwearclonev1.monster.BattleOpponent
 import com.example.vitalwearclonev1.monster.PhoneMonsterManager
 import com.example.vitalwearclonev1.sensor.PhoneGpsManager
+import com.example.vitalwearclonev1.ui.OnlineMultiplayerScreen
 import com.github.cfogrady.vb.dim.card.BemCard
 import com.google.android.gms.wearable.MessageClient
 import com.google.android.gms.wearable.MessageEvent
@@ -139,8 +147,8 @@ class PhoneMainActivity : ComponentActivity(), MessageClient.OnMessageReceivedLi
                                     dos.write(myState.cardName.toByteArray(java.nio.charset.Charset.defaultCharset()))
                                     dos.writeByte(0)
                                     dos.writeInt(myState.characterId)
-                                    dos.writeInt(myState.attackBonus)
-                                    dos.writeInt(myState.healthBonus)
+                                    dos.writeInt(myState.baseAp + myState.attackBonus)
+                                    dos.writeInt(myState.baseHp + myState.healthBonus)
                                     dos.writeInt(myState.speedBonus)
                                     dos.writeInt(myState.defenseBonus)
                                     dos.writeLong(seed)
@@ -188,6 +196,7 @@ class PhoneMainActivity : ComponentActivity(), MessageClient.OnMessageReceivedLi
 fun PhoneMainScreen(activeOpponent: MutableState<BattleOpponent?>) {
     val context = LocalContext.current
     val monsterManager = remember { PhoneMonsterManager(context) }
+    val isExpiredState = remember { mutableStateOf(monsterManager.isExpired()) }
     val healthSyncManager = remember { com.example.vitalwearclonev1.communication.PhoneHealthSyncManager(context) }
     var selectedTab by remember { mutableIntStateOf(0) }
 
@@ -222,6 +231,7 @@ fun PhoneMainScreen(activeOpponent: MutableState<BattleOpponent?>) {
     LaunchedEffect(Unit) {
         while(true) {
             try {
+                isExpiredState.value = monsterManager.isExpired()
                 val nodes = Wearable.getNodeClient(context).connectedNodes.await()
                 isPhoneConnected.value = nodes.isNotEmpty()
 
@@ -285,56 +295,78 @@ fun PhoneMainScreen(activeOpponent: MutableState<BattleOpponent?>) {
         Box(modifier = Modifier.padding(padding)) {
             val btManager = remember { com.example.vitalwearclonev1.communication.BluetoothBattleManager(context) }
 
-            when (selectedTab) {
-                0 -> HomeScreen(monsterManager, isPhoneConnected.value)
-                1 -> {
-                    LaunchedEffect(Unit) {
-                        context.startActivity(Intent(context, DigimonLabActivity::class.java))
-                        selectedTab = 0
-                    }
-                }
-                2 -> {
-                    LaunchedEffect(Unit) {
-                        context.startActivity(Intent(context, StandaloneImportCardActivity::class.java))
-                        selectedTab = 0
-                    }
-                }
-                3 -> SettingsScreen(monsterManager, healthPermissionLauncher)
-                4 -> {
-                    var isOnline by remember { mutableStateOf(false) }
-                    if (isOnline) {
-                        com.example.vitalwearclonev1.ui.OnlineMultiplayerScreen(
-                            monsterManager = monsterManager,
-                            onBattleStart = { opponent ->
-                                activeOpponent.value = opponent
-                            },
-                            onBack = { isOnline = false }
-                        )
-                    } else {
-                        MultiplayerScreen(monsterManager, btManager) { opponent: BattleOpponent ->
-                            activeOpponent.value = opponent
+            if (isExpiredState.value && selectedTab != 1 && selectedTab != 2 && selectedTab != 3) {
+                Box(modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.9f)), contentAlignment = Alignment.Center) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(24.dp)) {
+                        Icon(Icons.Default.Warning, contentDescription = null, tint = Color.Red, modifier = Modifier.size(64.dp))
+                        Spacer(Modifier.height(16.dp))
+                        Text("Your Digimon has expired", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 20.sp)
+                        Spacer(Modifier.height(8.dp))
+                        val deathCause = monsterManager.getDeathCause()
+                        val deathText = when (deathCause) {
+                            "critical" -> "It lost its final battle while in critical condition."
+                            "overwork" -> "It was overworked in battle."
+                            else -> "It passed away due to neglect."
                         }
-                        // Add button to switch to Online
-                        Box(modifier = Modifier.fillMaxSize().padding(16.dp), contentAlignment = Alignment.BottomCenter) {
-                            Button(onClick = { isOnline = true }, colors = ButtonDefaults.buttonColors(backgroundColor = Color(10, 10, 30))) {
-                                Text("Go Online (Internet)", color = Color.White)
+                        Text("$deathText Please visit the Lab to hatch a new egg or select a different partner.", color = Color.LightGray, textAlign = TextAlign.Center)
+                        Spacer(Modifier.height(24.dp))
+                        Button(onClick = { selectedTab = 1 }, colors = ButtonDefaults.buttonColors(backgroundColor = Color(0, 80, 150))) {
+                            Text("Go to Lab", color = Color.White)
+                        }
+                    }
+                }
+            } else {
+                when (selectedTab) {
+                    0 -> HomeScreen(monsterManager, isPhoneConnected.value)
+                    1 -> {
+                        LaunchedEffect(Unit) {
+                            context.startActivity(Intent(context, DigimonLabActivity::class.java))
+                            selectedTab = 0
+                            isExpiredState.value = false // Just in case they select something
+                        }
+                    }
+                    2 -> {
+                        LaunchedEffect(Unit) {
+                            context.startActivity(Intent(context, StandaloneImportCardActivity::class.java))
+                            selectedTab = 0
+                        }
+                    }
+                    3 -> SettingsScreen(monsterManager, healthPermissionLauncher)
+                    4 -> {
+                        var isOnline by remember { mutableStateOf(false) }
+                        if (isOnline) {
+                            OnlineMultiplayerScreen(
+                                monsterManager = monsterManager,
+                                onBattleStart = { opponent ->
+                                    activeOpponent.value = opponent
+                                },
+                                onBack = { isOnline = false }
+                            )
+                        } else {
+                            MultiplayerScreen(monsterManager, btManager) { opponent: BattleOpponent ->
+                                activeOpponent.value = opponent
+                            }
+                            // Add button to switch to Online
+                            Box(modifier = Modifier.fillMaxSize().padding(16.dp), contentAlignment = Alignment.BottomCenter) {
+                                Button(onClick = { isOnline = true }, colors = ButtonDefaults.buttonColors(backgroundColor = Color(10, 10, 30))) {
+                                    Text("Go Online (Internet)", color = Color.White)
+                                }
                             }
                         }
                     }
-                }
-                5 -> GameMenuScreen { mode, isLesson ->
-                    val intent = Intent(context, com.example.vitalwearclonev1.game.EducationalGameActivity::class.java)
-                    intent.putExtra("EXTRA_MODE", mode)
-                    intent.putExtra("EXTRA_IS_LESSON", isLesson)
-                    context.startActivity(intent)
-                    selectedTab = 0
+                    5 -> GameMenuScreen { mode, isLesson ->
+                        val intent = Intent(context, EducationalGameActivity::class.java)
+                        intent.putExtra("EXTRA_MODE", mode)
+                        intent.putExtra("EXTRA_IS_LESSON", isLesson)
+                        context.startActivity(intent)
+                        selectedTab = 0
+                    }
                 }
             }
-
-            activeOpponent.value?.let { opponent ->
-                P2PBattleOverlay(opponent, monsterManager) {
-                    activeOpponent.value = null
-                }
+        }
+        activeOpponent.value?.let { opponent ->
+            P2PBattleOverlay(opponent, monsterManager) {
+                activeOpponent.value = null
             }
         }
     }
@@ -588,6 +620,35 @@ fun HomeScreen(monsterManager: PhoneMonsterManager, isWatchConnected: Boolean?) 
                             contentScale = ContentScale.Fit
                         )
                     }
+                    // Poor-condition skull: appears at 3 straight losses, stays through critical.
+                    if (CareManager.showSkull(state.consecutiveLosses, state.criticalRemainingMs)) {
+                        Text(
+                            text = "☠",
+                            color = Color.Black,
+                            fontSize = 30.sp,
+                            style = TextStyle(shadow = Shadow(Color.White, offset = Offset(1f, 1f), blurRadius = 4f)),
+                            modifier = Modifier.align(Alignment.TopStart).padding(start = 24.dp, top = 4.dp)
+                        )
+                    }
+                }
+
+                // Critical-condition banner with live healing countdown.
+                if (state.criticalRemainingMs > 0) {
+                    Text(
+                        text = "⚠ CRITICAL — ${CareManager.formatCriticalMs(state.criticalRemainingMs)}",
+                        color = Color.Red, fontWeight = FontWeight.Bold, fontSize = 18.sp
+                    )
+                    Text(
+                        text = "Rest or finish exercises to heal. Losing a battle now will kill your Digimon!",
+                        color = Color.Red.copy(alpha = 0.85f), fontSize = 12.sp,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.padding(horizontal = 32.dp)
+                    )
+                } else if (state.consecutiveLosses >= CareTuning.SKULL_WARNING_LOSSES) {
+                    Text(
+                        text = "${state.consecutiveLosses} straight losses — win a battle soon!",
+                        color = Color.Yellow, fontSize = 12.sp, fontWeight = FontWeight.Bold
+                    )
                 }
 
                 if (state.stage == 0) {

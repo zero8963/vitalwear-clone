@@ -11,6 +11,14 @@ import kotlin.math.max
  *  - Going too long with no activity at all (neglected)
  * Every battle also costs a little lifespan (wear and tear).
  *
+ * Loss-streak / critical system:
+ *  - Straight losses are tracked. At 3 the poor-condition skull shows.
+ *  - At 5 straight losses the Digimon goes CRITICAL: a 30-minute healing
+ *    window opens (persisted as [CareState.criticalRemainingMs]).
+ *  - Resting out the full window heals it; each completed exercise shaves
+ *    15 minutes off; winning a battle heals it instantly.
+ *  - Losing a battle while critical kills it on the spot (self-delete).
+ *
  * Pure Kotlin — no Android dependencies — so the watch module can share it.
  * All tuning knobs live in [CareTuning]; persistence lives in
  * PhoneMonsterManager, which converts to/from [CareState].
@@ -21,7 +29,16 @@ data class CareState(
     val careMistakes: Int,
     val consecutiveBattles: Int,
     /** Epoch day (System.currentTimeMillis() / 86400000) of the last active day. */
-    val lastActiveDay: Long
+    val lastActiveDay: Long,
+    /** Straight battle losses in a row. Resets on any win or full heal. */
+    val consecutiveLosses: Int = 0,
+    /**
+     * Critical-condition healing time left, in milliseconds.
+     * Greater than zero means the Digimon is CRITICAL. Ticks down with real
+     * elapsed time in [CareManager.tickTime]; frozen automatically whenever
+     * the caller stops ticking (e.g. a stored/sleeping partner).
+     */
+    val criticalRemainingMs: Long = 0L
 )
 
 object CareTuning {
@@ -41,6 +58,14 @@ object CareTuning {
     const val STEPS_PER_VITAL_POINT = 500
     /** Daily steps that count as "looked after" for the day. */
     const val DAILY_STEP_GOAL = 4000
+    /** Straight losses before the poor-condition skull warning appears. */
+    const val SKULL_WARNING_LOSSES = 3
+    /** Straight losses that push the Digimon into CRITICAL condition. */
+    const val CRITICAL_LOSS_STREAK = 5
+    /** Critical healing window: rest this long and it recovers. */
+    const val CRITICAL_HEAL_WINDOW_MS = 30 * 60 * 1000L
+    /** Each completed exercise shaves this much off the critical timer. */
+    const val EXERCISE_HEAL_MS = 15 * 60 * 1000L
 }
 
 object CareManager {
@@ -63,16 +88,48 @@ object CareManager {
         )
     }
 
+    /** True while the Digimon is in critical condition (healing window open). */
+    fun isCritical(state: CareState): Boolean = state.criticalRemainingMs > 0
+
+    /**
+     * True when the poor-condition skull should show: from 3 straight losses
+     * as a warning, and it stays up through critical.
+     */
+    fun showSkull(state: CareState): Boolean =
+        state.consecutiveLosses >= CareTuning.SKULL_WARNING_LOSSES || isCritical(state)
+
+    /** Same check from raw values, for UI holding a MonsterState. */
+    fun showSkull(consecutiveLosses: Int, criticalRemainingMs: Long): Boolean =
+        consecutiveLosses >= CareTuning.SKULL_WARNING_LOSSES || criticalRemainingMs > 0
+
+    /** "24:37" style rendering of the critical countdown for UI. */
+    fun formatCriticalMs(ms: Long): String {
+        val totalSeconds = (ms / 1000).coerceAtLeast(0)
+        return "%d:%02d".format(totalSeconds / 60, totalSeconds % 60)
+    }
+
     /**
      * Advance the clock by [elapsedHours] of real time. Neglect is penalized
      * at most once per call so a long gap (phone off for days) stings but
      * doesn't insta-kill — callers should also clamp elapsed time.
+     *
+     * Rest also heals critical: the 30-minute window ticks down with real
+     * elapsed time, and hitting zero recovers the Digimon fully.
      */
     fun tickTime(state: CareState, elapsedHours: Double, todayEpochDay: Long): TickResult {
         if (elapsedHours <= 0) return TickResult(state, false, 0, emptyList())
         var s = state.copy(lifespanHoursRemaining = state.lifespanHoursRemaining - elapsedHours)
         var mistakes = 0
         val warnings = mutableListOf<String>()
+        if (s.criticalRemainingMs > 0) {
+            val left = s.criticalRemainingMs - (elapsedHours * 3600000.0).toLong()
+            s = if (left <= 0) {
+                warnings.add("Your Digimon has recovered from critical condition!")
+                s.copy(consecutiveLosses = 0, criticalRemainingMs = 0L)
+            } else {
+                s.copy(criticalRemainingMs = left)
+            }
+        }
         val hoursSinceActive = (todayEpochDay - state.lastActiveDay) * 24.0
         if (hoursSinceActive >= CareTuning.INACTIVITY_LIMIT_HOURS && s.lifespanHoursRemaining > 0) {
             s = applyMistake(s)
@@ -85,8 +142,13 @@ object CareManager {
         return TickResult(s, false, mistakes, warnings)
     }
 
-    /** Record one battle. Wear-and-tear always costs a little life; overwork is a mistake. */
-    fun recordBattle(state: CareState): TickResult {
+    /**
+     * Record one finished battle. Wear-and-tear always costs a little life;
+     * overwork is a mistake. Wins reset the loss streak and heal critical
+     * instantly; losses build the streak — the 5th straight loss opens the
+     * critical window, and losing while critical kills on the spot.
+     */
+    fun recordBattle(state: CareState, won: Boolean): TickResult {
         var s = state.copy(
             consecutiveBattles = state.consecutiveBattles + 1,
             lifespanHoursRemaining = state.lifespanHoursRemaining - CareTuning.BATTLE_COST_HOURS
@@ -98,8 +160,40 @@ object CareManager {
             mistakes++
             warnings.add("Too many battles without rest — your Digimon is overworked!")
         }
+        if (won) {
+            if (s.consecutiveLosses > 0 || s.criticalRemainingMs > 0) {
+                warnings.add("Victory! Your Digimon's condition is back to normal.")
+            }
+            s = s.copy(consecutiveLosses = 0, criticalRemainingMs = 0L)
+        } else {
+            if (s.criticalRemainingMs > 0) {
+                warnings.add("Your Digimon lost while in critical condition…")
+                return TickResult(s, died = true, mistakes, warnings)
+            }
+            val losses = s.consecutiveLosses + 1
+            s = if (losses >= CareTuning.CRITICAL_LOSS_STREAK) {
+                warnings.add("CRITICAL CONDITION! Rest 30 minutes or exercise to heal — losing another battle will kill your Digimon!")
+                s.copy(consecutiveLosses = losses, criticalRemainingMs = CareTuning.CRITICAL_HEAL_WINDOW_MS)
+            } else {
+                if (losses >= CareTuning.SKULL_WARNING_LOSSES) {
+                    warnings.add("Your Digimon is in poor condition ($losses straight losses) — win a battle soon!")
+                }
+                s.copy(consecutiveLosses = losses)
+            }
+        }
         val died = s.lifespanHoursRemaining <= 0
         return TickResult(if (died) s.copy(lifespanHoursRemaining = 0.0) else s, died, mistakes, warnings)
+    }
+
+    /**
+     * A completed exercise shaves 15 minutes off the critical healing timer;
+     * two exercises heal it fully. No-op when the Digimon isn't critical.
+     */
+    fun recordExercise(state: CareState): CareState {
+        if (state.criticalRemainingMs <= 0) return state
+        val left = state.criticalRemainingMs - CareTuning.EXERCISE_HEAL_MS
+        return if (left <= 0) state.copy(consecutiveLosses = 0, criticalRemainingMs = 0L)
+        else state.copy(criticalRemainingMs = left)
     }
 
     /**
