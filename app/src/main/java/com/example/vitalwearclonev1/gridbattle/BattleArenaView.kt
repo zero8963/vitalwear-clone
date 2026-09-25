@@ -1,7 +1,6 @@
 package com.example.vitalwearclonev1.gridbattle
 
 import android.graphics.Bitmap
-import androidx.compose.animation.core.Animatable
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -46,9 +45,7 @@ fun BattleArenaView(
     modifier: Modifier = Modifier
 ) {
     val density = LocalDensity.current
-    BoxWithConstraints(
-        Modifier.weight(1f).fillMaxWidth().padding(horizontal = 8.dp)
-    ) {
+    BoxWithConstraints(modifier) {
         val wPx = constraints.maxWidth.toFloat()
         val hPx = constraints.maxHeight.toFloat()
         val cell = min(wPx / 6f, hPx / 3f)
