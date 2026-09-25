@@ -45,6 +45,7 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.withTransform
+import com.example.vitalwearclonev1.ui.AttackEffectCanvas
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -92,7 +93,7 @@ fun chipElementColor(e: ChipElement): Color = when (e) {
     ChipElement.NULL -> Color(0xFF35E0FF)
 }
 
-private fun charBaseIndex(characterId: Int, isBem: Boolean): Int {
+internal fun charBaseIndex(characterId: Int, isBem: Boolean): Int {
     if (isBem) return 54 + (characterId * 14)
     var currentIdx = 10
     for (i in 0 until characterId) {
@@ -114,17 +115,23 @@ fun GridBattleScreen(setup: BattleSetup, onExit: () -> Unit) {
     var playerBmp by remember { mutableStateOf<Bitmap?>(null) }
     var enemyBmp by remember { mutableStateOf<Bitmap?>(null) }
 
-    // Attack FX state: NaviCust core animation key, or a default flash.
+    // Attack FX state: NaviCust core animation key, borrowed DIM attack id, or a default flash.
     var coreFx by remember { mutableStateOf<String?>(null) }
+    var dimFxId by remember { mutableStateOf<Int?>(null) }
     var defaultFx by remember { mutableStateOf(false) }
     val fxProg = remember { Animatable(0f) }
 
-    fun playAttackFx(animKey: String?) {
+    fun playAttackFx(animKey: String?, fxAttackId: Int? = null) {
         scope.launch {
-            if (animKey != null) coreFx = animKey else defaultFx = true
+            when {
+                animKey != null -> coreFx = animKey
+                fxAttackId != null -> dimFxId = fxAttackId
+                else -> defaultFx = true
+            }
             fxProg.snapTo(0f)
             fxProg.animateTo(1f, tween(450))
             coreFx = null
+            dimFxId = null
             defaultFx = false
         }
     }
@@ -489,6 +496,7 @@ fun GridBattleScreen(setup: BattleSetup, onExit: () -> Unit) {
                             onClick = {
                                 fightId++
                                 coreFx = null
+                                dimFxId = null
                                 defaultFx = false
                             },
                             colors = ButtonDefaults.buttonColors(backgroundColor = Color(0, 120, 200))

@@ -61,7 +61,8 @@ class GridBattleActivity : ComponentActivity() {
                     selectedTabIndex = when (screen) {
                         "navicust" -> 1
                         "folder" -> 2
-                        "lobby", "battle" -> 3
+                        "attackfx" -> 3
+                        "lobby", "battle" -> 4
                         else -> 0
                     },
                     backgroundColor = Color(0, 50, 100),
@@ -81,6 +82,11 @@ class GridBattleActivity : ComponentActivity() {
                         selected = screen == "folder",
                         onClick = { screen = "folder" },
                         text = { Text("Folder") }
+                    )
+                    Tab(
+                        selected = screen == "attackfx",
+                        onClick = { screen = "attackfx" },
+                        text = { Text("Attack FX") }
                     )
                     Tab(
                         selected = screen == "lobby" || screen == "battle",
@@ -115,6 +121,21 @@ class GridBattleActivity : ComponentActivity() {
                             ) {
                                 Text(
                                     "Hatch a Digimon first!\nYour partner owns the Chip Folder.",
+                                    color = Color.White,
+                                    fontSize = 16.sp,
+                                    modifier = Modifier.padding(32.dp)
+                                )
+                            }
+                        }
+                        "attackfx" -> if (monster != null) {
+                            AttackFxPickerScreen(ownerId = ownerId)
+                        } else {
+                            Box(
+                                modifier = Modifier.fillMaxSize(),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    "Hatch a Digimon first!\nYour partner owns the Attack FX.",
                                     color = Color.White,
                                     fontSize = 16.sp,
                                     modifier = Modifier.padding(32.dp)

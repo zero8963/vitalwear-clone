@@ -31,7 +31,9 @@ data class BattleConfig(
     val enemyMaxHp: Int,
     val enemyAtk: Int,
     /** NaviCust charge% speeds up buster charging. */
-    val chargeRate: Float = 1f
+    val chargeRate: Float = 1f,
+    /** Attack-FX override: borrowed (small, big) base attack ids. Null = partner's own. */
+    val fxAttackIds: Pair<Int, Int>? = null
 )
 
 data class SimProjectile(
@@ -59,10 +61,17 @@ data class FiredShot(
     val damage: Float,
     val animKey: String?,
     val element: ChipElement?,
-    val charged: Boolean
+    val charged: Boolean,
+    /** Borrowed DIM attack id for the FX overlay; null = default flash. */
+    val fxAttackId: Int? = null
 )
 
-data class SwordResult(val damageDealt: Float, val animKey: String?)
+data class SwordResult(
+    val damageDealt: Float,
+    val animKey: String?,
+    /** Borrowed DIM attack id for the FX overlay; null = default flash. */
+    val fxAttackId: Int? = null
+)
 
 private data class PendingChip(val chip: BattleChip, var delay: Float)
 private data class DelayedProj(val proj: SimProjectile, var delay: Float)
@@ -157,7 +166,10 @@ class BattleEngine(val config: BattleConfig) {
         busterCd = 0.2f
         charge = 0f
         charging = false
-        return FiredShot(dmg, config.busterAnimKey, config.busterElement, charged)
+        val fxId = if (config.busterAnimKey == null) {
+            config.fxAttackIds?.let { if (charged) it.second else it.first }
+        } else null
+        return FiredShot(dmg, config.busterAnimKey, config.busterElement, charged, fxId)
     }
 
     /** Instant sword arc; returns result for the UI FX, or null on cooldown. */
@@ -171,7 +183,8 @@ class BattleEngine(val config: BattleConfig) {
             damageEnemy(dmg)
             dealt = dmg
         }
-        return SwordResult(dealt, config.swordAnimKey)
+        val fxId = if (config.swordAnimKey == null) config.fxAttackIds?.second else null
+        return SwordResult(dealt, config.swordAnimKey, fxId)
     }
 
     // ---------- chip custom ----------

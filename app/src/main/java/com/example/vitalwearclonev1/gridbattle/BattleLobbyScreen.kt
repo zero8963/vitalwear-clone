@@ -57,6 +57,15 @@ fun BattleLobbyScreen(
     val style = remember(loadout) { loadout.style() }
     val busterOv = remember(loadout) { loadout.busterOverride() }
     val swordOv = remember(loadout) { loadout.swordOverride() }
+    val fxOverride = remember(ownerId) { AttackFxOverrides.load(context, ownerId) }
+    val fxAttackIds = remember(fxOverride) {
+        fxOverride?.let {
+            try {
+                com.example.vitalwearclonev1.monster.PhoneMonsterManager(context)
+                    .getAttackIds(it.cardName, it.charId)
+            } catch (e: Exception) { null }
+        }
+    }
 
     val displayName = monster.nickname?.takeIf { it.isNotBlank() } ?: monster.cardName
     val atkStat = monster.baseAp + monster.attackBonus
@@ -121,6 +130,11 @@ fun BattleLobbyScreen(
             )
             statRow("Buster", busterOv?.displayName() ?: "Default")
             statRow("Sword", swordOv?.displayName() ?: "Default")
+            statRow(
+                "Attack FX",
+                fxOverride?.let { "${it.cardName.take(16)} #${it.charId}" } ?: "Partner's own",
+                color = if (fxOverride != null) Color(0xFFFFD54F) else Color.White
+            )
             if (bonuses.speedPct > 0) statRow("Shot speed", "+${bonuses.speedPct}%")
             if (bonuses.chargePct > 0) statRow("Charge rate", "+${bonuses.chargePct}%")
             val glitch = loadout.glitchPenaltyHp()
@@ -155,6 +169,7 @@ fun BattleLobbyScreen(
                         busterElement = busterOv?.element,
                         busterAnimKey = busterOv?.animKey,
                         swordAnimKey = swordOv?.animKey,
+                        fxAttackIds = fxAttackIds,
                         playerDeck = folder.chipIds,
                         enemyName = "Wild ${eName.take(18)}",
                         enemyMaxHp = eHp,

@@ -57,6 +57,7 @@ import com.example.vitalwearclonev1.gridbattle.ChipFolder
 import com.example.vitalwearclonev1.gridbattle.ChipLibrary
 import com.example.vitalwearclonev1.gridbattle.EffectKind
 import com.example.vitalwearclonev1.gridbattle.NaviCustLoadout
+import com.example.vitalwearclonev1.gridbattle.AttackFxOverrides
 import com.example.vitalwearclonev1.gridbattle.ownerIdFor
 
 class MapAdventureActivity : ComponentActivity() {
@@ -160,6 +161,8 @@ fun NetworldAdventure(
         if (loaded.validate().errors.isNotEmpty()) NaviCustLoadout(emptyList()) else loaded
     }
     val chipFolder = remember(ownerId) { ChipFolder.load(context, ownerId) }
+    // Attack FX override: borrow another Digimon's base attack animations (Core programs still win).
+    val fxOverride = remember(ownerId) { AttackFxOverrides.load(context, ownerId) }
     val programBonuses = remember(naviLoadout) { naviLoadout.totalBonuses() }
     val battleStyle = remember(naviLoadout) { naviLoadout.style() }
     val glitchPenalty = remember(naviLoadout) { naviLoadout.glitchPenaltyHp() }
@@ -230,7 +233,11 @@ fun NetworldAdventure(
     var isAttackingAnim by remember { mutableStateOf(false) }
     var isFacingLeft by remember { mutableStateOf(false) }
     // DIM-programmed attack IDs: (small = regular, big = critical)
-    val attackIds = remember(cardName, charId) { phoneManager.getAttackIds(cardName, charId) ?: Pair(0, 0) }
+    val attackIds = remember(cardName, charId, fxOverride) {
+        fxOverride?.let { phoneManager.getAttackIds(it.cardName, it.charId) }
+            ?: phoneManager.getAttackIds(cardName, charId)
+            ?: Pair(0, 0)
+    }
     // Localized attack-effect burst shown around the player when firing
     val attackFxId = remember { mutableStateOf<Int?>(null) }
     val attackFxProgress = remember { androidx.compose.animation.core.Animatable(0f) }
