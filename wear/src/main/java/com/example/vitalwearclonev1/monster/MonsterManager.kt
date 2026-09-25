@@ -438,7 +438,11 @@ class MonsterManager(private val context: Context) {
 
         for (warning in careTick.warnings) Timber.w(warning)
         if (careTick.died) {
-            val cause = if (!won && current.criticalRemainingMs > 0) "critical" else "overwork"
+            val cause = when {
+                !won && current.criticalRemainingMs > 0 -> "critical"
+                careTick.newMistakes > 0 -> "overwork"
+                else -> "age"
+            }
             Timber.w("Digimon died ($cause) — clearing active monster")
             clearSlot("current_")
             prefs.edit()
@@ -477,13 +481,19 @@ class MonsterManager(private val context: Context) {
      * touches the ACTIVE slot — a stored partner's timer stays frozen.
      * @return true if this exercise healed the Digimon out of critical.
      */
+    /**
+     * A finished workout always resets the overwork battle counter — regular
+     * training protects the Digimon — and heals critical when present.
+     * @return true if a critical condition was fully healed by this workout.
+     */
     fun recordExerciseCompleted(): Boolean {
         val current = getCurrentMonster() ?: return false
-        if (current.criticalRemainingMs <= 0) return false
-        val care = CareManager.recordExercise(toCareState(current))
+        val wasCritical = current.criticalRemainingMs > 0
+        var care = toCareState(current).copy(consecutiveBattles = 0)
+        care = CareManager.recordExercise(care)
         persistCare("current_", care)
-        Timber.d("Exercise completed during critical: ${CareManager.formatCriticalMs(care.criticalRemainingMs)} left")
-        return care.criticalRemainingMs <= 0
+        Timber.d("Workout completed: overwork counter reset; critical ${CareManager.formatCriticalMs(care.criticalRemainingMs)} left")
+        return wasCritical && care.criticalRemainingMs <= 0
     }
 
     /**
@@ -518,8 +528,8 @@ class MonsterManager(private val context: Context) {
 
     /**
      * Advance the care clock by real elapsed time since the last tick.
-     * Seeds a fresh clock for pre-system monsters so they don't insta-die.
-     * @return true if the Digimon died of neglect (active monster cleared).
+     * Seeds a fresh clock for pre-system monsters.
+     * @return false — time ticks can no longer kill a Digimon.
      */
     fun tickCare(nowMillis: Long = System.currentTimeMillis()): Boolean {
         val current = getCurrentMonster() ?: return false
@@ -543,10 +553,7 @@ class MonsterManager(private val context: Context) {
         if (tick.newMistakes > 0 && nowMillis - lastNeglect < 86400000L) {
             tick = tick.copy(
                 state = tick.state.copy(
-                    careMistakes = tick.state.careMistakes - tick.newMistakes,
-                    lifespanHoursRemaining = (tick.state.lifespanHoursRemaining +
-                        tick.newMistakes * CareTuning.MISTAKE_PENALTY_HOURS)
-                        .coerceAtMost(tick.state.maxLifespanHours)
+                    careMistakes = tick.state.careMistakes - tick.newMistakes
                 ),
                 newMistakes = 0,
                 warnings = emptyList()
@@ -557,12 +564,8 @@ class MonsterManager(private val context: Context) {
         persistCare("current_", tick.state)
         prefs.edit().putLong("current_last_care_tick", nowMillis).apply()
         for (warning in tick.warnings) Timber.w(warning)
-        if (tick.died) {
-            Timber.w("Digimon died (neglect) — clearing active monster")
-            clearSlot("current_")
-            prefs.edit().putBoolean("current_is_expired", true).apply()
-            return true
-        }
+        // Time ticks can no longer kill — only losing while critical does,
+        // and that flows through recordBattleResult.
         return false
     }
 

@@ -169,8 +169,8 @@ class VitalForegroundService : Service() {
                         // as "looked after" for the care system.
                         monsterManager.syncStepsToVitalPoints(currentSteps)
 
-                        // Care clock: lifespan burns in real time; poor care
-                        // can self-delete the Digimon.
+                        // Care clock: tracks neglect warnings and critical
+                        // healing. Poor care warns but can no longer kill.
                         val died = monsterManager.tickCare()
                         if (died) {
                             Timber.w("Digimon died of poor care")

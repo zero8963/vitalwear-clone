@@ -1,15 +1,14 @@
 package com.example.vitalwearclonev1.monster
 
-import kotlin.math.max
-
 /**
- * The DIM "life expectancy" system: a Digimon that isn't cared for properly
- * burns through its lifespan and eventually self-deletes (dies).
+ * The DIM care system: poor care racks up care mistakes (tracked, and they
+ * trigger warnings) but can never kill a Digimon on its own — there is no
+ * lifespan clock anymore. The only death is losing a battle while in
+ * critical condition (see below).
  *
  * Care mistakes, per the design:
  *  - Too many battles in a row with no real-world activity (overworked)
  *  - Going too long with no activity at all (neglected)
- * Every battle also costs a little lifespan (wear and tear).
  *
  * Loss-streak / critical system:
  *  - Straight losses are tracked. At 3 the poor-condition skull shows.
@@ -110,15 +109,17 @@ object CareManager {
 
     /**
      * Advance the clock by [elapsedHours] of real time. Neglect is penalized
-     * at most once per call so a long gap (phone off for days) stings but
-     * doesn't insta-kill — callers should also clamp elapsed time.
+     * at most once per call so a long gap (phone off for days) only warns —
+     * it can never kill. Callers should also clamp elapsed time.
      *
      * Rest also heals critical: the 30-minute window ticks down with real
      * elapsed time, and hitting zero recovers the Digimon fully.
      */
     fun tickTime(state: CareState, elapsedHours: Double, todayEpochDay: Long): TickResult {
         if (elapsedHours <= 0) return TickResult(state, false, 0, emptyList())
-        var s = state.copy(lifespanHoursRemaining = state.lifespanHoursRemaining - elapsedHours)
+        // No lifespan clock: time passing never harms the Digimon. Time only
+        // heals critical and watches for neglect (warnings only, never death).
+        var s = state
         var mistakes = 0
         val warnings = mutableListOf<String>()
         if (s.criticalRemainingMs > 0) {
@@ -131,27 +132,24 @@ object CareManager {
             }
         }
         val hoursSinceActive = (todayEpochDay - state.lastActiveDay) * 24.0
-        if (hoursSinceActive >= CareTuning.INACTIVITY_LIMIT_HOURS && s.lifespanHoursRemaining > 0) {
+        if (hoursSinceActive >= CareTuning.INACTIVITY_LIMIT_HOURS) {
             s = applyMistake(s)
             mistakes++
             warnings.add("Your Digimon is feeling neglected — get some activity in!")
-        }
-        if (s.lifespanHoursRemaining <= 0) {
-            return TickResult(s.copy(lifespanHoursRemaining = 0.0), true, mistakes, warnings)
         }
         return TickResult(s, false, mistakes, warnings)
     }
 
     /**
-     * Record one finished battle. Wear-and-tear always costs a little life;
-     * overwork is a mistake. Wins reset the loss streak and heal critical
-     * instantly; losses build the streak — the 5th straight loss opens the
-     * critical window, and losing while critical kills on the spot.
+     * Record one finished battle. Overwork (too many battles with no
+     * real-world activity) is a care mistake that warns. Wins reset the loss
+     * streak and heal critical instantly; losses build the streak — the 5th
+     * straight loss opens the critical window, and losing while critical
+     * kills on the spot. Nothing else here can kill.
      */
     fun recordBattle(state: CareState, won: Boolean): TickResult {
         var s = state.copy(
-            consecutiveBattles = state.consecutiveBattles + 1,
-            lifespanHoursRemaining = state.lifespanHoursRemaining - CareTuning.BATTLE_COST_HOURS
+            consecutiveBattles = state.consecutiveBattles + 1
         )
         var mistakes = 0
         val warnings = mutableListOf<String>()
@@ -181,8 +179,9 @@ object CareManager {
                 s.copy(consecutiveLosses = losses)
             }
         }
-        val died = s.lifespanHoursRemaining <= 0
-        return TickResult(if (died) s.copy(lifespanHoursRemaining = 0.0) else s, died, mistakes, warnings)
+        // Battles never kill on their own now — only losing while critical does,
+        // and that returns early above.
+        return TickResult(s, false, mistakes, warnings)
     }
 
     /**
@@ -206,7 +205,6 @@ object CareManager {
     }
 
     private fun applyMistake(s: CareState): CareState = s.copy(
-        careMistakes = s.careMistakes + 1,
-        lifespanHoursRemaining = max(0.0, s.lifespanHoursRemaining - CareTuning.MISTAKE_PENALTY_HOURS)
+        careMistakes = s.careMistakes + 1
     )
 }

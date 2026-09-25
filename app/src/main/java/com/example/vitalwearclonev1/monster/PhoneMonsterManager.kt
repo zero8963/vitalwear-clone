@@ -249,7 +249,7 @@ class PhoneMonsterManager(private val context: Context) {
             // overwork for a natural end.
             val cause = when {
                 !won && current.criticalRemainingMs > 0 -> "critical"
-                careTick.mistakes > 0 -> "overwork"
+                careTick.newMistakes > 0 -> "overwork"
                 else -> "age"
             }
             onDigimonDeath(cause)
@@ -314,7 +314,8 @@ class PhoneMonsterManager(private val context: Context) {
 
     /**
      * Advance the care clock by real elapsed time since the last tick.
-     * @return true if the Digimon died of neglect (monster is cleared).
+     * Time ticks can no longer kill — always returns false; only losing
+     * while in critical condition (via recordBattleResult) can kill.
      */
     fun tickCare(nowMillis: Long = System.currentTimeMillis()): Boolean {
         val current = getCurrentMonster() ?: return false
@@ -330,12 +331,8 @@ class PhoneMonsterManager(private val context: Context) {
         persistCare(tick.state)
         prefs.edit().putLong("current_last_care_tick", nowMillis).apply()
         for (warning in tick.warnings) Timber.w(warning)
-        if (tick.died) {
-            // A quiet end from old age is not neglect — only call it neglect
-            // when care mistakes actually piled up in this tick.
-            onDigimonDeath(if (tick.mistakes > 0) "neglect" else "age")
-            return true
-        }
+        // tick.died can no longer happen (no lifespan clock) — kept only as a
+        // guard, never as a real path.
         return false
     }
 
