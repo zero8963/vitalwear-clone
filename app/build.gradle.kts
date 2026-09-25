@@ -88,7 +88,7 @@ dependencies {
     implementation(libs.okhttp)
     implementation(libs.kotlinxSerializationJson)
     // Local PvP: phones find each other over WiFi, no server needed.
-    implementation(libs.playServicesNearby)
+    implementation(libs.play.services.nearby)
 
     // Firebase
     implementation(platform(libs.firebase.bom))
