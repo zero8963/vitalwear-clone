@@ -177,6 +177,9 @@ fun PvpLobbyScreen(
                 if (!msg.startsWith("HELLO|")) return
                 try {
                     val guest = parseFighterInfo(msg)
+                    // Reply BEFORE tearing anything down — the guest is stuck
+                    // on "Waiting for the host..." until this arrives.
+                    net.send(my.toWelcomeWire())
                     net.stopAdvertising()
                     goingToBattle = true
                     net.listener = null

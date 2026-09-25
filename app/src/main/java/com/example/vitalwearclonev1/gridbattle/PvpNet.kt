@@ -112,6 +112,8 @@ data class NetSnapshot(
 )
 
 fun PvpFighterInfo.toWire(): String = "HELLO|" + pvpJson.encodeToString(this)
+/** Host -> guest handshake reply. */
+fun PvpFighterInfo.toWelcomeWire(): String = "WELCOME|" + pvpJson.encodeToString(this)
 fun parseFighterInfo(wire: String): PvpFighterInfo =
     pvpJson.decodeFromString(PvpFighterInfo.serializer(), wire.substringAfter("|"))
 
