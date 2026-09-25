@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material.Tab
 import androidx.compose.material.TabRow
 import androidx.compose.material.Text
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -48,9 +49,30 @@ class GridBattleActivity : ComponentActivity() {
             val ownerName = monster?.nickname?.takeIf { it.isNotBlank() }
                 ?: monster?.cardName ?: "No Digimon"
             var battleSetup by remember { mutableStateOf<BattleSetup?>(null) }
+            val pvpNet = remember { PvpNetManager(this) }
+            var pvpHostBinding by remember { mutableStateOf<PvpHostBinding?>(null) }
+            var pvpMe by remember { mutableStateOf<PvpFighterInfo?>(null) }
+            var pvpHostInfo by remember { mutableStateOf<PvpFighterInfo?>(null) }
+
+            DisposableEffect(Unit) {
+                onDispose { pvpNet.stopAll() }
+            }
 
             if (screen == "battle" && battleSetup != null) {
                 GridBattleScreen(setup = battleSetup!!, onExit = { screen = "lobby" })
+            } else if (screen == "pvpHost" && battleSetup != null && pvpHostBinding != null) {
+                GridBattleScreen(
+                    setup = battleSetup!!,
+                    pvpHost = pvpHostBinding!!,
+                    onExit = { pvpNet.stopAll(); screen = "pvp" }
+                )
+            } else if (screen == "pvpGuest" && pvpMe != null && pvpHostInfo != null) {
+                PvpGuestScreen(
+                    guestInfo = pvpMe!!,
+                    hostInfo = pvpHostInfo!!,
+                    net = pvpNet,
+                    onExit = { pvpNet.stopAll(); screen = "pvp" }
+                )
             } else {
             Column(
                 modifier = Modifier
@@ -63,6 +85,7 @@ class GridBattleActivity : ComponentActivity() {
                         "folder" -> 2
                         "attackfx" -> 3
                         "lobby", "battle" -> 4
+                        "pvp", "pvpHost", "pvpGuest" -> 5
                         else -> 0
                     },
                     backgroundColor = Color(0, 50, 100),
@@ -92,6 +115,11 @@ class GridBattleActivity : ComponentActivity() {
                         selected = screen == "lobby" || screen == "battle",
                         onClick = { screen = "lobby" },
                         text = { Text("Battle") }
+                    )
+                    Tab(
+                        selected = screen == "pvp" || screen == "pvpHost" || screen == "pvpGuest",
+                        onClick = { screen = "pvp" },
+                        text = { Text("VS Player") }
                     )
                 }
                 Box(modifier = Modifier.weight(1f)) {
@@ -158,6 +186,35 @@ class GridBattleActivity : ComponentActivity() {
                             ) {
                                 Text(
                                     "Hatch a Digimon first!\nYour partner fights Grid Battles.",
+                                    color = Color.White,
+                                    fontSize = 16.sp,
+                                    modifier = Modifier.padding(32.dp)
+                                )
+                            }
+                        }
+                        "pvp" -> if (monster != null) {
+                            PvpLobbyScreen(
+                                ownerId = ownerId,
+                                monster = monster,
+                                net = pvpNet,
+                                onHostBattle = { setup, guest ->
+                                    battleSetup = setup
+                                    pvpHostBinding = PvpHostBinding(pvpNet, guest)
+                                    screen = "pvpHost"
+                                },
+                                onGuestBattle = { host, my ->
+                                    pvpHostInfo = host
+                                    pvpMe = my
+                                    screen = "pvpGuest"
+                                }
+                            )
+                        } else {
+                            Box(
+                                modifier = Modifier.fillMaxSize(),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    "Hatch a Digimon first!\nYour partner fights PvP battles.",
                                     color = Color.White,
                                     fontSize = 16.sp,
                                     modifier = Modifier.padding(32.dp)

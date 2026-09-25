@@ -3,22 +3,18 @@ package com.example.vitalwearclonev1.gridbattle
 import android.graphics.Bitmap
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -30,6 +26,7 @@ import androidx.compose.material.ButtonDefaults
 import androidx.compose.material.LinearProgressIndicator
 import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -39,18 +36,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.asImageBitmap
-import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.graphics.drawscope.withTransform
-import com.example.vitalwearclonev1.ui.AttackEffectCanvas
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.vitalwearclonev1.card.CardManager
@@ -103,14 +92,42 @@ internal fun charBaseIndex(characterId: Int, isBem: Boolean): Int {
 }
 
 @Composable
-fun GridBattleScreen(setup: BattleSetup, onExit: () -> Unit) {
+fun GridBattleScreen(
+    setup: BattleSetup,
+    onExit: () -> Unit,
+    pvpHost: PvpHostBinding? = null
+) {
     val context = LocalContext.current
     val density = LocalDensity.current
     val scope = rememberCoroutineScope()
 
     var fightId by remember { mutableStateOf(0) }
-    val engine = remember(setup, fightId) { BattleEngine(setup.config) }
+    val engine = remember(setup, fightId) { pvpHost?.newEngine(setup.config) ?: BattleEngine(setup.config) }
     var snap by remember(setup, fightId) { mutableStateOf(engine.snapshot()) }
+    var peerLeft by remember { mutableStateOf(false) }
+
+    fun doRematch() {
+        pvpHost?.sendRestart()
+        fightId++
+        coreFx = null
+        dimFxId = null
+        defaultFx = false
+    }
+
+    fun doExit() {
+        pvpHost?.sendBye()
+        onExit()
+    }
+
+    // PvP host: take over the net listener while the fight is up.
+    DisposableEffect(pvpHost) {
+        pvpHost?.let { host ->
+            host.onPeerLeft = { peerLeft = true }
+            host.onRematchRequested = { doRematch() }
+            host.attach()
+        }
+        onDispose { pvpHost?.detach() }
+    }
 
     var playerBmp by remember { mutableStateOf<Bitmap?>(null) }
     var enemyBmp by remember { mutableStateOf<Bitmap?>(null) }
@@ -164,16 +181,30 @@ fun GridBattleScreen(setup: BattleSetup, onExit: () -> Unit) {
         }
     }
 
-    // Game loop.
+    // Game loop. In PvP the host also applies the guest's queued inputs
+    // and streams authoritative snapshots ~12x/sec.
     LaunchedEffect(engine) {
         var last = System.nanoTime()
-        while (snap.winner == null) {
+        var snapT = 0f
+        while (true) {
             delay(16)
             val now = System.nanoTime()
             val dt = ((now - last) / 1e9f).coerceAtMost(0.1f)
             last = now
+            pvpHost?.drainInputs()?.forEach { applyPvpInput(engine, it, ::playAttackFx) }
             engine.update(dt)
+            pvpHost?.let { host ->
+                snapT += dt
+                if (snapT >= 0.08f) {
+                    snapT = 0f
+                    host.sendSnapshot(engine.netSnapshot())
+                }
+            }
             snap = engine.snapshot()
+            if (snap.winner != null) {
+                pvpHost?.sendEnd(snap.winner!!)
+                break
+            }
         }
     }
 
@@ -219,124 +250,18 @@ fun GridBattleScreen(setup: BattleSetup, onExit: () -> Unit) {
             }
 
             // ---- Arena ----
-            BoxWithConstraints(
-                Modifier.weight(1f).fillMaxWidth().padding(horizontal = 8.dp)
-            ) {
-                val wPx = constraints.maxWidth.toFloat()
-                val hPx = constraints.maxHeight.toFloat()
-                val cell = min(wPx / 6f, hPx / 3f)
-                val ox = (wPx - cell * 6f) / 2f
-                val oy = (hPx - cell * 3f) / 2f
-                val fxSizePx = cell * 2.5f
-
-                Canvas(Modifier.fillMaxSize()) {
-                    // Panels
-                    for (gx in 0 until 6) {
-                        for (gy in 0 until 3) {
-                            val base = if (gx < 3) Color(12, 32, 90) else Color(90, 16, 16)
-                            drawRect(
-                                base,
-                                topLeft = Offset(ox + gx * cell, oy + gy * cell),
-                                size = androidx.compose.ui.geometry.Size(cell, cell)
-                            )
-                            drawRect(
-                                Color.White.copy(alpha = 0.25f),
-                                topLeft = Offset(ox + gx * cell, oy + gy * cell),
-                                size = androidx.compose.ui.geometry.Size(cell, cell),
-                                style = Stroke(2f)
-                            )
-                        }
-                    }
-                    // Mines (blinking diamonds)
-                    val blink = 0.45f + 0.55f * (0.5f + 0.5f * sin(snap.time * 10f))
-                    snap.mines.forEach { m ->
-                        val cx = ox + (m.x + 0.5f) * cell
-                        val cy = oy + (m.y + 0.5f) * cell
-                        val r = cell * 0.28f
-                        val path = Path().apply {
-                            moveTo(cx, cy - r); lineTo(cx + r, cy); lineTo(cx, cy + r); lineTo(cx - r, cy); close()
-                        }
-                        drawPath(path, Color(0xFFFF9800).copy(alpha = blink))
-                    }
-                    // Fighters
-                    fun drawFighter(bmp: Bitmap?, gx: Int, gy: Int, tint: Color, lastHit: Float, faceRight: Boolean) {
-                        val img = bmp?.asImageBitmap()
-                        val dst = IntOffset((ox + gx * cell).toInt(), (oy + gy * cell).toInt())
-                        if (img != null) {
-                            if (faceRight) {
-                                withTransform({
-                                    scale(
-                                        scaleX = -1f, scaleY = 1f,
-                                        pivot = Offset(dst.x + cell / 2f, dst.y + cell / 2f)
-                                    )
-                                }) {
-                                    drawImage(
-                                        img,
-                                        dstOffset = dst,
-                                        dstSize = androidx.compose.ui.unit.IntSize(cell.toInt(), cell.toInt())
-                                    )
-                                }
-                            } else {
-                                drawImage(
-                                    img,
-                                    dstOffset = dst,
-                                    dstSize = androidx.compose.ui.unit.IntSize(cell.toInt(), cell.toInt())
-                                )
-                            }
-                        } else {
-                            drawCircle(
-                                tint,
-                                radius = cell * 0.32f,
-                                center = Offset(ox + (gx + 0.5f) * cell, oy + (gy + 0.5f) * cell)
-                            )
-                        }
-                        if (snap.time - lastHit < 0.25f) {
-                            drawRect(
-                                Color.White.copy(alpha = 0.55f),
-                                topLeft = Offset(ox + gx * cell, oy + gy * cell),
-                                size = androidx.compose.ui.geometry.Size(cell, cell)
-                            )
-                        }
-                    }
-                    drawFighter(playerBmp, snap.px, snap.py, Color.Cyan, snap.lastPlayerHitAt, faceRight = true)
-                    drawFighter(enemyBmp, snap.ex, snap.ey, Color.Magenta, snap.lastEnemyHitAt, faceRight = false)
-                    // Projectiles
-                    snap.projectiles.forEach { p ->
-                        val cx = ox + p.x * cell
-                        val cy = oy + (p.y + 0.5f) * cell
-                        val col = p.element?.let { chipElementColor(it) }
-                            ?: if (p.fromPlayer) Color.Cyan else Color.Magenta
-                        drawCircle(col, radius = if (p.big) 26f else 15f, center = Offset(cx, cy))
-                        drawCircle(Color.White, radius = if (p.big) 26f else 15f, center = Offset(cx, cy), style = Stroke(3f))
-                    }
-                    // Default (non-core) attack flash
-                    if (defaultFx) {
-                        val p = fxProg.value
-                        drawCircle(
-                            Color.White.copy(alpha = (1f - p) * 0.8f),
-                            radius = cell * (0.3f + 1.1f * p),
-                            center = Offset(ox + (snap.px + 0.5f) * cell, oy + (snap.py + 0.5f) * cell),
-                            style = Stroke(width = 10f * (1f - p) + 2f)
-                        )
-                    }
-                }
-
-                // NaviCust core attack animation overlay, centered on the player.
-                if (coreFx != null) {
-                    Box(
-                        Modifier
-                            .size(with(density) { fxSizePx.toDp() })
-                            .offset {
-                                IntOffset(
-                                    (ox + (snap.px + 0.5f) * cell - fxSizePx / 2f).toInt(),
-                                    (oy + (snap.py + 0.5f) * cell - fxSizePx / 2f).toInt()
-                                )
-                            }
-                    ) {
-                        CoreAttackFx(animKey = coreFx!!, progress = fxProg.value, modifier = Modifier.fillMaxSize())
-                    }
-                }
-            }
+            BattleArenaView(
+                snap = snap,
+                playerBmp = playerBmp,
+                enemyBmp = enemyBmp,
+                fx = ArenaFx(
+                    coreKey = coreFx,
+                    defaultFlash = defaultFx,
+                    progress = fxProg.value,
+                    atPlayer = true
+                ),
+                modifier = Modifier.weight(1f).fillMaxWidth().padding(horizontal = 8.dp)
+            )
 
             // ---- Chip gauge ----
             Row(
@@ -478,6 +403,31 @@ fun GridBattleScreen(setup: BattleSetup, onExit: () -> Unit) {
             }
         }
 
+        // ---- Peer-left overlay (PvP) ----
+        if (pvpHost != null && peerLeft && snap.winner == null) {
+            Box(
+                Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.85f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(
+                        "OPPONENT LEFT",
+                        color = Color.Yellow,
+                        fontSize = 32.sp, fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        "The other phone disconnected.",
+                        color = Color.Gray, fontSize = 14.sp
+                    )
+                    Spacer(Modifier.height(24.dp))
+                    Button(
+                        onClick = { doExit() },
+                        colors = ButtonDefaults.buttonColors(backgroundColor = Color(90, 90, 90))
+                    ) { Text("EXIT", color = Color.White) }
+                }
+            }
+        }
+
         // ---- Result overlay ----
         if (snap.winner != null) {
             Box(
@@ -492,17 +442,14 @@ fun GridBattleScreen(setup: BattleSetup, onExit: () -> Unit) {
                     )
                     Spacer(Modifier.height(24.dp))
                     Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        if (pvpHost == null || !peerLeft) {
+                            Button(
+                                onClick = { doRematch() },
+                                colors = ButtonDefaults.buttonColors(backgroundColor = Color(0, 120, 200))
+                            ) { Text("REMATCH", color = Color.White) }
+                        }
                         Button(
-                            onClick = {
-                                fightId++
-                                coreFx = null
-                                dimFxId = null
-                                defaultFx = false
-                            },
-                            colors = ButtonDefaults.buttonColors(backgroundColor = Color(0, 120, 200))
-                        ) { Text("REMATCH", color = Color.White) }
-                        Button(
-                            onClick = onExit,
+                            onClick = { doExit() },
                             colors = ButtonDefaults.buttonColors(backgroundColor = Color(90, 90, 90))
                         ) { Text("EXIT", color = Color.White) }
                     }

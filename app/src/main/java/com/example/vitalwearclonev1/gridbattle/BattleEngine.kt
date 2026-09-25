@@ -30,6 +30,9 @@ data class BattleConfig(
     val enemyName: String,
     val enemyMaxHp: Int,
     val enemyAtk: Int,
+    /** PvP: the guest's real attack multiplier and charge rate. Defaults keep AI mode unchanged. */
+    val enemyEffAtkMult: Float = 1f,
+    val enemyChargeRate: Float = 1f,
     /** NaviCust charge% speeds up buster charging. */
     val chargeRate: Float = 1f,
     /** Attack-FX override: borrowed (small, big) base attack ids. Null = partner's own. */
@@ -74,6 +77,7 @@ data class SwordResult(
 )
 
 private data class PendingChip(val chip: BattleChip, var delay: Float)
+private data class PendingEnemyChip(val chip: BattleChip, var delay: Float, val scale: Float)
 private data class DelayedProj(val proj: SimProjectile, var delay: Float)
 
 data class BattleSnapshot(
@@ -96,7 +100,24 @@ data class BattleSnapshot(
     val canCustom: Boolean
 )
 
+/**
+ * Drives the enemy side of the engine: the built-in AI in solo mode,
+ * or a no-op in PvP where the host screen applies the guest's networked
+ * inputs through the enemy intent methods below.
+ */
+interface EnemyDriver {
+    fun update(engine: BattleEngine, dt: Float)
+}
+
+/** PvP driver: guest inputs arrive as packets and are applied as intents. */
+class RemoteEnemyDriver : EnemyDriver {
+    override fun update(engine: BattleEngine, dt: Float) { /* nothing: intents drive it */ }
+}
+
 class BattleEngine(val config: BattleConfig) {
+
+    /** Swap in [RemoteEnemyDriver] for PvP; the AI is the default. */
+    var enemyDriver: EnemyDriver = AiDriver()
 
     var px = 1; private set
     var py = 1; private set
@@ -132,6 +153,28 @@ class BattleEngine(val config: BattleConfig) {
     private var aiMoveCd = 0.5f
     private var aiBusterCd = 1.15f
     private var aiChipCd = 6f
+
+    // PvP enemy (guest) intent state — mirrors the player's.
+    private var enemyMoveCd = 0f
+    private var enemyBusterCd = 0f
+    private var enemySwordCd = 0f
+    var enemyCharge = 0f; private set
+    var enemyCharging = false; private set
+    private val pendingEnemyChips = mutableListOf<PendingEnemyChip>()
+    /** PvP: the guest's buster look, set by the host from the guest's HELLO. */
+    var guestBusterElement: ChipElement? = null
+    var guestBusterAnimKey: String? = null
+    var guestSwordAnimKey: String? = null
+    var guestFxSmall: Int? = null
+    var guestFxBig: Int? = null
+
+    /** PvP host mode: queues host-side attack FX so snapshots carry them to the guest. */
+    var pvpHostMode = false
+    private val fxEvents = mutableListOf<NetFxEvent>()
+    fun drainFxEvents(): List<NetFxEvent> = fxEvents.toList().also { fxEvents.clear() }
+    private fun queueFx(kind: String, animKey: String?, element: ChipElement?, charged: Boolean, fxId: Int?) {
+        if (pvpHostMode) fxEvents.add(NetFxEvent(kind, animKey, element?.name, charged, fxId))
+    }
 
     // TUNE: converts the ATK stat into chip damage scale.
     private fun dmgScale(): Float = (0.5f + config.atkStat / 150f) * config.effAtkMult
@@ -169,6 +212,7 @@ class BattleEngine(val config: BattleConfig) {
         val fxId = if (config.busterAnimKey == null) {
             config.fxAttackIds?.let { if (charged) it.second else it.first }
         } else null
+        queueFx("buster", config.busterAnimKey, config.busterElement, charged, fxId)
         return FiredShot(dmg, config.busterAnimKey, config.busterElement, charged, fxId)
     }
 
@@ -184,7 +228,73 @@ class BattleEngine(val config: BattleConfig) {
             dealt = dmg
         }
         val fxId = if (config.swordAnimKey == null) config.fxAttackIds?.second else null
+        queueFx("sword", config.swordAnimKey, null, false, fxId)
         return SwordResult(dealt, config.swordAnimKey, fxId)
+    }
+
+    // ---------- PvP enemy (guest) intents ----------
+
+    /** TUNE: same 0.14s step cooldown as the player. */
+    fun moveEnemy(dx: Int, dy: Int) {
+        if (paused || winner != null || enemyMoveCd > 0f) return
+        val nx = (ex + dx).coerceIn(3, 5)
+        val ny = (ey + dy).coerceIn(0, 2)
+        if (nx != ex || ny != ey) {
+            ex = nx; ey = ny
+            enemyMoveCd = 0.14f
+        }
+    }
+
+    fun setEnemyCharging(c: Boolean) {
+        if (paused || winner != null) return
+        enemyCharging = c
+    }
+
+    /**
+     * Guest buster; returns shot info so the host screen can play its FX.
+     * Damage uses the guest's real ATK stat and multiplier.
+     */
+    fun releaseEnemyBuster(): FiredShot? {
+        if (paused || winner != null || enemyBusterCd > 0f) return null
+        val dmg = (8f + config.enemyAtk / 10f) * config.enemyEffAtkMult * (1f + enemyCharge * 1.6f)
+        val charged = enemyCharge > 0.7f
+        projectiles.add(
+            SimProjectile(ex - 0.6f, ey, -4.2f, dmg, false, guestBusterElement, big = charged, piercing = false)
+        )
+        enemyBusterCd = 0.2f
+        enemyCharge = 0f
+        enemyCharging = false
+        val fxId = if (guestBusterAnimKey == null) {
+            if (charged) guestFxBig else guestFxSmall
+        } else null
+        return FiredShot(dmg, guestBusterAnimKey, guestBusterElement, charged, fxId)
+    }
+
+    /** Guest sword arc; returns result so the host screen can play its FX. */
+    fun enemySword(): SwordResult? {
+        if (paused || winner != null || enemySwordCd > 0f) return null
+        enemySwordCd = 0.5f
+        // TUNE: sword hits 1.5x an uncharged buster, same as the player.
+        val dmg = (8f + config.enemyAtk / 10f) * config.enemyEffAtkMult * 1.5f
+        var dealt = 0f
+        if (px == ex - 1 && abs(py - ey) <= 1) {
+            damagePlayer(dmg)
+            dealt = dmg
+        }
+        val fxId = if (guestSwordAnimKey == null) guestFxBig else null
+        return SwordResult(dealt, guestSwordAnimKey, fxId)
+    }
+
+    /**
+     * Queues the guest's chips; they resolve with the guest's damage scale,
+     * mirrored to the enemy side.
+     */
+    fun enemyFireChips(chips: List<BattleChip>) {
+        if (paused || winner != null || chips.isEmpty()) return
+        val s = (0.5f + config.enemyAtk / 150f) * config.enemyEffAtkMult
+        chips.forEachIndexed { qi, chip ->
+            pendingEnemyChips.add(PendingEnemyChip(chip, qi * 0.3f, s))
+        }
     }
 
     // ---------- chip custom ----------
@@ -258,9 +368,13 @@ class BattleEngine(val config: BattleConfig) {
         moveCd = maxOf(0f, moveCd - dt)
         busterCd = maxOf(0f, busterCd - dt)
         swordCd = maxOf(0f, swordCd - dt)
+        enemyMoveCd = maxOf(0f, enemyMoveCd - dt)
+        enemyBusterCd = maxOf(0f, enemyBusterCd - dt)
+        enemySwordCd = maxOf(0f, enemySwordCd - dt)
 
         // TUNE: buster reaches full charge in 1.2s (faster with chargeRate).
         if (charging && busterCd <= 0f) charge = min(1f, charge + dt / 0.9f * config.chargeRate)
+        if (enemyCharging && enemyBusterCd <= 0f) enemyCharge = min(1f, enemyCharge + dt / 0.9f * config.enemyChargeRate)
         // TUNE: chip gauge fills in ~5s.
         if (hand.isEmpty()) gauge = min(1f, gauge + dt / 5f)
 
@@ -271,6 +385,16 @@ class BattleEngine(val config: BattleConfig) {
             if (p.delay <= 0f) {
                 applyChip(p.chip)
                 pci.remove()
+            }
+        }
+
+        val peci = pendingEnemyChips.iterator()
+        while (peci.hasNext()) {
+            val p = peci.next()
+            p.delay -= dt
+            if (p.delay <= 0f) {
+                applyEnemyChip(p.chip, p.scale)
+                peci.remove()
             }
         }
 
@@ -320,7 +444,53 @@ class BattleEngine(val config: BattleConfig) {
             }
         }
 
-        enemyAi(dt)
+        enemyDriver.update(this, dt)
+    }
+
+    private fun applyEnemyChip(chip: BattleChip, s: Float) {
+        when (chip.effectKind) {
+            EffectKind.PROJECTILE -> {
+                // TUNE: multi-hit chips stagger their shots 0.12s apart.
+                repeat(chip.hits.coerceAtLeast(1)) { i ->
+                    delayedProjs.add(
+                        DelayedProj(
+                            SimProjectile(ex - 0.6f, ey, -3.6f, chip.damage * s, false, chip.element, big = chip.tier != ChipTier.STANDARD, piercing = false),
+                            i * 0.12f
+                        )
+                    )
+                }
+            }
+            EffectKind.SWORD, EffectKind.MELEE -> {
+                if (px == ex - 1 && abs(py - ey) <= 1) damagePlayer(chip.damage * chip.hits * s)
+            }
+            EffectKind.LOB -> {
+                // TUNE: lobbed shots are slow but hit 1.2x.
+                delayedProjs.add(
+                    DelayedProj(SimProjectile(ex - 0.6f, ey, -2.1f, chip.damage * 1.2f * s, false, chip.element, big = true, piercing = false), 0f)
+                )
+            }
+            EffectKind.BEAM -> {
+                // TUNE: beams pierce and hit 1.5x.
+                delayedProjs.add(
+                    DelayedProj(SimProjectile(ex - 0.6f, ey, -5.5f, chip.damage * 1.5f * s, false, chip.element, big = true, piercing = true), 0f)
+                )
+            }
+            EffectKind.SUMMON -> {
+                // TUNE: summons spray 3 rows at 0.6x each.
+                listOf(ey - 1, ey, ey + 1).map { it.coerceIn(0, 2) }.distinct().forEachIndexed { i, row ->
+                    delayedProjs.add(
+                        DelayedProj(SimProjectile(ex - 0.6f, row, -3.1f, chip.damage * 0.6f * s, false, chip.element, big = false, piercing = false), i * 0.15f)
+                    )
+                }
+            }
+            EffectKind.TRAP -> {
+                mines.add(SimMine(px, py, 1.2f, chip.damage * s, fromPlayer = false))
+            }
+            EffectKind.SUPPORT -> {
+                // TUNE: support chips carry damage=0 in the library, so heal from stats.
+                enemyHp = min(config.enemyMaxHp.toFloat(), enemyHp + 80f + config.enemyAtk * 0.3f)
+            }
+        }
     }
 
     private fun applyChip(chip: BattleChip) {
@@ -370,7 +540,14 @@ class BattleEngine(val config: BattleConfig) {
         }
     }
 
-    private fun enemyAi(dt: Float) {
+    /** Built-in AI opponent for solo mode. */
+    inner class AiDriver : EnemyDriver {
+        override fun update(engine: BattleEngine, dt: Float) {
+            aiUpdate(dt)
+        }
+    }
+
+    private fun aiUpdate(dt: Float) {
         aiMoveCd -= dt
         if (aiMoveCd <= 0f) {
             // TUNE: enemy decision rate.
