@@ -39,7 +39,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.vitalwearclonev1.card.BemCard
+import com.github.cfogrady.vb.dim.card.BemCard
 import com.example.vitalwearclonev1.card.CardManager
 import com.example.vitalwearclonev1.card.SpriteBitmapHandler
 import kotlinx.coroutines.Dispatchers
