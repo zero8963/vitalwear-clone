@@ -41,7 +41,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.github.cfogrady.vb.dim.card.BemCard
 import com.example.vitalwearclonev1.card.CardManager
-import com.example.vitalwearclonev1.card.SpriteBitmapHandler
+import com.example.vitalwearclonev1.common.SpriteBitmapHandler
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
