@@ -106,29 +106,6 @@ fun GridBattleScreen(
     var snap by remember(setup, fightId) { mutableStateOf(engine.snapshot()) }
     var peerLeft by remember { mutableStateOf(false) }
 
-    fun doRematch() {
-        pvpHost?.sendRestart()
-        fightId++
-        coreFx = null
-        dimFxId = null
-        defaultFx = false
-    }
-
-    fun doExit() {
-        pvpHost?.sendBye()
-        onExit()
-    }
-
-    // PvP host: take over the net listener while the fight is up.
-    DisposableEffect(pvpHost) {
-        pvpHost?.let { host ->
-            host.onPeerLeft = { peerLeft = true }
-            host.onRematchRequested = { doRematch() }
-            host.attach()
-        }
-        onDispose { pvpHost?.detach() }
-    }
-
     var playerBmp by remember { mutableStateOf<Bitmap?>(null) }
     var enemyBmp by remember { mutableStateOf<Bitmap?>(null) }
 
@@ -151,6 +128,29 @@ fun GridBattleScreen(
             dimFxId = null
             defaultFx = false
         }
+    }
+
+    val doRematch: () -> Unit = {
+        pvpHost?.sendRestart()
+        fightId++
+        coreFx = null
+        dimFxId = null
+        defaultFx = false
+    }
+
+    val doExit: () -> Unit = {
+        pvpHost?.sendBye()
+        onExit()
+    }
+
+    // PvP host: take over the net listener while the fight is up.
+    DisposableEffect(pvpHost) {
+        pvpHost?.let { host ->
+            host.onPeerLeft = { peerLeft = true }
+            host.onRematchRequested = { doRematch() }
+            host.attach()
+        }
+        onDispose { pvpHost?.detach() }
     }
 
     // Load fighter sprites (same approach as adventure mode).
