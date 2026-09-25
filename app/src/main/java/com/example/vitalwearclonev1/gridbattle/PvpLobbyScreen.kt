@@ -65,6 +65,9 @@ fun PvpLobbyScreen(
     var found by remember { mutableStateOf(listOf<Pair<String, String>>()) }
     var status by remember { mutableStateOf("") }
     var goingToBattle by remember { mutableStateOf(false) }
+    // Host-only: even the odds by scaling the weaker fighter's HP/ATK up to
+    // match the stronger side (classic DIM vs BE cards).
+    var statParity by remember { mutableStateOf(false) }
 
     // Phone-to-phone needs these three radios actually switched on — the
     // #1 reason two phones can't see each other is Location turned off.
@@ -188,7 +191,7 @@ fun PvpLobbyScreen(
                         playerCardName = my.cardName,
                         playerCharId = my.charId,
                         displayName = my.name,
-                        config = my.hostConfig(guest),
+                        config = my.hostConfig(guest, statParity),
                         enemyCardName = guest.cardName,
                         enemyCharId = guest.charId
                     )
@@ -341,7 +344,26 @@ fun PvpLobbyScreen(
                             "Your partner's name is showing on the other phone now.",
                             color = Color.Gray, fontSize = 13.sp, textAlign = TextAlign.Center
                         )
-                        Spacer(Modifier.height(24.dp))
+                        Spacer(Modifier.height(16.dp))
+                        Button(
+                            onClick = { statParity = !statParity },
+                            colors = ButtonDefaults.buttonColors(
+                                backgroundColor = if (statParity) Color(0, 120, 160) else Color(70, 70, 70)
+                            ),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(
+                                (if (statParity) "✓ " else "") + "STAT PARITY" +
+                                        (if (statParity) " ON" else " OFF"),
+                                color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold
+                            )
+                        }
+                        Text(
+                            "ON: the weaker fighter's HP/ATK scale up to match " +
+                                    "— even odds vs BE-scale partners.",
+                            color = Color.Gray, fontSize = 12.sp, textAlign = TextAlign.Center
+                        )
+                        Spacer(Modifier.height(16.dp))
                         Button(
                             onClick = { cancel() },
                             colors = ButtonDefaults.buttonColors(backgroundColor = Color(90, 90, 90)),

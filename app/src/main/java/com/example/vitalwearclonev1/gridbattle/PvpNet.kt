@@ -100,6 +100,8 @@ data class NetSnapshot(
     val ey: Int,
     val playerHp: Float,
     val enemyHp: Float,
+    val playerMaxHp: Float = 0f,
+    val enemyMaxHp: Float = 0f,
     val projs: List<NetProjectile>,
     val mines: List<NetMine>,
     val time: Float,
@@ -126,6 +128,7 @@ fun BattleEngine.netSnapshot(): NetSnapshot {
     return NetSnapshot(
         px = s.px, py = s.py, ex = s.ex, ey = s.ey,
         playerHp = s.playerHp, enemyHp = s.enemyHp,
+        playerMaxHp = s.playerMaxHp, enemyMaxHp = s.enemyMaxHp,
         projs = s.projectiles.map {
             NetProjectile(it.x, it.y, it.vx, it.damage, it.fromPlayer, it.element?.name, it.big, it.piercing)
         },
@@ -146,8 +149,10 @@ fun NetSnapshot.toWire(): String = "SNAP|" + pvpJson.encodeToString(this)
 fun NetSnapshot.toGuestView(guestMaxHp: Int, hostMaxHp: Int): BattleSnapshot = BattleSnapshot(
     px = 5 - ex, py = ey,
     ex = 5 - px, ey = py,
-    playerHp = enemyHp, playerMaxHp = guestMaxHp.toFloat(),
-    enemyHp = playerHp, enemyMaxHp = hostMaxHp.toFloat(),
+    // Prefer the host's authoritative max HP (stat parity may have scaled them);
+    // fall back to the handshake values for older hosts.
+    playerHp = enemyHp, playerMaxHp = (if (enemyMaxHp > 0f) enemyMaxHp else guestMaxHp.toFloat()),
+    enemyHp = playerHp, enemyMaxHp = (if (playerMaxHp > 0f) playerMaxHp else hostMaxHp.toFloat()),
     projectiles = projs.map {
         SimProjectile(
             6f - it.x, it.y, -it.vx, it.damage, !it.fromPlayer,
@@ -163,11 +168,21 @@ fun NetSnapshot.toGuestView(guestMaxHp: Int, hostMaxHp: Int): BattleSnapshot = B
     time = time, canCustom = false
 )
 
-/** Host's engine config: we are the player, the guest is the enemy. */
-fun PvpFighterInfo.hostConfig(guest: PvpFighterInfo): BattleConfig = BattleConfig(
+/**
+ * Host's engine config: we are the player, the guest is the enemy.
+ * When [statParity] is on, the weaker fighter's HP/ATK are scaled up to
+ * match the stronger side — an even-odds battle regardless of card scale
+ * (classic DIM vs BE). Chips, NaviCust, FX and skill still decide it.
+ */
+fun PvpFighterInfo.hostConfig(guest: PvpFighterInfo, statParity: Boolean = false): BattleConfig {
+    val myHp = if (statParity) maxOf(maxHp, guest.maxHp) else maxHp
+    val foeHp = if (statParity) maxOf(maxHp, guest.maxHp) else guest.maxHp
+    val myAtk = if (statParity) maxOf(atkStat, guest.atkStat) else atkStat
+    val foeAtk = if (statParity) maxOf(atkStat, guest.atkStat) else guest.atkStat
+    return BattleConfig(
     playerName = name,
-    playerMaxHp = maxHp.coerceAtLeast(50),
-    atkStat = atkStat,
+    playerMaxHp = myHp.coerceAtLeast(50),
+    atkStat = myAtk,
     effAtkMult = effAtkMult,
     busterElement = busterElement?.let { ChipElement.valueOf(it) },
     busterAnimKey = busterAnimKey,
@@ -175,12 +190,13 @@ fun PvpFighterInfo.hostConfig(guest: PvpFighterInfo): BattleConfig = BattleConfi
     playerDeck = deck,
     fxAttackIds = if (fxSmall != null && fxBig != null) fxSmall to fxBig else null,
     enemyName = guest.name,
-    enemyMaxHp = guest.maxHp.coerceAtLeast(50),
-    enemyAtk = guest.atkStat,
+    enemyMaxHp = foeHp.coerceAtLeast(50),
+    enemyAtk = foeAtk,
     enemyEffAtkMult = guest.effAtkMult,
     enemyChargeRate = guest.chargeRate,
     chargeRate = chargeRate
-)
+    )
+}
 
 /**
  * Builds our PvP fighter card from the active Digimon's loadout + folder.
