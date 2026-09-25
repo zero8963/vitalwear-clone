@@ -28,8 +28,8 @@ import androidx.compose.ui.unit.sp
  * on a grid with battle chips. Deliberately separate from the watch-linked
  * battle structure — nothing here talks to the watch.
  *
- * Screens switch on a simple state so NaviCust and the battle itself can
- * slot in later: "compendium" | "navicust" | "folder" | "battle".
+ * Screens switch on a simple state:
+ * "compendium" | "navicust" | "folder" | "lobby" | "battle".
  */
 class GridBattleActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -47,7 +47,11 @@ class GridBattleActivity : ComponentActivity() {
             }
             val ownerName = monster?.nickname?.takeIf { it.isNotBlank() }
                 ?: monster?.cardName ?: "No Digimon"
+            var battleSetup by remember { mutableStateOf<BattleSetup?>(null) }
 
+            if (screen == "battle" && battleSetup != null) {
+                GridBattleScreen(setup = battleSetup!!, onExit = { screen = "lobby" })
+            } else {
             Column(
                 modifier = Modifier
                     .fillMaxSize()
@@ -57,6 +61,7 @@ class GridBattleActivity : ComponentActivity() {
                     selectedTabIndex = when (screen) {
                         "navicust" -> 1
                         "folder" -> 2
+                        "lobby", "battle" -> 3
                         else -> 0
                     },
                     backgroundColor = Color(0, 50, 100),
@@ -76,6 +81,11 @@ class GridBattleActivity : ComponentActivity() {
                         selected = screen == "folder",
                         onClick = { screen = "folder" },
                         text = { Text("Folder") }
+                    )
+                    Tab(
+                        selected = screen == "lobby" || screen == "battle",
+                        onClick = { screen = "lobby" },
+                        text = { Text("Battle") }
                     )
                 }
                 Box(modifier = Modifier.weight(1f)) {
@@ -111,11 +121,32 @@ class GridBattleActivity : ComponentActivity() {
                                 )
                             }
                         }
-                        // Future screen:
-                        // "battle" -> GridBattleScreen(onExit = { screen = "compendium" })
+                        "lobby" -> if (monster != null) {
+                            BattleLobbyScreen(
+                                ownerId = ownerId,
+                                monster = monster,
+                                onFight = { setup ->
+                                    battleSetup = setup
+                                    screen = "battle"
+                                }
+                            )
+                        } else {
+                            Box(
+                                modifier = Modifier.fillMaxSize(),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    "Hatch a Digimon first!\nYour partner fights Grid Battles.",
+                                    color = Color.White,
+                                    fontSize = 16.sp,
+                                    modifier = Modifier.padding(32.dp)
+                                )
+                            }
+                        }
                         else -> CompendiumScreen()
                     }
                 }
+            }
             }
         }
     }
