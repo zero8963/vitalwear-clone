@@ -14,6 +14,31 @@ import android.content.Context
 
 enum class ProgramColor { RED, BLUE, YELLOW, GREEN }
 
+/**
+ * Element + animation override for the fighter's basic (buster) or sword
+ * attack, installed by special "Core" programs.
+ *
+ * ENGINE NOTE (2026-09-25): the grid battle engine must implement these
+ * 8 animation keys exactly (animKey -> meaning):
+ *   Buster: "shot_flame" (FIRE), "shot_tide" (WATER), "shot_volt" (ELEC), "shot_thorn" (WOOD)
+ *   Sword:  "slash_cinder" (FIRE), "slash_reef" (WATER), "slash_storm" (ELEC), "slash_bramble" (WOOD)
+ * The key picks the animation; the element picks damage typing/effects.
+ */
+data class AttackOverride(val element: ChipElement, val animKey: String) {
+    /** Kid-friendly display name derived from the animation key, e.g. "Flame Shot". */
+    fun displayName(): String = when (animKey) {
+        "shot_flame" -> "Flame Shot"
+        "shot_tide" -> "Tide Shot"
+        "shot_volt" -> "Volt Shot"
+        "shot_thorn" -> "Thorn Shot"
+        "slash_cinder" -> "Cinder Slash"
+        "slash_reef" -> "Reef Slash"
+        "slash_storm" -> "Storm Slash"
+        "slash_bramble" -> "Bramble Slash"
+        else -> animKey
+    }
+}
+
 data class ProgramPart(
     val id: Int,
     val name: String,
@@ -24,14 +49,23 @@ data class ProgramPart(
     val maxHpBonus: Int = 0,
     val speedPct: Int = 0,
     val chargePct: Int = 0,
-    val description: String
+    val description: String,
+    /** Non-null for Core parts: rewires the buster's element + animation. */
+    val busterOverride: AttackOverride? = null,
+    /** Non-null for Core parts: rewires the sword's element + animation. */
+    val swordOverride: AttackOverride? = null
 ) {
+    /** True for the special Core parts that rewire basic attacks. */
+    fun isCore(): Boolean = busterOverride != null || swordOverride != null
+
     fun effectSummary(): String {
         val bits = mutableListOf<String>()
         if (attackPct > 0) bits.add("ATK +$attackPct%")
         if (maxHpBonus > 0) bits.add("HP +$maxHpBonus")
         if (speedPct > 0) bits.add("SPD +$speedPct%")
         if (chargePct > 0) bits.add("CHG +$chargePct%")
+        busterOverride?.let { bits.add("Buster: ${it.displayName()}") }
+        swordOverride?.let { bits.add("Sword: ${it.displayName()}") }
         return bits.joinToString(", ")
     }
 }
@@ -44,6 +78,7 @@ object ProgramParts {
     private val SQUARE = listOf(0 to 0, 0 to 1, 1 to 0, 1 to 1)
     private val TETRA_LINE = listOf(0 to 0, 0 to 1, 0 to 2, 0 to 3)
     private val TETRA_T = listOf(0 to 0, 0 to 1, 0 to 2, 1 to 1)
+    private val TETRA_SKEW = listOf(0 to 0, 0 to 1, 1 to 1, 1 to 2)
 
     val all: List<ProgramPart> = listOf(
         // RED = attack
@@ -97,7 +132,40 @@ object ProgramParts {
         ProgramPart(23, "VitalBlock", ProgramColor.GREEN, SQUARE, maxHpBonus = 30,
             description = "Solid as a hospital wall. +30 max HP."),
         ProgramPart(24, "LifeLine", ProgramColor.GREEN, TETRA_LINE, maxHpBonus = 40,
-            description = "A lifeline straight to victory. +40 max HP.")
+            description = "A lifeline straight to victory. +40 max HP."),
+        // --- CORE parts: rewire the buster's element + animation ---
+        ProgramPart(25, "EmberCore", ProgramColor.RED, TETRA_T, attackPct = 5,
+            busterOverride = AttackOverride(ChipElement.FIRE, "shot_flame"),
+            description = "Rewires your buster into a blazing Flame Shot (FIRE)! +5% attack."),
+        ProgramPart(26, "TideCore", ProgramColor.BLUE, SQUARE,
+            busterOverride = AttackOverride(ChipElement.WATER, "shot_tide"),
+            speedPct = 5,
+            description = "Your buster becomes a splashing Tide Shot (WATER)! +5% move speed."),
+        ProgramPart(27, "VoltCore", ProgramColor.YELLOW, TETRA_LINE,
+            busterOverride = AttackOverride(ChipElement.ELEC, "shot_volt"),
+            chargePct = 8,
+            description = "Your buster crackles as a Volt Shot (ELEC)! +8% charge speed."),
+        ProgramPart(28, "ThornCore", ProgramColor.GREEN, TETRA_SKEW,
+            busterOverride = AttackOverride(ChipElement.WOOD, "shot_thorn"),
+            maxHpBonus = 10,
+            description = "Your buster bursts into a Thorn Shot (WOOD)! +10 max HP."),
+        // --- CORE parts: rewire the sword's element + animation ---
+        ProgramPart(29, "CinderEdge", ProgramColor.RED, TETRA_SKEW,
+            swordOverride = AttackOverride(ChipElement.FIRE, "slash_cinder"),
+            attackPct = 5,
+            description = "Your sword becomes a Cinder Slash (FIRE) that leaves embers! +5% attack."),
+        ProgramPart(30, "ReefEdge", ProgramColor.BLUE, TETRA_T,
+            swordOverride = AttackOverride(ChipElement.WATER, "slash_reef"),
+            speedPct = 5,
+            description = "Your sword crashes like a Reef Slash (WATER) wave! +5% move speed."),
+        ProgramPart(31, "StormEdge", ProgramColor.YELLOW, SQUARE,
+            swordOverride = AttackOverride(ChipElement.ELEC, "slash_storm"),
+            chargePct = 8,
+            description = "Your sword strikes as a lightning Storm Slash (ELEC)! +8% charge speed."),
+        ProgramPart(32, "BrambleEdge", ProgramColor.GREEN, TETRA_LINE,
+            swordOverride = AttackOverride(ChipElement.WOOD, "slash_bramble"),
+            maxHpBonus = 10,
+            description = "Your sword tangles foes in a Bramble Slash (WOOD)! +10 max HP.")
     )
 
     fun byId(id: Int): ProgramPart? = all.find { it.id == id }
@@ -258,6 +326,23 @@ data class NaviCustLoadout(val placements: List<Placement>) {
             }
         }
 
+        // Core limits: at most one INSTALLED buster core and one sword core.
+        // Glitched cores don't count as installed.
+        val busterCores = placements.mapNotNull { p ->
+            val part = ProgramParts.byId(p.partId)
+            if (part?.busterOverride != null && p.partId !in glitched) part.name else null
+        }
+        if (busterCores.size > 1) {
+            errors.add("Only one Buster Core fits \u2014 remove ${busterCores.joinToString(" or ")}.")
+        }
+        val swordCores = placements.mapNotNull { p ->
+            val part = ProgramParts.byId(p.partId)
+            if (part?.swordOverride != null && p.partId !in glitched) part.name else null
+        }
+        if (swordCores.size > 1) {
+            errors.add("Only one Sword Core fits \u2014 remove ${swordCores.joinToString(" or ")}.")
+        }
+
         return ValidationResult(errors.distinct(), glitched)
     }
 
@@ -278,6 +363,22 @@ data class NaviCustLoadout(val placements: List<Placement>) {
         }
         return TotalBonuses(atk, hp, spd, chg)
     }
+
+    /** Installed (non-glitched) parts only — glitched cores grant nothing. */
+    private fun activeParts(): List<ProgramPart> {
+        val glitched = validate().glitchedPartIds
+        return placements.mapNotNull { p ->
+            if (p.partId in glitched) null else ProgramParts.byId(p.partId)
+        }
+    }
+
+    /** The installed buster override, or null for the default buster. */
+    fun busterOverride(): AttackOverride? =
+        activeParts().mapNotNull { it.busterOverride }.firstOrNull()
+
+    /** The installed sword override, or null for the default sword. */
+    fun swordOverride(): AttackOverride? =
+        activeParts().mapNotNull { it.swordOverride }.firstOrNull()
 
     /** Dominant color among non-glitched parts picks the style. */
     fun style(): BattleStyle {

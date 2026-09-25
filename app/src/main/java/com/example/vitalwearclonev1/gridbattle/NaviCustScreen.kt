@@ -131,7 +131,7 @@ fun NaviCustScreen(ownerId: String, ownerName: String) {
         Text("$ownerName's loadout", color = Color.Cyan, fontSize = 14.sp)
         Spacer(Modifier.height(4.dp))
         Text(
-            "Parts must touch the core. Same colors touching = glitch!",
+            "Parts must touch the core. Same colors touching = glitch! CORE parts change your buster & sword.",
             color = Color.Gray, fontSize = 12.sp
         )
         Spacer(Modifier.height(12.dp))
@@ -275,6 +275,16 @@ fun NaviCustScreen(ownerId: String, ownerName: String) {
                         "Bonuses: ATK +${b.attackPct}%   HP +${b.maxHpBonus}   SPD +${b.speedPct}%   CHG +${b.chargePct}%",
                         color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.SemiBold
                     )
+                    val busterOv = loadout.busterOverride()
+                    val swordOv = loadout.swordOverride()
+                    Text(
+                        "Buster: " + (busterOv?.let { "${it.element.name} \u2014 ${it.displayName()}" } ?: "(default)"),
+                        color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.SemiBold
+                    )
+                    Text(
+                        "Sword: " + (swordOv?.let { "${it.element.name} \u2014 ${it.displayName()}" } ?: "(default)"),
+                        color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.SemiBold
+                    )
                     val style = loadout.style()
                     Text(
                         "Style: ${style.name}",
@@ -345,6 +355,12 @@ private fun PartCard(
                 part.name, color = Color.White, fontSize = 13.sp,
                 fontWeight = FontWeight.Bold, textAlign = TextAlign.Center
             )
+            if (part.isCore()) {
+                Text(
+                    "CORE", color = Color(255, 200, 90), fontSize = 10.sp,
+                    fontWeight = FontWeight.Bold, textAlign = TextAlign.Center
+                )
+            }
             Spacer(Modifier.height(4.dp))
             // shape preview
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
