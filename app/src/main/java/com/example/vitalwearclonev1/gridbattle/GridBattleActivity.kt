@@ -43,10 +43,7 @@ class GridBattleActivity : ComponentActivity() {
             }
             val monster = remember { monsterManager.getCurrentMonster() }
             val ownerId = remember(monster) {
-                monster?.let { m ->
-                    val base = m.nickname?.takeIf { it.isNotBlank() } ?: m.cardName
-                    "${base}_${m.characterId}"
-                } ?: "guest"
+                monster?.let { m -> ownerIdFor(m.nickname, m.cardName, m.characterId) } ?: "guest"
             }
             val ownerName = monster?.nickname?.takeIf { it.isNotBlank() }
                 ?: monster?.cardName ?: "No Digimon"

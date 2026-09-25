@@ -51,6 +51,13 @@ import kotlin.math.atan2
 import kotlin.random.Random
 import com.example.vitalwearclonev1.ui.AttackEffectCanvas
 import com.example.vitalwearclonev1.ui.attackEffectColor
+import com.example.vitalwearclonev1.gridbattle.BattleStyle
+import com.example.vitalwearclonev1.gridbattle.ChipElement
+import com.example.vitalwearclonev1.gridbattle.ChipFolder
+import com.example.vitalwearclonev1.gridbattle.ChipLibrary
+import com.example.vitalwearclonev1.gridbattle.EffectKind
+import com.example.vitalwearclonev1.gridbattle.NaviCustLoadout
+import com.example.vitalwearclonev1.gridbattle.ownerIdFor
 
 class MapAdventureActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -119,7 +126,8 @@ data class GridProjectile(
     val isPlayer: Boolean,
     var isDead: Boolean = false,
     val isBig: Boolean = false,
-    val attackId: Int = 0
+    val attackId: Int = 0,
+    val element: ChipElement? = null
 )
 
 @Composable
@@ -145,6 +153,36 @@ fun NetworldAdventure(
     val phoneManager = remember { PhoneMonsterManager(context) }
     val scope = rememberCoroutineScope()
 
+    // Grid Battle programs + chip deck, shared per-Digimon with Grid Battle mode (2026-09-25).
+    val ownerId = remember(nickname, cardName, charId) { ownerIdFor(nickname, cardName, charId) }
+    val naviLoadout = remember(ownerId) {
+        val loaded = NaviCustLoadout.load(context, ownerId)
+        if (loaded.validate().errors.isNotEmpty()) NaviCustLoadout(emptyList()) else loaded
+    }
+    val chipFolder = remember(ownerId) { ChipFolder.load(context, ownerId) }
+    val programBonuses = remember(naviLoadout) { naviLoadout.totalBonuses() }
+    val battleStyle = remember(naviLoadout) { naviLoadout.style() }
+    val glitchPenalty = remember(naviLoadout) { naviLoadout.glitchPenaltyHp() }
+    val busterOverride = remember(naviLoadout) { naviLoadout.busterOverride() }
+    val swordOverride = remember(naviLoadout) { naviLoadout.swordOverride() }
+    // Player attack multiplier from programs (+ BLAZE style bonus).
+    val effAtkMult = (1f + programBonuses.attackPct / 100f) *
+        (if (battleStyle == BattleStyle.BLAZE) 1.1f else 1f)
+    // Buster shot speed from programs (+ GALE style bonus).
+    val busterSpeed = 0.45f * (1f + programBonuses.speedPct / 200f) *
+        (if (battleStyle == BattleStyle.GALE) 1.15f else 1f)
+    // HUD line under the player name: style + core rewires + attack bonus.
+    val hudLine = remember(programBonuses, battleStyle, busterOverride, swordOverride) {
+        buildList {
+            if (battleStyle != BattleStyle.NONE) add("${battleStyle.name} STYLE")
+            busterOverride?.let { add("Buster: ${it.displayName()}") }
+            swordOverride?.let { add("Sword: ${it.displayName()}") }
+            if (programBonuses.attackPct > 0) add("+${programBonuses.attackPct}% ATK")
+        }.joinToString(" • ")
+    }
+    val chipHudHint = if (chipFolder.isBattleReady) null
+        else "Build a 30-chip folder for chip power-ups!"
+
     var adventureState by remember { mutableStateOf(AdventureState.EXPLORING) }
     var encountersEnabled by remember { mutableStateOf(true) }
     
@@ -169,12 +207,17 @@ fun NetworldAdventure(
     
     // Battle State
     val battlePrograms = remember { mutableStateListOf<BattleProgramType>() }
+    // Chip deck (draw pile) + hand, loaded from the saved chip folder per battle.
+    val chipDeck = remember { mutableStateListOf<Int>() }
+    val chipHand = remember { mutableStateListOf<Int>() }
     val enemies = remember { mutableStateListOf<GridEntity>() }
     val projectiles = remember { mutableStateListOf<GridProjectile>() }
     var playerBattleX by remember { mutableIntStateOf(1) }
     var playerBattleY by remember { mutableIntStateOf(1) }
     var playerHp by remember { mutableStateOf((baseHp + 1000).toFloat()) }
-    val playerMaxHp = (baseHp + 1000).toFloat()
+    // NaviCust HP: program bonuses + AQUA style bonus, minus glitch strain.
+    val playerMaxHp = (baseHp + 1000 + programBonuses.maxHpBonus - glitchPenalty +
+        if (battleStyle == BattleStyle.AQUA) 150 else 0).toFloat()
     
     var gameTime by remember { mutableLongStateOf(0L) }
     var lastBattleResult by remember { mutableStateOf(false) }
@@ -335,7 +378,8 @@ fun NetworldAdventure(
                         }
                     }
                     if (gameTime > e.lastAttackTime + Random.nextLong((2000L - areaLevel * 100L).coerceAtLeast(800L), (4500L - areaLevel * 100L).coerceAtLeast(1500L))) {
-                        val enemyDamage = (playerMaxHp * 0.12f + currentLevel * 5f) * (1f + areaLevel * 0.05f)
+                        val enemyDamage = (playerMaxHp * 0.12f + currentLevel * 5f) * (1f + areaLevel * 0.05f) *
+                            (if (battleStyle == BattleStyle.TERRA) 0.9f else 1f)
                         projectiles.add(GridProjectile(Random.nextInt(10000), e.gridX.toFloat() - 0.5f, e.gridY, -0.25f, enemyDamage, false))
                         enemies[i] = enemies[i].copy(lastAttackTime = gameTime)
                     }
@@ -363,7 +407,17 @@ fun NetworldAdventure(
         if (Random.nextInt(100) < 18) {
             enemies.clear(); projectiles.clear()
             playerBattleX = 1; playerBattleY = 1; playerHp = playerMaxHp
-            
+
+            // Draw the opening chip hand (5 cards) from the saved folder.
+            chipDeck.clear()
+            chipHand.clear()
+            if (chipFolder.isBattleReady) {
+                chipDeck.addAll(chipFolder.chipIds.shuffled())
+                repeat(5) {
+                    if (chipDeck.isNotEmpty()) chipHand.add(chipDeck.removeAt(0))
+                }
+            }
+
             val scaledEnemyHp = (playerMaxHp * 0.2f + currentAtk * 0.8f) * (1f + areaLevel * 0.1f)
             
             repeat(Random.nextInt(1, 4)) {
@@ -419,6 +473,7 @@ fun NetworldAdventure(
                     GridBattleScreen(
                         nickname = nickname ?: cardName,
                         level = currentLevel, hp = playerHp, maxHp = playerMaxHp,
+                        hudLine = hudLine, chipHudHint = chipHudHint,
                         playerX = playerBattleX, playerY = playerBattleY,
                         enemies = enemies, projectiles = projectiles,
                         playerSprites = playerSprites.value, enemySprites = enemySprites,
@@ -426,16 +481,17 @@ fun NetworldAdventure(
                         attackFxId = attackFxId.value,
                         attackFxProgress = attackFxProgress.value,
                         battlePrograms = battlePrograms,
+                        chipHand = chipHand,
                         onUseProgram = { program ->
                             when (program) {
                                 BattleProgramType.CANNON -> {
-                                    projectiles.add(GridProjectile(Random.nextInt(10000), playerBattleX.toFloat() + 0.5f, playerBattleY, 0.6f, 500f + currentAtk, true))
+                                    projectiles.add(GridProjectile(Random.nextInt(10000), playerBattleX.toFloat() + 0.5f, playerBattleY, 0.6f, (500f + currentAtk) * effAtkMult, true))
                                 }
                                 BattleProgramType.SWORD -> {
                                     val tx = playerBattleX + 1
                                     enemies.forEachIndexed { i, e -> 
                                         if (!e.isDead && e.gridX == tx && abs(e.gridY - playerBattleY) <= 1) {
-                                            enemies[i] = e.copy(hp = e.hp - (800f + currentAtk), isHurt = true)
+                                            enemies[i] = e.copy(hp = e.hp - (800f + currentAtk) * effAtkMult, isHurt = true)
                                             scope.launch { delay(200); if (i < enemies.size) enemies[i] = enemies[i].copy(isHurt = false) }
                                             if (enemies[i].hp <= 0) enemies[i] = enemies[i].copy(isDead = true, hp = 0f)
                                         }
@@ -451,6 +507,55 @@ fun NetworldAdventure(
                             }
                             battlePrograms.remove(program)
                         },
+                        onUseChip = { chipId ->
+                            val chip = ChipLibrary.byId(chipId) ?: return@GridBattleScreen
+                            when (chip.effectKind) {
+                                EffectKind.PROJECTILE -> {
+                                    projectiles.add(GridProjectile(Random.nextInt(10000), playerBattleX.toFloat() + 0.5f, playerBattleY, 0.6f, chip.damage * effAtkMult, true, element = chip.element))
+                                }
+                                EffectKind.SWORD, EffectKind.MELEE -> {
+                                    val tx = playerBattleX + 1
+                                    enemies.forEachIndexed { i, e ->
+                                        if (!e.isDead && e.gridX == tx && abs(e.gridY - playerBattleY) <= 1) {
+                                            enemies[i] = e.copy(hp = e.hp - chip.damage * effAtkMult, isHurt = true)
+                                            scope.launch { delay(200); if (i < enemies.size) enemies[i] = enemies[i].copy(isHurt = false) }
+                                            if (enemies[i].hp <= 0) enemies[i] = enemies[i].copy(isDead = true, hp = 0f)
+                                        }
+                                    }
+                                }
+                                EffectKind.LOB -> {
+                                    projectiles.add(GridProjectile(Random.nextInt(10000), playerBattleX.toFloat() + 0.5f, playerBattleY, 0.3f, chip.damage * 1.2f * effAtkMult, true, element = chip.element))
+                                }
+                                EffectKind.BEAM -> {
+                                    projectiles.add(GridProjectile(Random.nextInt(10000), playerBattleX.toFloat() + 0.5f, playerBattleY, 0.8f, chip.damage * 1.5f * effAtkMult, true, isBig = true, element = chip.element))
+                                }
+                                EffectKind.SUMMON -> {
+                                    (playerBattleY - 1..playerBattleY + 1).map { it.coerceIn(0, 2) }.distinct().forEach { row ->
+                                        projectiles.add(GridProjectile(Random.nextInt(10000), playerBattleX.toFloat() + 0.5f, row, 0.6f, chip.damage * 0.6f * effAtkMult, true, element = chip.element))
+                                    }
+                                }
+                                EffectKind.TRAP -> {
+                                    enemies.forEachIndexed { i, e ->
+                                        if (!e.isDead && e.gridX >= 3) {
+                                            enemies[i] = e.copy(hp = e.hp - chip.damage * effAtkMult, isHurt = true)
+                                            scope.launch { delay(200); if (i < enemies.size) enemies[i] = enemies[i].copy(isHurt = false) }
+                                            if (enemies[i].hp <= 0) enemies[i] = enemies[i].copy(isDead = true, hp = 0f)
+                                        }
+                                    }
+                                }
+                                EffectKind.SUPPORT -> {
+                                    playerHp = (playerHp + chip.damage).coerceAtMost(playerMaxHp)
+                                }
+                            }
+                            // Discard the used chip, draw a replacement, reshuffle when spent.
+                            chipHand.remove(chipId)
+                            if (chipDeck.isNotEmpty()) {
+                                chipHand.add(chipDeck.removeAt(0))
+                            } else if (chipHand.isEmpty() && chipFolder.isBattleReady) {
+                                chipDeck.addAll(chipFolder.chipIds.shuffled())
+                                if (chipDeck.isNotEmpty()) chipHand.add(chipDeck.removeAt(0))
+                            }
+                        },
                         onMove = { dx, dy ->
                             playerBattleX = (playerBattleX + dx).coerceIn(0, 2)
                             playerBattleY = (playerBattleY + dy).coerceIn(0, 2)
@@ -458,7 +563,8 @@ fun NetworldAdventure(
                         onAttack = { type ->
                             isAttackingAnim = true
                             // Roll the DIM-programmed attacks: big attack lands as a crit (1.5x).
-                            val isBig = Random.nextFloat() < critChance
+                            // Charge programs widen the crit window.
+                            val isBig = Random.nextFloat() < critChance + programBonuses.chargePct / 400f
                             val usedAttackId = if (isBig) attackIds.second else attackIds.first
                             val dmgMult = if (isBig) 1.5f else 1f
                             // Flash the DIM-programmed attack effect around the player
@@ -472,13 +578,13 @@ fun NetworldAdventure(
                                 val tx = playerBattleX + 1
                                 enemies.forEachIndexed { i, e ->
                                     if (!e.isDead && e.gridX == tx && abs(e.gridY - playerBattleY) <= 1) {
-                                        enemies[i] = e.copy(hp = e.hp - (250f + currentAtk) * dmgMult, isHurt = true)
+                                        enemies[i] = e.copy(hp = e.hp - (250f + currentAtk) * dmgMult * effAtkMult, isHurt = true)
                                         scope.launch { delay(200); if (i < enemies.size) enemies[i] = enemies[i].copy(isHurt = false) }
                                         if (enemies[i].hp <= 0) enemies[i] = enemies[i].copy(isDead = true, hp = 0f)
                                     }
                                 }
                             } else {
-                                projectiles.add(GridProjectile(Random.nextInt(10000), playerBattleX.toFloat() + 0.5f, playerBattleY, 0.45f, (60f + currentAtk/2) * dmgMult, true, isBig = isBig, attackId = usedAttackId))
+                                projectiles.add(GridProjectile(Random.nextInt(10000), playerBattleX.toFloat() + 0.5f, playerBattleY, busterSpeed, (60f + currentAtk/2) * dmgMult * effAtkMult, true, isBig = isBig, attackId = usedAttackId, element = busterOverride?.element))
                             }
                             scope.launch { delay(250); isAttackingAnim = false }
                         }
@@ -606,6 +712,10 @@ fun GridBattleScreen(
     attackFxProgress: Float,
     battlePrograms: List<BattleProgramType>,
     onUseProgram: (BattleProgramType) -> Unit,
+    hudLine: String,
+    chipHudHint: String?,
+    chipHand: List<Int>,
+    onUseChip: (Int) -> Unit,
     onMove: (Int, Int) -> Unit, onAttack: (String) -> Unit
 ) {
     val density = LocalDensity.current
@@ -613,7 +723,11 @@ fun GridBattleScreen(
     val cellSizePx = with(density) { cellSize.toPx() }
     Column(Modifier.fillMaxSize().background(Color(0, 0, 15)).padding(16.dp)) {
         Row(Modifier.fillMaxWidth(), Arrangement.SpaceBetween) {
-            Text("$nickname LV$level", color = Color.Green, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+            Column {
+                Text("$nickname LV$level", color = Color.Green, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                if (hudLine.isNotEmpty()) Text(hudLine, color = Color.Cyan, fontSize = 9.sp)
+                chipHudHint?.let { Text(it, color = Color.Gray, fontSize = 9.sp) }
+            }
             Column(horizontalAlignment = Alignment.End) {
                 Text("HP ${hp.toInt()} / ${maxHp.toInt()}", color = Color.White, fontSize = 10.sp)
                 LinearProgressIndicator(progress = (hp / maxHp).coerceIn(0f, 1f), Modifier.width(120.dp).height(10.dp).clip(RoundedCornerShape(5.dp)), color = Color.Green, backgroundColor = Color.Red)
@@ -623,10 +737,31 @@ fun GridBattleScreen(
         // Battle Program Slide Menu
         Spacer(Modifier.height(8.dp))
         Box(Modifier.fillMaxWidth().height(60.dp).background(Color.Black.copy(0.3f), RoundedCornerShape(8.dp)).padding(4.dp)) {
-            if (battlePrograms.isEmpty()) {
+            if (battlePrograms.isEmpty() && chipHand.isEmpty()) {
                 Text("NO PROGRAMS LOADED", color = Color.Gray, fontSize = 10.sp, modifier = Modifier.align(Alignment.Center))
             } else {
                 androidx.compose.foundation.lazy.LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    items(chipHand.size) { index ->
+                        val chipId = chipHand[index]
+                        val chip = ChipLibrary.byId(chipId)
+                        if (chip != null) {
+                            val chipColor = elementColor(chip.element)
+                            Column(
+                                Modifier
+                                    .width(70.dp)
+                                    .fillMaxHeight()
+                                    .background(chipColor.copy(0.2f), RoundedCornerShape(4.dp))
+                                    .border(1.dp, chipColor, RoundedCornerShape(4.dp))
+                                    .clickable { onUseChip(chipId) }
+                                    .padding(4.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.Center
+                            ) {
+                                Text(chip.name, color = Color.White, fontSize = 7.sp, fontWeight = FontWeight.Bold, maxLines = 2)
+                                Text("${chip.damage} DMG", color = Color.White, fontSize = 8.sp)
+                            }
+                        }
+                    }
                     items(battlePrograms.size) { index ->
                         val program = battlePrograms[index]
                         Column(
@@ -689,7 +824,10 @@ fun GridBattleScreen(
                         Box(Modifier.width(cellSize).height(4.dp).offset { IntOffset((e.gridX * cellSizePx).toInt(), (e.gridY * cellSizePx).toInt() - 12) }.background(Color.Red)) { Box(Modifier.fillMaxWidth(e.hp / e.maxHp).fillMaxHeight().background(Color.Green)) }
                     }
                 }
-                projectiles.forEach { p -> Box(Modifier.size(if (p.isBig) 18.dp else 10.dp).offset { IntOffset((p.gridX * cellSizePx).toInt() + 20, (p.gridY * cellSizePx).toInt() + 20) }.background(if (p.isPlayer) attackEffectColor(p.attackId) else Color.Magenta, CircleShape).border(1.dp, Color.White, CircleShape)) }
+                projectiles.forEach { p ->
+                    val tint = if (p.isPlayer) p.element?.let { elementColor(it) } ?: attackEffectColor(p.attackId) else Color.Magenta
+                    Box(Modifier.size(if (p.isBig) 18.dp else 10.dp).offset { IntOffset((p.gridX * cellSizePx).toInt() + 20, (p.gridY * cellSizePx).toInt() + 20) }.background(tint, CircleShape).border(1.dp, Color.White, CircleShape))
+                }
             }
         }
         Row(Modifier.fillMaxWidth().padding(bottom = 60.dp), Arrangement.SpaceBetween) {
@@ -720,6 +858,20 @@ fun ResultScreen(isWin: Boolean, xpGained: Int, onContinue: () -> Unit) {
             Button(onClick = onContinue, Modifier.padding(top = 32.dp), colors = ButtonDefaults.buttonColors(backgroundColor = Color.DarkGray)) { Text("CONTINUE", color = Color.White) }
         }
     }
+}
+
+// Battle-chip / Core element tint for projectiles and chip cards (2026-09-25).
+private fun elementColor(element: ChipElement): Color = when (element) {
+    ChipElement.FIRE -> Color(0xFFFF6B35)
+    ChipElement.WATER -> Color(0xFF29B6F6)
+    ChipElement.ELEC -> Color(0xFFFFEB3B)
+    ChipElement.WOOD -> Color(0xFF66BB6A)
+    ChipElement.SWORD -> Color(0xFFE0E0E0)
+    ChipElement.WIND -> Color(0xFF80DEEA)
+    ChipElement.CURSOR -> Color(0xFFCE93D8)
+    ChipElement.BREAK -> Color(0xFFFF8A65)
+    ChipElement.PLUS -> Color(0xFFFFF176)
+    ChipElement.NULL -> Color(0xFF00BCD4)
 }
 
 private fun getCharacterBaseIndex(characterId: Int, isBem: Boolean): Int {
