@@ -114,6 +114,12 @@
             android:theme="@style/Theme.VitalwearCloneV1" />
 
         <activity
+            android:name=".gridbattle.GridBattleActivity"
+            android:exported="true"
+            android:label="Grid Battle"
+            android:theme="@style/Theme.VitalwearCloneV1" />
+
+        <activity
             android:name=".card.ManageCardsActivity"
             android:exported="false"
             android:label="Manage Saved DIMs"

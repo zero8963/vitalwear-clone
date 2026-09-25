@@ -1015,6 +1015,20 @@ fun MultiplayerScreen(
         Spacer(Modifier.height(48.dp))
 
         if (myState != null) {
+            // Grid Battle mode (2026-09-25): separate chip-based grid battles.
+            // Does not touch the watch-linked battle structure.
+            Button(
+                onClick = {
+                    context.startActivity(Intent(context, com.example.vitalwearclonev1.gridbattle.GridBattleActivity::class.java))
+                },
+                modifier = Modifier.fillMaxWidth().height(60.dp),
+                colors = ButtonDefaults.buttonColors(backgroundColor = Color(0, 150, 100))
+            ) {
+                Text("Grid Battle (Chips)", color = Color.White)
+            }
+
+            Spacer(Modifier.height(16.dp))
+
             Button(
                 onClick = {
                     val btManagerSys = context.getSystemService(Context.BLUETOOTH_SERVICE) as android.bluetooth.BluetoothManager
