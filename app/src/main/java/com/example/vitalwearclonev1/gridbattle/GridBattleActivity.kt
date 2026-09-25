@@ -29,7 +29,7 @@ import androidx.compose.ui.unit.sp
  * battle structure — nothing here talks to the watch.
  *
  * Screens switch on a simple state so NaviCust and the battle itself can
- * slot in later: "compendium" | "navicust" | "battle".
+ * slot in later: "compendium" | "navicust" | "folder" | "battle".
  */
 class GridBattleActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -57,7 +57,11 @@ class GridBattleActivity : ComponentActivity() {
                     .background(Color(20, 0, 40))
             ) {
                 TabRow(
-                    selectedTabIndex = if (screen == "navicust") 1 else 0,
+                    selectedTabIndex = when (screen) {
+                        "navicust" -> 1
+                        "folder" -> 2
+                        else -> 0
+                    },
                     backgroundColor = Color(0, 50, 100),
                     contentColor = Color.White
                 ) {
@@ -70,6 +74,11 @@ class GridBattleActivity : ComponentActivity() {
                         selected = screen == "navicust",
                         onClick = { screen = "navicust" },
                         text = { Text("NaviCust") }
+                    )
+                    Tab(
+                        selected = screen == "folder",
+                        onClick = { screen = "folder" },
+                        text = { Text("Folder") }
                     )
                 }
                 Box(modifier = Modifier.weight(1f)) {
@@ -84,6 +93,21 @@ class GridBattleActivity : ComponentActivity() {
                             ) {
                                 Text(
                                     "Hatch a Digimon first!\nYour partner owns the Program Grid.",
+                                    color = Color.White,
+                                    fontSize = 16.sp,
+                                    modifier = Modifier.padding(32.dp)
+                                )
+                            }
+                        }
+                        "folder" -> if (monster != null) {
+                            FolderScreen(ownerId = ownerId, ownerName = ownerName)
+                        } else {
+                            Box(
+                                modifier = Modifier.fillMaxSize(),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    "Hatch a Digimon first!\nYour partner owns the Chip Folder.",
                                     color = Color.White,
                                     fontSize = 16.sp,
                                     modifier = Modifier.padding(32.dp)
