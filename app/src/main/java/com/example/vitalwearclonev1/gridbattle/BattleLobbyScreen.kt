@@ -86,6 +86,7 @@ fun BattleLobbyScreen(
         }
     }
 
+    @Composable
     fun statRow(label: String, value: String, color: Color = Color.White) {
         Row(
             Modifier.fillMaxWidth().padding(vertical = 3.dp),
