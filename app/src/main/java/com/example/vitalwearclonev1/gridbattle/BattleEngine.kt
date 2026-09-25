@@ -120,9 +120,9 @@ class BattleEngine(val config: BattleConfig) {
     private var moveCd = 0f
     private var busterCd = 0f
     private var swordCd = 0f
-    private var aiMoveCd = 0.7f
-    private var aiBusterCd = 1.5f
-    private var aiChipCd = 8f
+    private var aiMoveCd = 0.5f
+    private var aiBusterCd = 1.15f
+    private var aiChipCd = 6f
 
     // TUNE: converts the ATK stat into chip damage scale.
     private fun dmgScale(): Float = (0.5f + config.atkStat / 150f) * config.effAtkMult
@@ -136,7 +136,7 @@ class BattleEngine(val config: BattleConfig) {
         val ny = (py + dy).coerceIn(0, 2)
         if (nx != px || ny != py) {
             px = nx; py = ny
-            moveCd = 0.18f
+            moveCd = 0.14f
         }
     }
 
@@ -152,9 +152,9 @@ class BattleEngine(val config: BattleConfig) {
         val dmg = (8f + config.atkStat / 10f) * config.effAtkMult * (1f + charge * 1.6f)
         val charged = charge > 0.7f
         projectiles.add(
-            SimProjectile(px + 0.6f, py, 3.2f, dmg, true, config.busterElement, big = charged, piercing = false)
+            SimProjectile(px + 0.6f, py, 4.2f, dmg, true, config.busterElement, big = charged, piercing = false)
         )
-        busterCd = 0.25f
+        busterCd = 0.2f
         charge = 0f
         charging = false
         return FiredShot(dmg, config.busterAnimKey, config.busterElement, charged)
@@ -228,7 +228,7 @@ class BattleEngine(val config: BattleConfig) {
         hand.forEachIndexed { i, c -> if (i !in selected) deck.add(c.id) }
         discards.addAll(ordered.map { hand[it].id })
         // TUNE: 0.45s between queued chips.
-        ordered.forEachIndexed { qi, hi -> pendingChips.add(PendingChip(hand[hi], qi * 0.45f)) }
+        ordered.forEachIndexed { qi, hi -> pendingChips.add(PendingChip(hand[hi], qi * 0.3f)) }
         hand.clear()
         selected.clear()
         paused = false
@@ -247,9 +247,9 @@ class BattleEngine(val config: BattleConfig) {
         swordCd = maxOf(0f, swordCd - dt)
 
         // TUNE: buster reaches full charge in 1.2s (faster with chargeRate).
-        if (charging && busterCd <= 0f) charge = min(1f, charge + dt / 1.2f * config.chargeRate)
-        // TUNE: chip gauge fills in ~8s.
-        if (hand.isEmpty()) gauge = min(1f, gauge + dt / 8f)
+        if (charging && busterCd <= 0f) charge = min(1f, charge + dt / 0.9f * config.chargeRate)
+        // TUNE: chip gauge fills in ~5s.
+        if (hand.isEmpty()) gauge = min(1f, gauge + dt / 5f)
 
         val pci = pendingChips.iterator()
         while (pci.hasNext()) {
@@ -318,7 +318,7 @@ class BattleEngine(val config: BattleConfig) {
                 repeat(chip.hits.coerceAtLeast(1)) { i ->
                     delayedProjs.add(
                         DelayedProj(
-                            SimProjectile(px + 0.6f, py, 2.8f, chip.damage * s, true, chip.element, big = chip.tier != ChipTier.STANDARD, piercing = false),
+                            SimProjectile(px + 0.6f, py, 3.6f, chip.damage * s, true, chip.element, big = chip.tier != ChipTier.STANDARD, piercing = false),
                             i * 0.12f
                         )
                     )
@@ -330,20 +330,20 @@ class BattleEngine(val config: BattleConfig) {
             EffectKind.LOB -> {
                 // TUNE: lobbed shots are slow but hit 1.2x.
                 delayedProjs.add(
-                    DelayedProj(SimProjectile(px + 0.6f, py, 1.6f, chip.damage * 1.2f * s, true, chip.element, big = true, piercing = false), 0f)
+                    DelayedProj(SimProjectile(px + 0.6f, py, 2.1f, chip.damage * 1.2f * s, true, chip.element, big = true, piercing = false), 0f)
                 )
             }
             EffectKind.BEAM -> {
                 // TUNE: beams pierce and hit 1.5x.
                 delayedProjs.add(
-                    DelayedProj(SimProjectile(px + 0.6f, py, 4.5f, chip.damage * 1.5f * s, true, chip.element, big = true, piercing = true), 0f)
+                    DelayedProj(SimProjectile(px + 0.6f, py, 5.5f, chip.damage * 1.5f * s, true, chip.element, big = true, piercing = true), 0f)
                 )
             }
             EffectKind.SUMMON -> {
                 // TUNE: summons spray 3 rows at 0.6x each.
                 listOf(py - 1, py, py + 1).map { it.coerceIn(0, 2) }.distinct().forEachIndexed { i, row ->
                     delayedProjs.add(
-                        DelayedProj(SimProjectile(px + 0.6f, row, 2.4f, chip.damage * 0.6f * s, true, chip.element, big = false, piercing = false), i * 0.15f)
+                        DelayedProj(SimProjectile(px + 0.6f, row, 3.1f, chip.damage * 0.6f * s, true, chip.element, big = false, piercing = false), i * 0.15f)
                     )
                 }
             }
@@ -361,7 +361,7 @@ class BattleEngine(val config: BattleConfig) {
         aiMoveCd -= dt
         if (aiMoveCd <= 0f) {
             // TUNE: enemy decision rate.
-            aiMoveCd = 0.7f
+            aiMoveCd = 0.5f
             val threat = projectiles.any { it.fromPlayer && !it.dead && it.vx > 0 && it.y == ey && it.x < ex && ex - it.x < 2.5f }
             // TUNE: dodge chance vs incoming shots.
             if (threat && Random.nextFloat() < 0.75f) {
@@ -374,19 +374,19 @@ class BattleEngine(val config: BattleConfig) {
         aiBusterCd -= dt
         if (aiBusterCd <= 0f) {
             // TUNE: enemy fire rate.
-            aiBusterCd = 1.5f
+            aiBusterCd = 1.15f
             if (abs(ey - py) <= 1) {
                 // TUNE: enemy buster damage.
-                projectiles.add(SimProjectile(ex - 0.6f, ey, -2.4f, 6f + config.enemyAtk / 12f, false, null, big = false, piercing = false))
+                projectiles.add(SimProjectile(ex - 0.6f, ey, -3.1f, 6f + config.enemyAtk / 12f, false, null, big = false, piercing = false))
             }
         }
         aiChipCd -= dt
         if (aiChipCd <= 0f) {
             // TUNE: enemy chip rate + simple chip kit.
-            aiChipCd = 8f
+            aiChipCd = 6f
             when (Random.nextInt(3)) {
                 0 -> projectiles.add(
-                    SimProjectile(ex - 0.6f, ey, -2.0f, 40f * (0.5f + config.enemyAtk / 150f), false, ChipElement.ELEC, big = true, piercing = false)
+                    SimProjectile(ex - 0.6f, ey, -2.6f, 40f * (0.5f + config.enemyAtk / 150f), false, ChipElement.ELEC, big = true, piercing = false)
                 )
                 1 -> if (abs(ex - px) <= 2 && abs(ey - py) <= 1) damagePlayer(50f)
                 else -> enemyHp = min(config.enemyMaxHp.toFloat(), enemyHp + 70f)

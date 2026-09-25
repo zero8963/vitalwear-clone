@@ -19,7 +19,9 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -42,6 +44,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -171,7 +174,7 @@ fun GridBattleScreen(setup: BattleSetup, onExit: () -> Unit) {
         Column(Modifier.fillMaxSize()) {
             // ---- HUD ----
             Row(
-                Modifier.fillMaxWidth().padding(8.dp),
+                Modifier.fillMaxWidth().statusBarsPadding().padding(8.dp),
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Column(Modifier.weight(1f)) {
@@ -249,15 +252,30 @@ fun GridBattleScreen(setup: BattleSetup, onExit: () -> Unit) {
                         drawPath(path, Color(0xFFFF9800).copy(alpha = blink))
                     }
                     // Fighters
-                    fun drawFighter(bmp: Bitmap?, gx: Int, gy: Int, tint: Color, lastHit: Float) {
+                    fun drawFighter(bmp: Bitmap?, gx: Int, gy: Int, tint: Color, lastHit: Float, faceRight: Boolean) {
                         val img = bmp?.asImageBitmap()
                         val dst = IntOffset((ox + gx * cell).toInt(), (oy + gy * cell).toInt())
                         if (img != null) {
-                            drawImage(
-                                img,
-                                dstOffset = dst,
-                                dstSize = androidx.compose.ui.unit.IntSize(cell.toInt(), cell.toInt())
-                            )
+                            if (faceRight) {
+                                withTransform({
+                                    scale(
+                                        scaleX = -1f, scaleY = 1f,
+                                        pivot = Offset(dst.x + cell / 2f, dst.y + cell / 2f)
+                                    )
+                                }) {
+                                    drawImage(
+                                        img,
+                                        dstOffset = dst,
+                                        dstSize = androidx.compose.ui.unit.IntSize(cell.toInt(), cell.toInt())
+                                    )
+                                }
+                            } else {
+                                drawImage(
+                                    img,
+                                    dstOffset = dst,
+                                    dstSize = androidx.compose.ui.unit.IntSize(cell.toInt(), cell.toInt())
+                                )
+                            }
                         } else {
                             drawCircle(
                                 tint,
@@ -273,8 +291,8 @@ fun GridBattleScreen(setup: BattleSetup, onExit: () -> Unit) {
                             )
                         }
                     }
-                    drawFighter(playerBmp, snap.px, snap.py, Color.Cyan, snap.lastPlayerHitAt)
-                    drawFighter(enemyBmp, snap.ex, snap.ey, Color.Magenta, snap.lastEnemyHitAt)
+                    drawFighter(playerBmp, snap.px, snap.py, Color.Cyan, snap.lastPlayerHitAt, faceRight = true)
+                    drawFighter(enemyBmp, snap.ex, snap.ey, Color.Magenta, snap.lastEnemyHitAt, faceRight = false)
                     // Projectiles
                     snap.projectiles.forEach { p ->
                         val cx = ox + p.x * cell
@@ -331,26 +349,26 @@ fun GridBattleScreen(setup: BattleSetup, onExit: () -> Unit) {
 
             // ---- Controls ----
             Row(
-                Modifier.fillMaxWidth().padding(start = 12.dp, end = 12.dp, bottom = 16.dp),
+                Modifier.fillMaxWidth().navigationBarsPadding().padding(start = 8.dp, end = 8.dp, bottom = 8.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 // D-pad
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Button(onClick = { engine.movePlayer(0, -1) }, modifier = Modifier.size(52.dp)) { Text("▲", fontSize = 18.sp) }
+                    Button(onClick = { engine.movePlayer(0, -1) }, modifier = Modifier.size(46.dp)) { Text("▲", fontSize = 16.sp) }
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Button(onClick = { engine.movePlayer(-1, 0) }, modifier = Modifier.size(52.dp)) { Text("◀", fontSize = 18.sp) }
-                        Spacer(Modifier.width(52.dp))
-                        Button(onClick = { engine.movePlayer(1, 0) }, modifier = Modifier.size(52.dp)) { Text("▶", fontSize = 18.sp) }
+                        Button(onClick = { engine.movePlayer(-1, 0) }, modifier = Modifier.size(46.dp)) { Text("◀", fontSize = 16.sp) }
+                        Spacer(Modifier.width(46.dp))
+                        Button(onClick = { engine.movePlayer(1, 0) }, modifier = Modifier.size(46.dp)) { Text("▶", fontSize = 16.sp) }
                     }
-                    Button(onClick = { engine.movePlayer(0, 1) }, modifier = Modifier.size(52.dp)) { Text("▼", fontSize = 18.sp) }
+                    Button(onClick = { engine.movePlayer(0, 1) }, modifier = Modifier.size(46.dp)) { Text("▼", fontSize = 16.sp) }
                 }
                 // Action buttons
-                Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                     // Sword
                     Box(
-                        Modifier.size(64.dp)
-                            .background(Color(160, 30, 30), RoundedCornerShape(32.dp))
+                        Modifier.size(58.dp)
+                            .background(Color(160, 30, 30), RoundedCornerShape(29.dp))
                             .clickable {
                                 val r = engine.playerSword()
                                 if (r != null) playAttackFx(r.animKey)
@@ -359,10 +377,10 @@ fun GridBattleScreen(setup: BattleSetup, onExit: () -> Unit) {
                     ) { Text("SWD", color = Color.White, fontWeight = FontWeight.Bold) }
                     // Buster (press & hold to charge)
                     Box(
-                        Modifier.size(72.dp)
+                        Modifier.size(64.dp)
                             .background(
                                 if (snap.charging) Color(0, 150, 200) else Color(0, 100, 160),
-                                RoundedCornerShape(36.dp)
+                                RoundedCornerShape(32.dp)
                             )
                             .pointerInput(engine) {
                                 detectTapGestures(
@@ -380,14 +398,14 @@ fun GridBattleScreen(setup: BattleSetup, onExit: () -> Unit) {
                     // Chip custom
                     val pulse = if (snap.canCustom) 0.55f + 0.45f * sin(snap.time * 8f) else 1f
                     Box(
-                        Modifier.size(64.dp)
+                        Modifier.size(58.dp)
                             .background(
                                 Color(150, 120, 0).copy(alpha = if (snap.canCustom) pulse else 0.35f),
                                 RoundedCornerShape(12.dp)
                             )
                             .clickable(enabled = snap.canCustom) { engine.openCustom() },
                         contentAlignment = Alignment.Center
-                    ) { Text("CHIP", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 12.sp) }
+                    ) { Text("CHIP", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 11.sp) }
                 }
             }
         }
