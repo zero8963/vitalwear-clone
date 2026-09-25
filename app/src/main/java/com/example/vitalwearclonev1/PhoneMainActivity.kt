@@ -577,7 +577,10 @@ fun HomeScreen(monsterManager: PhoneMonsterManager, isWatchConnected: Boolean?) 
                                         TextButton(
                                             onClick = {
                                                 val isBem = cardManager.getCard(card) is BemCard
-                                                monsterManager.setCurrentMonster(card, 0, isBem = isBem)
+                                                monsterManager.setCurrentMonster(
+                                                    card, 0, isBem = isBem,
+                                                    winsReq = monsterManager.rollWinsRequired()
+                                                )
                                                 monsterState.value = monsterManager.getCurrentMonster()
                                                 showHatchDialog.value = false
                                             },

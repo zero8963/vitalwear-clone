@@ -90,7 +90,15 @@ class PhoneMonsterManager(private val context: Context) {
         val defenseBonus = prefs.getInt("current_defense_bonus", 0)
         val isPaused = prefs.getBoolean("current_evolution_paused", false)
         val currentWins = prefs.getInt("current_wins", 0)
-        val winsRequired = prefs.getInt("wins_required", 0)
+        var winsRequired = prefs.getInt("wins_required", 0)
+        // One-time repair: Digimon hatched before the random roll existed came
+        // in at 0 wins required, which blocks digivolving entirely (the gate
+        // needs winsRequired > 0). Roll one now so nobody stays stuck.
+        if (winsRequired <= 0) {
+            winsRequired = rollWinsRequired()
+            prefs.edit().putInt("wins_required", winsRequired).apply()
+            Timber.d("Repaired wins_required=$winsRequired for stuck monster")
+        }
         val xp = prefs.getInt("current_xp", 0)
         val level = prefs.getInt("current_level", 1)
         val raw = prefs.getString("current_raw_payload", null)
@@ -340,6 +348,12 @@ class PhoneMonsterManager(private val context: Context) {
      * Evolve along the card's REAL tree to [toIndex] (not just +1).
      * Resets per-stage performance counters and reseeds the care clock.
      */
+    /**
+     * Rolls how many wins this stage needs before digivolving — a fresh random
+     * value every stage, never below 1 (0 would block digivolving entirely).
+     */
+    fun rollWinsRequired(): Int = kotlin.random.Random.nextInt(1, 11)
+
     fun evolveTo(toIndex: Int, hoursUntilEvolution: Int): Boolean {
         val current = getCurrentMonster() ?: return false
         val today = System.currentTimeMillis() / 86400000L
@@ -354,6 +368,9 @@ class PhoneMonsterManager(private val context: Context) {
             .putInt("current_stage_wins", 0)
             .putInt("current_stage_vital_points", 0)
             .putInt("current_stage_trophies", 0)
+            // New stage, new wins target: reset the counter and roll fresh.
+            .putInt("current_wins", 0)
+            .putInt("wins_required", rollWinsRequired())
             .putLong("current_last_care_tick", System.currentTimeMillis())
             .apply()
 
@@ -592,6 +609,8 @@ class PhoneMonsterManager(private val context: Context) {
             .putInt("current_character_id", nextId)
             .putInt("current_stage", (current.stage - 1).coerceAtLeast(0))
             .putLong("current_time_alive", 0)
+            .putInt("current_wins", 0)
+            .putInt("wins_required", rollWinsRequired())
             .apply()
     }
 
