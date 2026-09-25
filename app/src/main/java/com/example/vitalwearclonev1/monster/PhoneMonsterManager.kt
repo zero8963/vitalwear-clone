@@ -244,7 +244,14 @@ class PhoneMonsterManager(private val context: Context) {
 
         for (warning in careTick.warnings) Timber.w(warning)
         if (careTick.died) {
-            val cause = if (!won && current.criticalRemainingMs > 0) "critical" else "overwork"
+            // Name the real killer: critical-loss, genuine overwork mistakes,
+            // or a lifespan that simply ran its course (old age) — never blame
+            // overwork for a natural end.
+            val cause = when {
+                !won && current.criticalRemainingMs > 0 -> "critical"
+                careTick.mistakes > 0 -> "overwork"
+                else -> "age"
+            }
             onDigimonDeath(cause)
             return true
         }
@@ -324,7 +331,9 @@ class PhoneMonsterManager(private val context: Context) {
         prefs.edit().putLong("current_last_care_tick", nowMillis).apply()
         for (warning in tick.warnings) Timber.w(warning)
         if (tick.died) {
-            onDigimonDeath("neglect")
+            // A quiet end from old age is not neglect — only call it neglect
+            // when care mistakes actually piled up in this tick.
+            onDigimonDeath(if (tick.mistakes > 0) "neglect" else "age")
             return true
         }
         return false
@@ -511,21 +520,25 @@ class PhoneMonsterManager(private val context: Context) {
             .apply()
     }
 
-    /** Why the current monster died: "neglect", "overwork", or "critical". */
+    /** Why the current monster died: "neglect", "overwork", "critical", or "age". */
     fun getDeathCause(): String = prefs.getString("current_death_cause", "neglect") ?: "neglect"
 
     /**
-     * A completed exercise shaves 15 minutes off the critical healing timer
-     * (two exercises heal it fully). No-op when not critical.
-     * @return true if this exercise healed the Digimon out of critical.
+     * A finished workout always resets the overwork battle counter — regular
+     * training protects the Digimon from being worked to death — and heals
+     * critical condition when present.
+     * @return true if a critical condition was fully healed by this workout.
      */
     fun recordExerciseCompleted(): Boolean {
         val current = getCurrentMonster() ?: return false
-        if (current.criticalRemainingMs <= 0) return false
-        val care = CareManager.recordExercise(toCareState(current))
+        val wasCritical = current.criticalRemainingMs > 0
+        // Workouts are real-world activity: the overwork counter resets whether
+        // or not the Digimon is critical. recordExercise() is a no-op otherwise.
+        var care = toCareState(current).copy(consecutiveBattles = 0)
+        care = CareManager.recordExercise(care)
         persistCare(care)
-        Timber.d("Exercise completed during critical: ${CareManager.formatCriticalMs(care.criticalRemainingMs)} left")
-        return care.criticalRemainingMs <= 0
+        Timber.d("Workout completed: overwork counter reset; critical ${CareManager.formatCriticalMs(care.criticalRemainingMs)} left")
+        return wasCritical && care.criticalRemainingMs <= 0
     }
 
     private fun toCareState(current: MonsterState): CareState = CareState(

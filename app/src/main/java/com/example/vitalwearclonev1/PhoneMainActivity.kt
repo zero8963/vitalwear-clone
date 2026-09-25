@@ -12,6 +12,8 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -310,6 +312,7 @@ fun PhoneMainScreen(activeOpponent: MutableState<BattleOpponent?>) {
                         val deathText = when (deathCause) {
                             "critical" -> "It lost its final battle while in critical condition."
                             "overwork" -> "It was overworked in battle."
+                            "age" -> "It lived a full life and passed away of old age."
                             else -> "It passed away due to neglect."
                         }
                         Text("$deathText Please visit the Lab to hatch a new egg or select a different partner.", color = Color.LightGray, textAlign = TextAlign.Center)
@@ -556,17 +559,33 @@ fun HomeScreen(monsterManager: PhoneMonsterManager, isWatchConnected: Boolean?) 
                     title = { Text("Pick a DIM Card") },
                     text = {
                         Column {
-                            savedCards.forEach { card ->
-                                TextButton(
-                                    onClick = {
-                                        val isBem = cardManager.getCard(card) is BemCard
-                                        monsterManager.setCurrentMonster(card, 0, isBem = isBem)
-                                        monsterState.value = monsterManager.getCurrentMonster()
-                                        showHatchDialog.value = false
-                                    },
-                                    modifier = Modifier.fillMaxWidth()
-                                ) {
-                                    Text(card)
+                            var hatchQuery by remember { mutableStateOf("") }
+                            OutlinedTextField(
+                                value = hatchQuery,
+                                onValueChange = { hatchQuery = it },
+                                label = { Text("Search cards") },
+                                singleLine = true,
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                            Spacer(Modifier.height(8.dp))
+                            val hatchShown = savedCards.filter { it.contains(hatchQuery, ignoreCase = true) }
+                            if (hatchShown.isEmpty()) {
+                                Text("No cards match.", color = Color.Gray, fontSize = 13.sp)
+                            } else {
+                                LazyColumn(modifier = Modifier.heightIn(max = 320.dp)) {
+                                    items(hatchShown) { card ->
+                                        TextButton(
+                                            onClick = {
+                                                val isBem = cardManager.getCard(card) is BemCard
+                                                monsterManager.setCurrentMonster(card, 0, isBem = isBem)
+                                                monsterState.value = monsterManager.getCurrentMonster()
+                                                showHatchDialog.value = false
+                                            },
+                                            modifier = Modifier.fillMaxWidth()
+                                        ) {
+                                            Text(card, modifier = Modifier.fillMaxWidth())
+                                        }
+                                    }
                                 }
                             }
                         }

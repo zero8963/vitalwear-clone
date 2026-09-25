@@ -388,6 +388,10 @@ fun LabUI() {
                             LabStorage.removeMonster(context, index)
                             Toast.makeText(context, "${monster.nickname ?: monster.name} moved to Home!", Toast.LENGTH_SHORT).show()
                             (context as? ComponentActivity)?.finish()
+                        }, onRelease = {
+                            val releasedName = monster.nickname ?: monster.name
+                            LabStorage.removeMonster(context, index)
+                            Toast.makeText(context, "$releasedName was released.", Toast.LENGTH_SHORT).show()
                         })
                     }
                 }
@@ -397,13 +401,14 @@ fun LabUI() {
 }
 
 @Composable
-fun MonsterCard(monster: StoredMonster, index: Int, onRestore: () -> Unit, onAdventure: () -> Unit, onSyncToVB: () -> Unit, onSetHome: () -> Unit) {
+fun MonsterCard(monster: StoredMonster, index: Int, onRestore: () -> Unit, onAdventure: () -> Unit, onSyncToVB: () -> Unit, onSetHome: () -> Unit, onRelease: () -> Unit) {
     val context = androidx.compose.ui.platform.LocalContext.current
     val scope = rememberCoroutineScope()
     val cardManager = remember { CardManager(context) }
     
     var showMatchDialog by remember { mutableStateOf(false) }
     var showSetHomeConfirm by remember { mutableStateOf(false) }
+    var showReleaseConfirm by remember { mutableStateOf(false) }
     var showNicknameDialog by remember { mutableStateOf(false) }
     var nicknameText by remember { mutableStateOf(monster.nickname ?: "") }
 
@@ -442,7 +447,27 @@ fun MonsterCard(monster: StoredMonster, index: Int, onRestore: () -> Unit, onAdv
             }
         )
     }
-    
+
+    if (showReleaseConfirm) {
+        AlertDialog(
+            onDismissRequest = { showReleaseConfirm = false },
+            title = { Text("Release Digimon?") },
+            text = { Text("This will permanently release ${monster.nickname ?: monster.name} from the Lab. This cannot be undone.") },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showReleaseConfirm = false
+                        onRelease()
+                    },
+                    colors = androidx.compose.material.ButtonDefaults.buttonColors(backgroundColor = Color.Red, contentColor = Color.White)
+                ) { Text("Release") }
+            },
+            dismissButton = {
+                Button(onClick = { showReleaseConfirm = false }) { Text("Cancel") }
+            }
+        )
+    }
+
     if (showMatchDialog) {
         val cards = remember { cardManager.listCards() }
         AlertDialog(
@@ -619,6 +644,9 @@ fun MonsterCard(monster: StoredMonster, index: Int, onRestore: () -> Unit, onAdv
                 }
                 Button(onClick = { showSetHomeConfirm = true }, modifier = Modifier.padding(top = 4.dp), colors = androidx.compose.material.ButtonDefaults.buttonColors(backgroundColor = Color(0, 150, 80))) {
                     Text(text = "Set Home", fontSize = 10.sp, color = Color.White)
+                }
+                Button(onClick = { showReleaseConfirm = true }, modifier = Modifier.padding(top = 4.dp), colors = androidx.compose.material.ButtonDefaults.buttonColors(backgroundColor = Color(150, 40, 40))) {
+                    Text(text = "Release", fontSize = 10.sp, color = Color.White)
                 }
             }
         }

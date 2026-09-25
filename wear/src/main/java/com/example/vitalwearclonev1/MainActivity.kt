@@ -481,6 +481,7 @@ fun VitalWearApp(service: VitalForegroundService?, isBound: Boolean, isAmbient: 
                         val deathText = when (monsterManager.getDeathCause()) {
                             "critical" -> "It lost its final battle while in critical condition."
                             "overwork" -> "It was overworked in battle."
+                            "age" -> "It lived a full life and passed away of old age."
                             else -> "It passed away due to lack of care."
                         }
                         Text(deathText, color = Color.White, fontSize = 10.sp, textAlign = TextAlign.Center)
