@@ -234,6 +234,8 @@ fun NetworldAdventure(
     // Localized attack-effect burst shown around the player when firing
     val attackFxId = remember { mutableStateOf<Int?>(null) }
     val attackFxProgress = remember { androidx.compose.animation.core.Animatable(0f) }
+    // NaviCust Core program attack animation (replaces the DIM one when a core is installed)
+    val coreFxKey = remember { mutableStateOf<String?>(null) }
     val critChance = remember(cardName, charId) { phoneManager.getCritChance(cardName, charId) }
 
     fun generateArea(lvl: Int) {
@@ -480,6 +482,7 @@ fun NetworldAdventure(
                         isAttacking = isAttackingAnim,
                         attackFxId = attackFxId.value,
                         attackFxProgress = attackFxProgress.value,
+                        coreFxKey = coreFxKey.value,
                         battlePrograms = battlePrograms,
                         chipHand = chipHand,
                         onUseProgram = { program ->
@@ -567,12 +570,23 @@ fun NetworldAdventure(
                             val isBig = Random.nextFloat() < critChance + programBonuses.chargePct / 400f
                             val usedAttackId = if (isBig) attackIds.second else attackIds.first
                             val dmgMult = if (isBig) 1.5f else 1f
-                            // Flash the DIM-programmed attack effect around the player
-                            attackFxId.value = usedAttackId
-                            scope.launch {
-                                attackFxProgress.snapTo(0f)
-                                attackFxProgress.animateTo(1f, androidx.compose.animation.core.tween(400))
-                                attackFxId.value = null
+                            // Core programs REPLACE the DIM-programmed attack animation with their element effect
+                            val coreKey = if (type == "SWORD") swordOverride?.animKey else busterOverride?.animKey
+                            if (coreKey != null) {
+                                coreFxKey.value = coreKey
+                                scope.launch {
+                                    attackFxProgress.snapTo(0f)
+                                    attackFxProgress.animateTo(1f, androidx.compose.animation.core.tween(450))
+                                    coreFxKey.value = null
+                                }
+                            } else {
+                                // Flash the DIM-programmed attack effect around the player
+                                attackFxId.value = usedAttackId
+                                scope.launch {
+                                    attackFxProgress.snapTo(0f)
+                                    attackFxProgress.animateTo(1f, androidx.compose.animation.core.tween(400))
+                                    attackFxId.value = null
+                                }
                             }
                             if (type == "SWORD") {
                                 val tx = playerBattleX + 1
@@ -710,6 +724,7 @@ fun GridBattleScreen(
     isAttacking: Boolean,
     attackFxId: Int?,
     attackFxProgress: Float,
+    coreFxKey: String?,
     battlePrograms: List<BattleProgramType>,
     onUseProgram: (BattleProgramType) -> Unit,
     hudLine: String,
@@ -814,6 +829,21 @@ fun GridBattleScreen(
                         }
                     ) {
                         AttackEffectCanvas(attackId = fxId, progress = attackFxProgress, modifier = Modifier.fillMaxSize())
+                    }
+                }
+                // NaviCust Core element attack effect (replaces the DIM animation)
+                coreFxKey?.let { key ->
+                    val fxSize = cellSize * 2.5f
+                    val fxPx = with(density) { fxSize.toPx() }
+                    Box(
+                        Modifier.size(fxSize).offset {
+                            IntOffset(
+                                (playerX * cellSizePx + cellSizePx / 2 - fxPx / 2).toInt(),
+                                (playerY * cellSizePx + cellSizePx / 2 - fxPx / 2).toInt()
+                            )
+                        }
+                    ) {
+                        com.example.vitalwearclonev1.gridbattle.CoreAttackFx(animKey = key, progress = attackFxProgress, modifier = Modifier.fillMaxSize())
                     }
                 }
                 enemies.forEach { e ->
