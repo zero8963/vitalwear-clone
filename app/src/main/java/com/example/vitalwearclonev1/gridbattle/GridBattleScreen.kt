@@ -98,7 +98,6 @@ fun GridBattleScreen(
     pvpHost: PvpHostBinding? = null
 ) {
     val context = LocalContext.current
-    val density = LocalDensity.current
     val scope = rememberCoroutineScope()
 
     var fightId by remember { mutableStateOf(0) }
