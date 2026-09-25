@@ -233,6 +233,8 @@ class PvpNetManager(context: Context) {
         fun onEndpointLost(endpointId: String)
         fun onConnected(endpointId: String)
         fun onDisconnected(endpointId: String)
+        /** startAdvertising/startDiscovery failed — usually Bluetooth/WiFi/Location off. */
+        fun onRadioError(msg: String) {}
     }
 
     var listener: Listener? = null
@@ -285,7 +287,9 @@ class PvpNetManager(context: Context) {
         client.startAdvertising(
             name, PVP_SERVICE_ID, lifecycle,
             AdvertisingOptions.Builder().setStrategy(Strategy.P2P_STAR).build()
-        )
+        ).addOnFailureListener { e ->
+            main.post { listener?.onRadioError("Couldn't start hosting: ${e.message}") }
+        }
     }
 
     fun stopAdvertising() = client.stopAdvertising()
@@ -294,7 +298,9 @@ class PvpNetManager(context: Context) {
         client.startDiscovery(
             PVP_SERVICE_ID, discovery,
             DiscoveryOptions.Builder().setStrategy(Strategy.P2P_STAR).build()
-        )
+        ).addOnFailureListener { e ->
+            main.post { listener?.onRadioError("Couldn't start scanning: ${e.message}") }
+        }
     }
 
     fun stopDiscovery() = client.stopDiscovery()

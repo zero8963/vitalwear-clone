@@ -1,8 +1,13 @@
 package com.example.vitalwearclonev1.gridbattle
 
 import android.Manifest
+import android.bluetooth.BluetoothManager
+import android.content.Intent
 import android.content.pm.PackageManager
+import android.location.LocationManager
+import android.net.wifi.WifiManager
 import android.os.Build
+import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -40,8 +45,9 @@ import com.example.vitalwearclonev1.monster.PhoneMonsterManager
  * Phone-to-phone PvP lobby (2026-09-25).
  *
  * No accounts, no servers: one phone hosts, the other joins from the
- * discovered list. Both phones find each other over WiFi directly —
- * no internet needed, just be on the same network (or close by).
+ * discovered list. Both phones link directly — no internet needed.
+ * Bluetooth, WiFi, and Location must all be switched on (Location is
+ * what lets the phones hear each other's discovery beacons).
  */
 @Composable
 fun PvpLobbyScreen(
@@ -60,12 +66,64 @@ fun PvpLobbyScreen(
     var status by remember { mutableStateOf("") }
     var goingToBattle by remember { mutableStateOf(false) }
 
+    // Phone-to-phone needs these three radios actually switched on — the
+    // #1 reason two phones can't see each other is Location turned off.
+    data class RadioIssue(val label: String, val settingsAction: String)
+
+    fun checkRadios(): List<RadioIssue> {
+        val issues = mutableListOf<RadioIssue>()
+        val bt = context.getSystemService(BluetoothManager::class.java)?.adapter
+        if (bt == null || !bt.isEnabled) {
+            issues += RadioIssue("Bluetooth is off", Settings.ACTION_BLUETOOTH_SETTINGS)
+        }
+        @Suppress("DEPRECATION")
+        val wifiOn = context.applicationContext
+            .getSystemService(WifiManager::class.java)?.isWifiEnabled == true
+        if (!wifiOn) {
+            issues += RadioIssue("WiFi is off", Settings.ACTION_WIFI_SETTINGS)
+        }
+        val loc = context.getSystemService(LocationManager::class.java)
+        val locOn = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            loc?.isLocationEnabled == true
+        } else {
+            @Suppress("DEPRECATION")
+            Settings.Secure.getInt(
+                context.contentResolver,
+                Settings.Secure.LOCATION_MODE,
+                Settings.Secure.LOCATION_MODE_OFF
+            ) != Settings.Secure.LOCATION_MODE_OFF
+        }
+        if (!locOn) {
+            issues += RadioIssue(
+                "Location is off (needed to find nearby phones)",
+                Settings.ACTION_LOCATION_SOURCE_SETTINGS
+            )
+        }
+        return issues
+    }
+
+    var radios by remember { mutableStateOf(listOf<RadioIssue>()) }
+    fun openSettings(action: String) {
+        try {
+            context.startActivity(
+                Intent(action).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            )
+        } catch (e: Exception) { }
+    }
+    // Re-check every time we come back to the picker (e.g. from Settings).
+    LaunchedEffect(phase) {
+        if (phase == "choose") radios = checkRadios()
+    }
+
     val neededPerms = remember {
         mutableListOf(Manifest.permission.ACCESS_FINE_LOCATION).apply {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                 add(Manifest.permission.BLUETOOTH_SCAN)
                 add(Manifest.permission.BLUETOOTH_ADVERTISE)
                 add(Manifest.permission.BLUETOOTH_CONNECT)
+            }
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                add(Manifest.permission.NEARBY_WIFI_DEVICES)
             }
         }.toTypedArray()
     }
@@ -85,9 +143,19 @@ fun PvpLobbyScreen(
     }
 
     fun withPerms(action: () -> Unit) {
-        if (permsOk) action()
+        val go = {
+            radios = checkRadios()
+            if (radios.isNotEmpty()) {
+                status = "Turn on: " + radios.joinToString(", ") { it.label.substringBefore(" (") }
+                phase = "choose"
+            } else {
+                status = ""
+                action()
+            }
+        }
+        if (permsOk) go()
         else {
-            afterPerms = action
+            afterPerms = go
             permLauncher.launch(neededPerms)
         }
     }
@@ -131,6 +199,7 @@ fun PvpLobbyScreen(
             override fun onEndpointLost(endpointId: String) {}
             override fun onConnected(endpointId: String) {}
             override fun onDisconnected(endpointId: String) {}
+            override fun onRadioError(msg: String) { status = msg }
         }
         net.startAdvertising(my.name)
     }
@@ -178,6 +247,7 @@ fun PvpLobbyScreen(
                     phase = "discovering"
                 }
             }
+            override fun onRadioError(msg: String) { status = msg }
         }
         net.startDiscovery()
     }
@@ -216,10 +286,39 @@ fun PvpLobbyScreen(
                 when (phase) {
                     "choose" -> {
                         Text(
-                            "One phone hosts, the other joins.\nStay on the same WiFi.",
+                            "One phone hosts, the other joins.\nNo internet needed — just stay close together.",
                             color = Color.Gray, fontSize = 13.sp, textAlign = TextAlign.Center
                         )
-                        Spacer(Modifier.height(16.dp))
+                        Spacer(Modifier.height(12.dp))
+                        // Radio readiness: tap a red row to open its setting.
+                        listOf(
+                            "Bluetooth" to radios.none { it.settingsAction == Settings.ACTION_BLUETOOTH_SETTINGS },
+                            "WiFi" to radios.none { it.settingsAction == Settings.ACTION_WIFI_SETTINGS },
+                            "Location" to radios.none { it.settingsAction == Settings.ACTION_LOCATION_SOURCE_SETTINGS }
+                        ).forEach { (label, ok) ->
+                            val issue = radios.firstOrNull {
+                                (label == "Bluetooth" && it.settingsAction == Settings.ACTION_BLUETOOTH_SETTINGS) ||
+                                (label == "WiFi" && it.settingsAction == Settings.ACTION_WIFI_SETTINGS) ||
+                                (label == "Location" && it.settingsAction == Settings.ACTION_LOCATION_SOURCE_SETTINGS)
+                            }
+                            Button(
+                                onClick = { issue?.let { openSettings(it.settingsAction) } },
+                                colors = ButtonDefaults.buttonColors(
+                                    backgroundColor = if (ok) Color(0, 90, 0) else Color(140, 30, 30)
+                                ),
+                                modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp)
+                            ) {
+                                Text(
+                                    (if (ok) "✓ " else "✗ ") + label + (if (ok) " on" else " OFF — tap to fix"),
+                                    color = Color.White, fontSize = 14.sp
+                                )
+                            }
+                        }
+                        if (status.isNotBlank()) {
+                            Spacer(Modifier.height(4.dp))
+                            Text(status, color = Color(0xFFFF8A80), fontSize = 13.sp, textAlign = TextAlign.Center)
+                        }
+                        Spacer(Modifier.height(12.dp))
                         Button(
                             onClick = { withPerms { startHosting() } },
                             colors = ButtonDefaults.buttonColors(backgroundColor = Color(0, 140, 0)),
