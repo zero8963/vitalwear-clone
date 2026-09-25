@@ -71,7 +71,10 @@ class PhoneHealthSyncManager(private val context: Context) {
                 // TEMP DIAG (2026-09-24): don't gate on the permission pre-check.
                 // Attempt the reads directly; exceptions are caught inside syncNow().
                 syncNow()
-                kotlinx.coroutines.delay(120000) // Sync every 2 minutes for better accuracy
+                // Battery fix (2026-09-25): was every 2 min; each sync does HC
+                // reads + a BLE send to the watch. 15 min is plenty for a
+                // virtual-pet step counter.
+                kotlinx.coroutines.delay(900000)
             }
         }
     }
@@ -183,7 +186,7 @@ class PhoneHealthSyncManager(private val context: Context) {
     var lastDiagString: String = "diag: not run yet"
         private set
 
-    suspend fun getDailyStats(): Pair<Long, Int> = getDailyStatsWithDiag().first
+    suspend fun getDailyStats(): Pair<Long, Int> = getDailyStatsWithDiag(includeOrigins = false).first
 
     /**
      * Samsung parity (2026-09-24): sum the raw step records for the given
@@ -218,7 +221,12 @@ class PhoneHealthSyncManager(private val context: Context) {
         return total
     }
 
-    suspend fun getDailyStatsWithDiag(): Pair<Pair<Long, Int>, String> {
+    /**
+     * Battery note (2026-09-25): the per-origin breakdown pages through ALL of
+     * today's step records — expensive. Only the Workout screen sets
+     * includeOrigins=true; background syncs skip it.
+     */
+    suspend fun getDailyStatsWithDiag(includeOrigins: Boolean = false): Pair<Pair<Long, Int>, String> {
         var steps = 0L
         var calories = 0.0
         var stepsSource = "none"
@@ -277,7 +285,9 @@ class PhoneHealthSyncManager(private val context: Context) {
                 // TEMP DIAG (2026-09-24): per-package raw step sums for today, to
                 // find which writer holds Samsung Health's full total. Raw sums
                 // can overlap; this is only for diagnosis, not the final number.
+                // Skipped for background syncs (battery).
                 val originSteps = mutableMapOf<String, Long>()
+                if (!includeOrigins) originsDiag = "skipped" else {
                 try {
                     var pageToken: String? = null
                     do {
@@ -302,6 +312,7 @@ class PhoneHealthSyncManager(private val context: Context) {
                     .take(4)
                     .joinToString(",") { "${it.key.substringAfterLast('.')}=${it.value}" }
                 originsDiag = topOrigins.ifEmpty { "none" }
+                }
             } catch (e: Exception) {
                 readError = "${e.javaClass.simpleName}: ${e.message}"
                 Timber.w(e, "Health Connect aggregate failed")

@@ -228,6 +228,10 @@ fun PhoneMainScreen(activeOpponent: MutableState<BattleOpponent?>) {
     val isPhoneConnected = remember { mutableStateOf<Boolean?>(null) }
 
     // Connection Polling Loop & Daily Reset Check
+    // Battery fix (2026-09-25): was polling every 5s and — worse — calling
+    // startTracking() each time, which leaked a new HIGH_ACCURACY GPS callback
+    // on every pass (hundreds of live GPS listeners after an hour). Now it only
+    // runs the cheap day-reset check and polls every 30s.
     LaunchedEffect(Unit) {
         while(true) {
             try {
@@ -235,13 +239,13 @@ fun PhoneMainScreen(activeOpponent: MutableState<BattleOpponent?>) {
                 val nodes = Wearable.getNodeClient(context).connectedNodes.await()
                 isPhoneConnected.value = nodes.isNotEmpty()
 
-                // Force a check/reset of GPS stats if the day changed while app is open
-                com.example.vitalwearclonev1.sensor.PhoneGpsManager(context).startTracking() // This calls checkDayReset()
+                // Day rollover check only — does NOT register for location updates.
+                com.example.vitalwearclonev1.sensor.PhoneGpsManager(context).checkDayReset()
 
             } catch (e: Exception) {
                 isPhoneConnected.value = false
             }
-            delay(5000)
+            delay(30000)
         }
     }
 

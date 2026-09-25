@@ -106,7 +106,7 @@ fun WorkoutDashboard(syncManager: PhoneHealthSyncManager, workoutManager: Workou
     val customRoutines = remember(refreshTrigger) { workoutManager.getCustomRoutines() }
 
     LaunchedEffect(Unit) {
-        val (stats, diag) = syncManager.getDailyStatsWithDiag()
+        val (stats, diag) = syncManager.getDailyStatsWithDiag(includeOrigins = true)
         steps = stats.first
         calories = stats.second
         diagText = diag

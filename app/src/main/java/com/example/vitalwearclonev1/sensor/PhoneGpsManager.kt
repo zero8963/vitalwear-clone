@@ -38,7 +38,12 @@ class PhoneGpsManager(private val context: Context) {
         }
     }
 
-    private fun checkDayReset() {
+    /**
+     * Public so the UI can trigger the midnight rollover check WITHOUT
+     * registering for location updates. Never call startTracking() here —
+     * that leaks a new high-accuracy GPS callback on every call.
+     */
+    fun checkDayReset() {
         val lastReset = prefs.getLong("last_reset", 0L)
         val startOfDay = ZonedDateTime.now().truncatedTo(ChronoUnit.DAYS).toInstant().toEpochMilli()
 
