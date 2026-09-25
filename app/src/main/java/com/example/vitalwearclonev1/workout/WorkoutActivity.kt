@@ -100,6 +100,11 @@ fun WorkoutDashboard(syncManager: PhoneHealthSyncManager, workoutManager: Workou
     var calories by remember { mutableIntStateOf(0) }
     // TEMP DIAG (2026-09-24): shows where the step number came from. REMOVE later.
     var diagText by remember { mutableStateOf("diag: loading...") }
+    // Samsung Health workout counter (2026-09-25): verifies Samsung workouts
+    // are reaching the app through Health Connect.
+    var samsungCount by remember { mutableIntStateOf(0) }
+    var samsungCals by remember { mutableIntStateOf(0) }
+    var samsungDiag by remember { mutableStateOf("samsung workouts: loading...") }
     
     // Use a trigger to force re-fetch of custom routines
     var refreshTrigger by remember { mutableIntStateOf(0) }
@@ -110,6 +115,10 @@ fun WorkoutDashboard(syncManager: PhoneHealthSyncManager, workoutManager: Workou
         steps = stats.first
         calories = stats.second
         diagText = diag
+        val sw = syncManager.getSamsungWorkoutsToday()
+        samsungCount = sw.count
+        samsungCals = sw.caloriesKcal
+        samsungDiag = sw.diag
     }
 
     LazyColumn(
@@ -132,6 +141,25 @@ fun WorkoutDashboard(syncManager: PhoneHealthSyncManager, workoutManager: Workou
                     // TEMP DIAG (2026-09-24): on-screen read-path diagnostics. REMOVE later.
                     Spacer(Modifier.height(8.dp))
                     Text(diagText, color = Color.Gray, fontSize = 11.sp)
+                }
+            }
+        }
+
+        item {
+            Card(
+                backgroundColor = Color(0, 40, 80),
+                shape = RoundedCornerShape(16.dp),
+                elevation = 8.dp
+            ) {
+                Column(modifier = Modifier.padding(20.dp).fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text("Samsung Health Workouts", color = Color.Cyan, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                    Spacer(Modifier.height(12.dp))
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+                        ActivityStat(label = "Workouts", value = samsungCount.toString(), icon = Icons.Default.FitnessCenter, color = Color.Yellow)
+                        ActivityStat(label = "Calories", value = samsungCals.toString(), icon = Icons.Default.Whatshot, color = Color.Red)
+                    }
+                    Spacer(Modifier.height(8.dp))
+                    Text(samsungDiag, color = Color.Gray, fontSize = 11.sp)
                 }
             }
         }

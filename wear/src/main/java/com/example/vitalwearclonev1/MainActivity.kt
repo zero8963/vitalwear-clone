@@ -235,6 +235,10 @@ fun VitalWearApp(service: VitalForegroundService?, isBound: Boolean, isAmbient: 
     val isPhoneConnected = remember { mutableStateOf<Boolean?>(null) }
     val lastRefreshTime = remember { mutableStateOf(0L) }
     val currentScreen = remember { mutableStateOf("GAME") } // "GAME", "MENU", "BATTLE", "TRAINING", "LAB", "SYNC", "WORKOUTS", "STORAGE"
+    // 2026-09-25: Samsung Health workout counter, pushed from the phone's
+    // Health Connect read on every /HEALTH_SYNC.
+    val samsungWorkouts = remember { mutableStateOf(0) }
+    val samsungWorkoutCals = remember { mutableStateOf(0) }
     val selectedExercise = remember { mutableStateOf("") }
 
     val liveSteps by sensorManager.stepCount.collectAsState()
@@ -415,6 +419,8 @@ fun VitalWearApp(service: VitalForegroundService?, isBound: Boolean, isAmbient: 
                         val weightKg = intent.getFloatExtra("weight", 75f)
                         
                         sensorManager.updateBaseHealthData(steps, calories, startOfDay, weightKg)
+                        samsungWorkouts.value = intent.getIntExtra("samsungWorkouts", 0)
+                        samsungWorkoutCals.value = intent.getIntExtra("samsungWorkoutCals", 0)
                         monsterState.value = monsterManager.getCurrentMonster()
                         // Toast removed as per user request to reduce noise
                     }
@@ -598,7 +604,11 @@ fun VitalWearApp(service: VitalForegroundService?, isBound: Boolean, isAmbient: 
                         currentScreen.value = "GAME"
                         monsterState.value = monsterManager.getCurrentMonster()
                     }
-                    "WORKOUTS" -> WorkoutListScreen(onBack = { currentScreen.value = "GAME" }) { ex ->
+                    "WORKOUTS" -> WorkoutListScreen(
+                        onBack = { currentScreen.value = "GAME" },
+                        samsungWorkouts = samsungWorkouts.value,
+                        samsungWorkoutCals = samsungWorkoutCals.value
+                    ) { ex ->
                         selectedExercise.value = ex
                         currentScreen.value = "TRAINING"
                     }
@@ -859,9 +869,18 @@ fun MenuScreen(phoneConnected: Boolean?, monsterState: MonsterManager.MonsterSta
 }
 
 @Composable
-fun WorkoutListScreen(onBack: () -> Unit, onPick: (String) -> Unit) {
+fun WorkoutListScreen(onBack: () -> Unit, samsungWorkouts: Int = 0, samsungWorkoutCals: Int = 0, onPick: (String) -> Unit) {
     ScalingLazyColumn(Modifier.fillMaxSize().background(Color(0, 60, 30)), horizontalAlignment = Alignment.CenterHorizontally) {
         item { Text("WORKOUTS", Modifier.padding(vertical = 10.dp), Color.White, fontWeight = FontWeight.Bold) }
+        item {
+            Chip(
+                label = { Text("Samsung: $samsungWorkouts workouts") },
+                secondaryLabel = { Text("$samsungWorkoutCals kcal today", fontSize = 10.sp) },
+                onClick = { },
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 2.dp),
+                colors = ChipDefaults.primaryChipColors(backgroundColor = Color(0, 90, 140))
+            )
+        }
         listOf("Push-ups", "Pull-ups", "Sprints", "Squats").forEach { ex ->
             item {
                 Chip(label = { Text(ex) }, onClick = { onPick(ex) }, modifier = Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 2.dp), colors = ChipDefaults.primaryChipColors(backgroundColor = Color(0, 110, 55)))

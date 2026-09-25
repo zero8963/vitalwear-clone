@@ -118,7 +118,9 @@ class PhoneHealthSyncManager(private val context: Context) {
             // Samsung Health workouts count as healing workouts too.
             creditNewExerciseSessions()
 
-            sendToWatch(stats.first, stats.second, hasNewWorkout, startOfDay.toEpochMilli(), weightKg.toFloat())
+            val samsungWorkouts = getSamsungWorkoutsToday()
+            sendToWatch(stats.first, stats.second, hasNewWorkout, startOfDay.toEpochMilli(), weightKg.toFloat(),
+                samsungWorkouts.count, samsungWorkouts.caloriesKcal)
         } catch (e: Exception) {
             Timber.e(e, "Error during Health Sync")
         }
@@ -165,6 +167,75 @@ class PhoneHealthSyncManager(private val context: Context) {
             prefs.edit().putLong("last_credited_session_end", maxEnd).apply()
         } catch (e: Exception) {
             Timber.w(e, "Exercise session credit check failed")
+        }
+    }
+
+    /** Counts today's Health Connect exercise sessions (Samsung Health syncs
+     *  its workouts here) and the active calories burned inside them.
+     *  Diagnostic companion to the workout healing credit — if this shows 0
+     *  sessions, Samsung Health isn't sharing with Health Connect. */
+    data class SamsungWorkoutSummary(
+        val count: Int,
+        val caloriesKcal: Int,
+        val diag: String
+    )
+
+    suspend fun getSamsungWorkoutsToday(): SamsungWorkoutSummary {
+        val client = getClient()
+            ?: return SamsungWorkoutSummary(0, 0, "samsung workouts: Health Connect not available")
+        return try {
+            val startOfDay = ZonedDateTime.now().truncatedTo(ChronoUnit.DAYS).toInstant()
+            val now = Instant.now()
+            val sessions = mutableListOf<ExerciseSessionRecord>()
+            var pageToken: String? = null
+            do {
+                val page = client.readRecords(
+                    ReadRecordsRequest(
+                        ExerciseSessionRecord::class,
+                        timeRangeFilter = TimeRangeFilter.between(startOfDay, now),
+                        pageToken = pageToken
+                    )
+                )
+                sessions += page.records
+                pageToken = page.pageToken
+            } while (pageToken != null)
+
+            val origins = mutableMapOf<String, Int>()
+            var counted = 0
+            var totalKcal = 0.0
+            for (s in sessions) {
+                val pkg = s.metadata.dataOrigin.packageName
+                origins[pkg] = (origins[pkg] ?: 0) + 1
+                val mins = ChronoUnit.MINUTES.between(s.startTime, s.endTime)
+                if (mins < MIN_WORKOUT_MINUTES) continue
+                counted++
+                var calToken: String? = null
+                do {
+                    val calPage = client.readRecords(
+                        ReadRecordsRequest(
+                            ActiveCaloriesBurnedRecord::class,
+                            timeRangeFilter = TimeRangeFilter.between(s.startTime, s.endTime),
+                            pageToken = calToken
+                        )
+                    )
+                    for (r in calPage.records) totalKcal += r.energy.inKilocalories
+                    calToken = calPage.pageToken
+                } while (calToken != null)
+            }
+            val diag = if (sessions.isEmpty()) {
+                "samsung workouts: no exercise sessions in Health Connect today — " +
+                    "check Samsung Health > Settings > Health Connect sharing is ON"
+            } else {
+                val originBits = origins.entries.joinToString(", ") {
+                    "${it.key.substringAfterLast('.')} x${it.value}"
+                }
+                "samsung workouts: ${sessions.size} session(s) today [$originBits], " +
+                    "counted $counted (10+ min)"
+            }
+            SamsungWorkoutSummary(counted, totalKcal.toInt(), diag)
+        } catch (e: Exception) {
+            Timber.w(e, "Samsung workout summary read failed")
+            SamsungWorkoutSummary(0, 0, "samsung workouts: read failed (${e.message})")
         }
     }
 
@@ -367,7 +438,8 @@ class PhoneHealthSyncManager(private val context: Context) {
         }
     }
 
-    private suspend fun sendToWatch(steps: Long, calories: Int, hasWorkout: Boolean, startOfDayMillis: Long, weightKg: Float = 75f) {
+    private suspend fun sendToWatch(steps: Long, calories: Int, hasWorkout: Boolean, startOfDayMillis: Long, weightKg: Float = 75f,
+                               samsungWorkouts: Int = 0, samsungWorkoutCals: Int = 0) {
         try {
             val nodes = Wearable.getNodeClient(context).connectedNodes.await()
             val messageClient = Wearable.getMessageClient(context)
@@ -379,6 +451,11 @@ class PhoneHealthSyncManager(private val context: Context) {
                 dos.writeBoolean(hasWorkout)
                 dos.writeLong(startOfDayMillis)
                 dos.writeFloat(weightKg)
+                // 2026-09-25: Samsung Health workout counter for the watch's
+                // workout screen. Older watch builds stop reading after
+                // weightKg, so appending is backward compatible.
+                dos.writeInt(samsungWorkouts)
+                dos.writeInt(samsungWorkoutCals)
                 dos.flush()
                 bos.toByteArray()
             }

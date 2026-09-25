@@ -44,6 +44,9 @@ class DataTransferService : WearableListenerService() {
                     val hasWorkout = dis.readBoolean()
                     val startOfDay = try { dis.readLong() } catch (e: Exception) { 0L }
                     val weightKg = try { dis.readFloat() } catch (e: Exception) { 75f }
+                    // 2026-09-25: Samsung Health workout counter (phone-computed).
+                    val samsungWorkouts = try { dis.readInt() } catch (e: Exception) { 0 }
+                    val samsungWorkoutCals = try { dis.readInt() } catch (e: Exception) { 0 }
                     
                     Timber.i("Background received HEALTH_SYNC: Steps=$steps, Cals=$calories, WeightKg=$weightKg")
                     
@@ -53,6 +56,8 @@ class DataTransferService : WearableListenerService() {
                         putExtra("hasWorkout", hasWorkout)
                         putExtra("startOfDay", startOfDay)
                         putExtra("weight", weightKg)
+                        putExtra("samsungWorkouts", samsungWorkouts)
+                        putExtra("samsungWorkoutCals", samsungWorkoutCals)
                         setPackage(packageName)
                     }
                     sendBroadcast(intent)
