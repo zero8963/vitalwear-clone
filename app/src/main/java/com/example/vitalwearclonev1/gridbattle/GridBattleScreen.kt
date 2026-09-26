@@ -51,6 +51,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlin.math.min
 import kotlin.math.sin
+import com.example.vitalwearclonev1.common.SoundManager
 
 /**
  * Real-time grid battle screen, player vs AI (2026-09-25).
@@ -180,6 +181,9 @@ fun GridBattleScreen(
         }
     }
 
+    // Game SFX, 2026-09-26.
+    LaunchedEffect(Unit) { SoundManager.init(context) }
+
     // Game loop. In PvP the host also applies the guest's queued inputs
     // and streams authoritative snapshots ~12x/sec.
     LaunchedEffect(engine) {
@@ -192,6 +196,7 @@ fun GridBattleScreen(
             last = now
             pvpHost?.drainInputs()?.forEach { applyPvpInput(engine, it, ::playAttackFx) }
             engine.update(dt)
+            engine.drainSoundEvents().forEach { SoundManager.play(it) }
             pvpHost?.let { host ->
                 snapT += dt
                 if (snapT >= 0.08f) {

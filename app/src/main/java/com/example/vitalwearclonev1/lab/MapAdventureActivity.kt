@@ -1,5 +1,6 @@
 package com.example.vitalwearclonev1.lab
 
+import android.content.Context
 import android.graphics.Bitmap
 import android.os.Bundle
 import android.widget.Toast
@@ -11,6 +12,9 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
@@ -59,10 +63,12 @@ import com.example.vitalwearclonev1.gridbattle.EffectKind
 import com.example.vitalwearclonev1.gridbattle.NaviCustLoadout
 import com.example.vitalwearclonev1.gridbattle.AttackFxOverrides
 import com.example.vitalwearclonev1.gridbattle.ownerIdFor
+import com.example.vitalwearclonev1.common.SoundManager
 
 class MapAdventureActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        SoundManager.init(this)
         val monsterIndex = intent.getIntExtra("monsterIndex", -1)
         val cardName = intent.getStringExtra("cardName") ?: ""
         val charId = intent.getIntExtra("charId", 0)
@@ -200,6 +206,10 @@ fun NetworldAdventure(
 
     // Exploration State
     var areaLevel by remember { mutableIntStateOf(1) }
+    // 2026-09-26: floor selection — pick a starting floor, higher floors mean
+    // stronger viruses (enemy HP/damage already scale with areaLevel).
+    var selectedFloor by remember { mutableStateOf<Int?>(null) }
+    val highestCleared = remember { highestClearedFloor(context, cardName, charId) }
     var areaName by remember { mutableStateOf("Net Area 1") }
     var mapX by remember { mutableIntStateOf(20) }
     var mapY by remember { mutableIntStateOf(20) }
@@ -269,7 +279,7 @@ fun NetworldAdventure(
         }
 
         gatePos = roadSet.maxByOrNull { abs(it.first - 20) + abs(it.second - 20) }
-        mapX = 20; mapY = 20; areaName = "Net Area $lvl"; areaLevel = lvl
+        mapX = 20; mapY = 20; areaName = "Floor $lvl \u00b7 Net Area"; areaLevel = lvl
     }
 
     suspend fun reloadPlayerSprites() {
@@ -335,7 +345,7 @@ fun NetworldAdventure(
         }
     }
 
-    LaunchedEffect(Unit) { generateArea(1) }
+    LaunchedEffect(selectedFloor) { selectedFloor?.let { generateArea(it) } }
 
     LaunchedEffect(cardName, charId) {
         reloadPlayerSprites()
@@ -369,6 +379,7 @@ fun NetworldAdventure(
             if (eHitIndex != -1) {
                 playerHp -= nextProjectiles[eHitIndex].damage
                 nextProjectiles[eHitIndex] = nextProjectiles[eHitIndex].copy(isDead = true)
+                SoundManager.play("hit")
                 if (playerHp <= 0) { lastBattleResult = false; phoneManager.addLoss(); adventureState = AdventureState.RESULT }
             }
 
@@ -442,7 +453,16 @@ fun NetworldAdventure(
 
     MaterialTheme {
         Box(Modifier.fillMaxSize().background(Color.Black)) {
-            when (adventureState) {
+            if (selectedFloor == null) {
+                AdventureFloorScreen(
+                    highestCleared = highestCleared,
+                    onFloorSelected = {
+                        SoundManager.play("ui")
+                        selectedFloor = it
+                    },
+                    onExit = onExit
+                )
+            } else when (adventureState) {
                 AdventureState.EXPLORING -> {
                     ExplorationScreen(
                         areaName = areaName, nickname = nickname ?: cardName,
@@ -495,9 +515,11 @@ fun NetworldAdventure(
                         onUseProgram = { program ->
                             when (program) {
                                 BattleProgramType.CANNON -> {
+                                    SoundManager.play("projectile")
                                     projectiles.add(GridProjectile(Random.nextInt(10000), playerBattleX.toFloat() + 0.5f, playerBattleY, 0.6f, (500f + currentAtk) * effAtkMult, true))
                                 }
                                 BattleProgramType.SWORD -> {
+                                    SoundManager.play("sword")
                                     val tx = playerBattleX + 1
                                     enemies.forEachIndexed { i, e -> 
                                         if (!e.isDead && e.gridX == tx && abs(e.gridY - playerBattleY) <= 1) {
@@ -508,9 +530,11 @@ fun NetworldAdventure(
                                     }
                                 }
                                 BattleProgramType.RECOVER -> {
+                                    SoundManager.play("heal")
                                     playerHp = (playerHp + 500f).coerceAtMost(playerMaxHp)
                                 }
                                 BattleProgramType.SHIELD -> {
+                                    SoundManager.play("heal")
                                     playerHp = (playerHp + 200f).coerceAtMost(playerMaxHp)
                                 }
                                 else -> {}
@@ -519,6 +543,7 @@ fun NetworldAdventure(
                         },
                         onUseChip = { chipId ->
                             val chip = ChipLibrary.byId(chipId) ?: return@GridBattleScreen
+                            SoundManager.play(SoundManager.forEffectKind(chip.effectKind.name))
                             when (chip.effectKind) {
                                 EffectKind.PROJECTILE -> {
                                     projectiles.add(GridProjectile(Random.nextInt(10000), playerBattleX.toFloat() + 0.5f, playerBattleY, 0.6f, chip.damage * effAtkMult, true, element = chip.element))
@@ -595,6 +620,7 @@ fun NetworldAdventure(
                                     attackFxId.value = null
                                 }
                             }
+                            SoundManager.play(if (type == "SWORD") "sword" else if (isBig) "buster_charged" else "buster")
                             if (type == "SWORD") {
                                 val tx = playerBattleX + 1
                                 enemies.forEachIndexed { i, e ->
@@ -612,6 +638,9 @@ fun NetworldAdventure(
                     )
                 }
                 AdventureState.RESULT -> {
+                    LaunchedEffect(lastBattleResult) {
+                        SoundManager.play(if (lastBattleResult) "win" else "lose")
+                    }
                     ResultScreen(isWin = lastBattleResult, xpGained = 400, onContinue = { 
                         if (lastBattleResult) adventureState = AdventureState.EXPLORING 
                         else {
@@ -628,6 +657,7 @@ fun NetworldAdventure(
                             Text("ACCESSING NEXT AREA...", color = Color.Cyan, fontWeight = FontWeight.Bold)
                             LaunchedEffect(Unit) {
                                 delay(2000)
+                                recordFloorCleared(context, cardName, charId, areaLevel)
                                 generateArea(areaLevel + 1)
                                 adventureState = AdventureState.EXPLORING
                             }
@@ -916,4 +946,78 @@ private fun getCharacterBaseIndex(characterId: Int, isBem: Boolean): Int {
     var currentIdx = 10
     for (i in 0 until characterId) { currentIdx += when(i) { 0 -> 6; 1 -> 7; else -> 14 } }
     return currentIdx
+}
+
+/** Floor-selection progress for the Networld adventure, 2026-09-26. */
+private const val ADVENTURE_FLOORS = 20
+
+private fun adventurePrefs(context: Context) =
+    context.getSharedPreferences("adventure_prefs", Context.MODE_PRIVATE)
+
+private fun highestClearedFloor(context: Context, cardName: String, charId: Int): Int =
+    adventurePrefs(context).getInt("highest_floor_${cardName}_$charId", 0)
+
+private fun recordFloorCleared(context: Context, cardName: String, charId: Int, floor: Int) {
+    val p = adventurePrefs(context)
+    val key = "highest_floor_${cardName}_$charId"
+    if (floor > p.getInt(key, 0)) p.edit().putInt(key, floor).apply()
+}
+
+/** Mirrors the enemy scaling already in the adventure: HP x(1+lvl*0.1), dmg x(1+lvl*0.05). */
+private fun virusHpMult(floor: Int): String = "\u00d7%.1f".format(1f + floor * 0.1f)
+private fun virusDmgMult(floor: Int): String = "\u00d7%.2f".format(1f + floor * 0.05f)
+
+@Composable
+fun AdventureFloorScreen(highestCleared: Int, onFloorSelected: (Int) -> Unit, onExit: () -> Unit) {
+    Column(
+        Modifier.fillMaxSize().background(Color(5, 5, 20))
+            .statusBarsPadding().padding(16.dp)
+    ) {
+        Text("NETWORLD", color = Color.Cyan, fontWeight = FontWeight.Bold, fontSize = 22.sp)
+        Text(
+            "Pick a floor. Higher floors mean stronger viruses — clear a floor's gate to unlock the next.",
+            color = Color.Gray, fontSize = 13.sp
+        )
+        Spacer(Modifier.height(4.dp))
+        Text(
+            if (highestCleared > 0) "Deepest descent: floor $highestCleared" else "No floors cleared yet",
+            color = Color(0xFF9CCC65), fontSize = 12.sp
+        )
+        Spacer(Modifier.height(12.dp))
+        LazyVerticalGrid(
+            columns = GridCells.Fixed(3),
+            modifier = Modifier.weight(1f),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            items(ADVENTURE_FLOORS) { index ->
+                val floor = index + 1
+                val unlocked = floor <= highestCleared + 1
+                Box(
+                    modifier = Modifier
+                        .aspectRatio(0.85f)
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(if (unlocked) Color(30, 60, 120) else Color.DarkGray)
+                        .clickable(enabled = unlocked) { onFloorSelected(floor) },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(
+                            text = if (unlocked) "FLOOR $floor" else "LOCKED",
+                            color = if (unlocked) Color.White else Color.Gray,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 14.sp
+                        )
+                        if (unlocked) {
+                            Spacer(Modifier.height(4.dp))
+                            Text("Virus HP ${virusHpMult(floor)}", color = Color(0xFFFFAB91), fontSize = 10.sp)
+                            Text("Virus ATK ${virusDmgMult(floor)}", color = Color(0xFFFFAB91), fontSize = 10.sp)
+                        }
+                    }
+                }
+            }
+        }
+        Spacer(Modifier.height(12.dp))
+        Button(onClick = onExit, modifier = Modifier.fillMaxWidth()) { Text("Back") }
+    }
 }

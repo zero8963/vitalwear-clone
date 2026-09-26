@@ -3,6 +3,7 @@ package com.example.vitalwearclonev1.gridbattle
 import kotlin.math.abs
 import kotlin.math.min
 import kotlin.random.Random
+import com.example.vitalwearclonev1.common.SoundManager
 
 /**
  * Real-time grid battle engine, player-vs-AI (2026-09-25).
@@ -176,6 +177,17 @@ class BattleEngine(val config: BattleConfig) {
         if (pvpHostMode) fxEvents.add(NetFxEvent(kind, animKey, element?.name, charged, fxId))
     }
 
+    /** Game SFX events, 2026-09-26: drained each frame by the battle screen. */
+    private val soundEvents = mutableListOf<String>()
+    fun drainSoundEvents(): List<String> = soundEvents.toList().also { soundEvents.clear() }
+    private fun queueSound(name: String) { soundEvents.add(name) }
+    private var lastHitSoundAt = -1f
+    private fun queueHitSound() {
+        // TUNE: throttle impact sounds so machine-gun chips don't stack noise.
+        if (time - lastHitSoundAt > 0.09f) { lastHitSoundAt = time; soundEvents.add("hit") }
+    }
+    private var chargeSoundPlayed = false
+
     // TUNE: converts the ATK stat into chip damage scale.
     private fun dmgScale(): Float = (0.5f + config.atkStat / 150f) * config.effAtkMult
 
@@ -213,6 +225,8 @@ class BattleEngine(val config: BattleConfig) {
             config.fxAttackIds?.let { if (charged) it.second else it.first }
         } else null
         queueFx("buster", config.busterAnimKey, config.busterElement, charged, fxId)
+        queueSound(if (charged) "buster_charged" else "buster")
+        chargeSoundPlayed = false
         return FiredShot(dmg, config.busterAnimKey, config.busterElement, charged, fxId)
     }
 
@@ -229,6 +243,7 @@ class BattleEngine(val config: BattleConfig) {
         }
         val fxId = if (config.swordAnimKey == null) config.fxAttackIds?.second else null
         queueFx("sword", config.swordAnimKey, null, false, fxId)
+        queueSound("sword")
         return SwordResult(dealt, config.swordAnimKey, fxId)
     }
 
@@ -373,7 +388,14 @@ class BattleEngine(val config: BattleConfig) {
         enemySwordCd = maxOf(0f, enemySwordCd - dt)
 
         // TUNE: buster reaches full charge in 1.2s (faster with chargeRate).
-        if (charging && busterCd <= 0f) charge = min(1f, charge + dt / 0.9f * config.chargeRate)
+        if (charging && busterCd <= 0f) {
+            val was = charge
+            charge = min(1f, charge + dt / 0.9f * config.chargeRate)
+            if (!chargeSoundPlayed && was <= 0.7f && charge > 0.7f) {
+                chargeSoundPlayed = true
+                queueSound("charge")
+            }
+        }
         if (enemyCharging && enemyBusterCd <= 0f) enemyCharge = min(1f, enemyCharge + dt / 0.9f * config.enemyChargeRate)
         // TUNE: chip gauge fills in ~5s.
         if (hand.isEmpty()) gauge = min(1f, gauge + dt / 5f)
@@ -448,6 +470,7 @@ class BattleEngine(val config: BattleConfig) {
     }
 
     private fun applyEnemyChip(chip: BattleChip, s: Float) {
+        queueSound(SoundManager.forEffectKind(chip.effectKind.name))
         when (chip.effectKind) {
             EffectKind.PROJECTILE -> {
                 // TUNE: multi-hit chips stagger their shots 0.12s apart.
@@ -495,6 +518,7 @@ class BattleEngine(val config: BattleConfig) {
 
     private fun applyChip(chip: BattleChip) {
         val s = dmgScale()
+        queueSound(SoundManager.forEffectKind(chip.effectKind.name))
         when (chip.effectKind) {
             EffectKind.PROJECTILE -> {
                 // TUNE: multi-hit chips stagger their shots 0.12s apart.
@@ -588,9 +612,11 @@ class BattleEngine(val config: BattleConfig) {
         if (winner != null) return
         playerHp -= d
         lastPlayerHitAt = time
+        queueHitSound()
         if (playerHp <= 0f) {
             playerHp = 0f
             winner = 1
+            queueSound("lose")
         }
     }
 
@@ -598,9 +624,11 @@ class BattleEngine(val config: BattleConfig) {
         if (winner != null) return
         enemyHp -= d
         lastEnemyHitAt = time
+        queueHitSound()
         if (enemyHp <= 0f) {
             enemyHp = 0f
             winner = 0
+            queueSound("win")
         }
     }
 

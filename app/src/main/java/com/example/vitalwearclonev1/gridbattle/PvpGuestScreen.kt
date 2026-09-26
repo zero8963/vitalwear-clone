@@ -51,6 +51,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlin.math.min
 import kotlin.math.sin
+import com.example.vitalwearclonev1.common.SoundManager
 
 /**
  * PvP guest screen (2026-09-25).
@@ -233,6 +234,13 @@ fun PvpGuestScreen(
         }
     }
 
+    // ---- Game SFX, 2026-09-26 ----
+    LaunchedEffect(Unit) { SoundManager.init(context) }
+    LaunchedEffect(endWinner) {
+        val w = endWinner ?: return@LaunchedEffect
+        SoundManager.play(if (w == 1) "win" else "lose")
+    }
+
     // ---- Local gauge + charge timers (same tuning as the engine) ----
     LaunchedEffect(Unit) {
         var last = System.nanoTime()
@@ -371,6 +379,7 @@ fun PvpGuestScreen(
                                 .clickable {
                                     net.send("IN|s")
                                     playAttackFx(guestInfo.swordAnimKey, atPlayer = true)
+                                    SoundManager.play("sword")
                                 },
                             contentAlignment = Alignment.Center
                         ) { Text("SWD", color = Color.White, fontWeight = FontWeight.Bold) }
@@ -387,10 +396,12 @@ fun PvpGuestScreen(
                                             net.send("IN|c:1")
                                             tryAwaitRelease()
                                             charging = false
+                                            val chargedShot = charge > 0.7f
                                             charge = 0f
                                             net.send("IN|c:0")
                                             net.send("IN|b")
                                             playAttackFx(guestInfo.busterAnimKey, atPlayer = true)
+                                            SoundManager.play(if (chargedShot) "buster_charged" else "buster")
                                         }
                                     )
                                 },
@@ -457,10 +468,14 @@ fun PvpGuestScreen(
                     Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         Button(
                             onClick = {
+                                val kinds = chipHand.selected.sorted()
+                                    .mapNotNull { chipHand.hand.getOrNull(it)?.effectKind?.name }
+                                    .distinct()
                                 val ids = chipHand.fire()
                                 if (ids.isNotEmpty()) {
                                     net.send("IN|chip:" + ids.joinToString(","))
                                     gauge = 0f
+                                    kinds.forEach { SoundManager.play(SoundManager.forEffectKind(it)) }
                                 }
                             },
                             enabled = chipHand.selected.isNotEmpty(),

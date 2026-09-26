@@ -26,6 +26,7 @@ import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -35,6 +36,7 @@ import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.graphics.nativeCanvas
 import android.graphics.Paint
 import android.graphics.Typeface
+import com.example.vitalwearclonev1.common.SoundManager
 import kotlin.random.Random
 
 /**
@@ -72,7 +74,11 @@ fun EvolutionAnimation(
 ) {
     val totalMs = 4800
     val anim = remember { Animatable(0f) }
+    val context = LocalContext.current
     LaunchedEffect(Unit) {
+        // 2026-09-26: evolution fanfare.
+        SoundManager.init(context)
+        SoundManager.play("evo")
         anim.animateTo(1f, animationSpec = tween(totalMs, easing = LinearEasing))
         onFinished()
     }
