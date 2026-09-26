@@ -98,7 +98,11 @@ class PhoneHealthSyncManager(private val context: Context) {
                         timeRangeFilter = TimeRangeFilter.between(startTime, endOfDay)
                     )
                 )
-                hasNewWorkout = workoutResponse.records.isNotEmpty()
+                // 2026-09-25: block-aware — a real workout is a block with 10+
+                // active minutes, not any single short auto-detected session.
+                hasNewWorkout = clusterSessions(workoutResponse.records).any {
+                    it.isRealWorkout()
+                }
             }
 
             // Fetch latest Weight for accurate calorie math on watch side if needed
@@ -126,21 +130,66 @@ class PhoneHealthSyncManager(private val context: Context) {
         }
     }
 
+    /** 2026-09-25: Samsung Health writes each exercise of a routine
+     *  (push-ups, pull-ups, ...) as its own short ExerciseSessionRecord —
+     *  the user's real 21-min workout arrived as SIX sub-10-min sessions.
+     *  Sessions starting within BLOCK_GAP_MINUTES of the previous session's
+     *  end belong to the same workout block; the block's total active
+     *  minutes is what counts as a workout. */
+    data class WorkoutBlock(
+        val sessions: List<ExerciseSessionRecord>,
+        /** Total active time in seconds — compared against the 10-min bar. */
+        val activeSeconds: Long,
+        val startTime: Instant,
+        val endTime: Instant
+    )
+
+    private fun clusterSessions(sessions: List<ExerciseSessionRecord>): List<WorkoutBlock> {
+        val sorted = sessions.sortedBy { it.startTime }
+        val blocks = mutableListOf<WorkoutBlock>()
+        var cur = mutableListOf<ExerciseSessionRecord>()
+        for (s in sorted) {
+            val prev = cur.lastOrNull()
+            if (prev != null &&
+                ChronoUnit.MINUTES.between(prev.endTime, s.startTime) > BLOCK_GAP_MINUTES) {
+                blocks += buildBlock(cur)
+                cur = mutableListOf()
+            }
+            cur += s
+        }
+        if (cur.isNotEmpty()) blocks += buildBlock(cur)
+        return blocks
+    }
+
+    private fun buildBlock(sessions: List<ExerciseSessionRecord>): WorkoutBlock {
+        val active = sessions.sumOf { ChronoUnit.SECONDS.between(it.startTime, it.endTime) }
+        return WorkoutBlock(
+            sessions = sessions,
+            activeSeconds = active,
+            startTime = sessions.first().startTime,
+            endTime = sessions.maxOf { it.endTime }
+        )
+    }
+
+    private fun WorkoutBlock.isRealWorkout(): Boolean =
+        activeSeconds >= MIN_WORKOUT_MINUTES * 60
+
     /**
-     * Samsung Health workout healing (2026-09-23): every exercise session that
-     * lands in Health Connect (Samsung Health syncs its workouts there) counts
-     * like one of the app's own workouts — each new session gets one call to
+     * Samsung Health workout healing (2026-09-23, block-aware 2026-09-25):
+     * every workout BLOCK that lands in Health Connect (Samsung Health syncs
+     * its workouts there) counts like one of the app's own workouts — each
+     * newly-qualifying block gets one call to
      * PhoneMonsterManager.recordExerciseCompleted(), shaving 15 min off the
      * critical timer. It's a no-op when the Digimon isn't critical, exactly
-     * like the in-app workouts. Each session is credited at most once (tracked
-     * by end time), so this is safe to run on every sync.
+     * like the in-app workouts. Each block is credited at most once (tracked
+     * by block start time), so this is safe to run on every sync.
      */
     suspend fun creditNewExerciseSessions() {
         val client = getClient() ?: return
         try {
             val now = Instant.now()
             val prefs = context.getSharedPreferences("workout_heal_prefs", Context.MODE_PRIVATE)
-            val lastCreditedEnd = prefs.getLong("last_credited_session_end", 0L)
+            val lastCreditedStart = prefs.getLong("last_credited_block_start", 0L)
 
             val response = client.readRecords(
                 ReadRecordsRequest(
@@ -153,18 +202,18 @@ class PhoneHealthSyncManager(private val context: Context) {
                 )
             )
 
-            var maxEnd = lastCreditedEnd
+            var maxCreditedStart = lastCreditedStart
             val monsterManager = PhoneMonsterManager(context)
-            for (session in response.records) {
-                val endMs = session.endTime.toEpochMilli()
-                if (endMs > maxEnd) maxEnd = endMs
-                if (endMs <= lastCreditedEnd) continue
-                val minutes = ChronoUnit.MINUTES.between(session.startTime, session.endTime)
-                if (minutes < MIN_WORKOUT_MINUTES) continue
+            for (block in clusterSessions(response.records)) {
+                val startMs = block.startTime.toEpochMilli()
+                if (startMs <= lastCreditedStart) continue
+                if (!block.isRealWorkout()) continue
                 val fullyHealed = monsterManager.recordExerciseCompleted()
-                Timber.i("Credited ${minutes}min Health Connect workout (fully healed out of critical: $fullyHealed)")
+                Timber.i("Credited ${block.activeSeconds / 60}min Health Connect workout block " +
+                    "(${block.sessions.size} sessions, fully healed out of critical: $fullyHealed)")
+                if (startMs > maxCreditedStart) maxCreditedStart = startMs
             }
-            prefs.edit().putLong("last_credited_session_end", maxEnd).apply()
+            prefs.edit().putLong("last_credited_block_start", maxCreditedStart).apply()
         } catch (e: Exception) {
             Timber.w(e, "Exercise session credit check failed")
         }
@@ -203,13 +252,11 @@ class PhoneHealthSyncManager(private val context: Context) {
             } while (pageToken != null)
 
             val origins = mutableMapOf<String, Int>()
-            var counted = 0
-            var totalKcal = 0.0
-            // 2026-09-25: per-session detail (duration + start time) so the user can
-            // see exactly what was detected — e.g. six 3-min auto-detected walks vs
-            // one real 45-min gym session hiding among them.
             val zone = java.time.ZoneId.systemDefault()
             val timeFmt = java.time.format.DateTimeFormatter.ofPattern("h:mma")
+            // 2026-09-25: per-session detail (duration + start time) so the user can
+            // see exactly what was detected — Samsung splits one routine into a
+            // short session per exercise, so sessions are clustered into blocks.
             val sessionBits = mutableListOf<String>()
             for (s in sessions.sortedBy { it.startTime }) {
                 val pkg = s.metadata.dataOrigin.packageName
@@ -217,20 +264,29 @@ class PhoneHealthSyncManager(private val context: Context) {
                 val mins = ChronoUnit.MINUTES.between(s.startTime, s.endTime)
                 val t = ZonedDateTime.ofInstant(s.startTime, zone).format(timeFmt).lowercase()
                 sessionBits += "${mins}m@$t"
-                if (mins < MIN_WORKOUT_MINUTES) continue
+            }
+            var counted = 0
+            var totalKcal = 0.0
+            val blockBits = mutableListOf<String>()
+            for (b in clusterSessions(sessions)) {
+                val t = ZonedDateTime.ofInstant(b.startTime, zone).format(timeFmt).lowercase()
+                blockBits += "$t ${b.activeSeconds / 60}m x${b.sessions.size}"
+                if (!b.isRealWorkout()) continue
                 counted++
-                var calToken: String? = null
-                do {
-                    val calPage = client.readRecords(
-                        ReadRecordsRequest(
-                            ActiveCaloriesBurnedRecord::class,
-                            timeRangeFilter = TimeRangeFilter.between(s.startTime, s.endTime),
-                            pageToken = calToken
+                for (s in b.sessions) {
+                    var calToken: String? = null
+                    do {
+                        val calPage = client.readRecords(
+                            ReadRecordsRequest(
+                                ActiveCaloriesBurnedRecord::class,
+                                timeRangeFilter = TimeRangeFilter.between(s.startTime, s.endTime),
+                                pageToken = calToken
+                            )
                         )
-                    )
-                    for (r in calPage.records) totalKcal += r.energy.inKilocalories
-                    calToken = calPage.pageToken
-                } while (calToken != null)
+                        for (r in calPage.records) totalKcal += r.energy.inKilocalories
+                        calToken = calPage.pageToken
+                    } while (calToken != null)
+                }
             }
             val diag = if (sessions.isEmpty()) {
                 "samsung workouts: no exercise sessions in Health Connect today — " +
@@ -241,8 +297,8 @@ class PhoneHealthSyncManager(private val context: Context) {
                 }
                 val detail = sessionBits.take(8).joinToString(", ") +
                     if (sessionBits.size > 8) " +${sessionBits.size - 8} more" else ""
-                "samsung workouts: ${sessions.size} session(s) today [$originBits]: $detail — " +
-                    "counted $counted (10+ min)"
+                "samsung workouts: ${sessions.size} session(s) in ${blockBits.size} block(s) " +
+                    "[$originBits]: $detail — counted $counted (10+ min active)"
             }
             SamsungWorkoutSummary(counted, totalKcal.toInt(), diag, sessions.size)
         } catch (e: Exception) {
@@ -259,8 +315,13 @@ class PhoneHealthSyncManager(private val context: Context) {
         private const val SAMSUNG_HEALTH_PACKAGE = "com.sec.android.app.shealth"
 
         /** Sessions shorter than this don't count as workouts — filters out
-         *  auto-detected junk like a 3-minute walk. */
+         *  auto-detected junk like a 3-minute walk. Applied to a workout
+         *  BLOCK's total active minutes (2026-09-25), not single sessions. */
         private const val MIN_WORKOUT_MINUTES = 10L
+
+        /** Sessions starting within this many minutes of the previous
+         *  session's end are clustered into one workout block (2026-09-25). */
+        private const val BLOCK_GAP_MINUTES = 5L
     }
 
     // TEMP DIAGNOSTIC (2026-09-24): one-line summary of where today's step

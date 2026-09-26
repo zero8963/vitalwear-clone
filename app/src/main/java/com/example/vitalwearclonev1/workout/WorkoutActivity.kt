@@ -162,9 +162,10 @@ fun WorkoutDashboard(syncManager: PhoneHealthSyncManager, workoutManager: Workou
                     }
                     Spacer(Modifier.height(4.dp))
                     // 2026-09-25: big number = every session detected today (proves the
-                    // link works); the gray line below says how many counted as real
-                    // workouts (10+ min) and lists each session's length + time.
-                    Text("$samsungCount counted as workouts (10+ min)", color = Color(0xFF9CCC65), fontSize = 12.sp)
+                    // link works); Samsung splits one routine into a short session per
+                    // exercise, so close-together sessions are grouped into workout
+                    // blocks — the gray line below lists each session's length + time.
+                    Text("$samsungCount counted as workouts (10+ min active)", color = Color(0xFF9CCC65), fontSize = 12.sp)
                     Spacer(Modifier.height(8.dp))
                     Text(samsungDiag, color = Color.Gray, fontSize = 11.sp)
                 }

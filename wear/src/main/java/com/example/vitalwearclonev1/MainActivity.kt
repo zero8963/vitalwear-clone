@@ -878,7 +878,7 @@ fun WorkoutListScreen(onBack: () -> Unit, samsungWorkouts: Int = 0, samsungWorko
         item {
             Chip(
                 label = { Text("Samsung: $samsungSessions sessions") },
-                secondaryLabel = { Text("$samsungWorkouts counted (10+ min) \u00b7 $samsungWorkoutCals kcal", fontSize = 10.sp) },
+                secondaryLabel = { Text("$samsungWorkouts counted (10+ min active) \u00b7 $samsungWorkoutCals kcal", fontSize = 10.sp) },
                 onClick = { },
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 2.dp),
                 colors = ChipDefaults.primaryChipColors(backgroundColor = Color(0, 90, 140))
