@@ -633,17 +633,25 @@ class PhoneMonsterManager(private val context: Context) {
         )
     }
 
-    fun applyWorkoutPowerUp(completionRatio: Float) {
-        val current = getCurrentMonster() ?: return
+    /** Applies the workout power-up and returns the exact deltas as
+     *  intArrayOf(atk, hp, spd, def) so the caller can forward them to the
+     *  watch — both Digimon get identical gains (2026-09-25). */
+    fun applyWorkoutPowerUp(completionRatio: Float): IntArray {
+        val current = getCurrentMonster() ?: return intArrayOf(0, 0, 0, 0)
         val baseBonus = (50 * completionRatio).toInt()
         val random = kotlin.random.Random(System.currentTimeMillis())
-        
+        val atk = baseBonus + random.nextInt(0, 50)
+        val hp = baseBonus + random.nextInt(0, 50)
+        val spd = baseBonus + random.nextInt(0, 50)
+        val def = baseBonus + random.nextInt(0, 50)
+
         updateBonusStats(
-            atkDelta = baseBonus + random.nextInt(0, 50),
-            hpDelta = baseBonus + random.nextInt(0, 50),
-            spdDelta = baseBonus + random.nextInt(0, 50),
-            defDelta = baseBonus + random.nextInt(0, 50)
+            atkDelta = atk,
+            hpDelta = hp,
+            spdDelta = spd,
+            defDelta = def
         )
+        return intArrayOf(atk, hp, spd, def)
     }
 
     fun addXp(xpGain: Int) {

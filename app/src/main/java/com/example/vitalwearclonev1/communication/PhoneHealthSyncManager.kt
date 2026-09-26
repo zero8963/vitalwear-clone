@@ -120,7 +120,7 @@ class PhoneHealthSyncManager(private val context: Context) {
 
             val samsungWorkouts = getSamsungWorkoutsToday()
             sendToWatch(stats.first, stats.second, hasNewWorkout, startOfDay.toEpochMilli(), weightKg.toFloat(),
-                samsungWorkouts.count, samsungWorkouts.caloriesKcal)
+                samsungWorkouts.count, samsungWorkouts.caloriesKcal, samsungWorkouts.totalSessions)
         } catch (e: Exception) {
             Timber.e(e, "Error during Health Sync")
         }
@@ -177,12 +177,14 @@ class PhoneHealthSyncManager(private val context: Context) {
     data class SamsungWorkoutSummary(
         val count: Int,
         val caloriesKcal: Int,
-        val diag: String
+        val diag: String,
+        /** Every exercise session found today, counted or not — proves detection works. */
+        val totalSessions: Int
     )
 
     suspend fun getSamsungWorkoutsToday(): SamsungWorkoutSummary {
         val client = getClient()
-            ?: return SamsungWorkoutSummary(0, 0, "samsung workouts: Health Connect not available")
+            ?: return SamsungWorkoutSummary(0, 0, "samsung workouts: Health Connect not available", 0)
         return try {
             val startOfDay = ZonedDateTime.now().truncatedTo(ChronoUnit.DAYS).toInstant()
             val now = Instant.now()
@@ -203,10 +205,18 @@ class PhoneHealthSyncManager(private val context: Context) {
             val origins = mutableMapOf<String, Int>()
             var counted = 0
             var totalKcal = 0.0
-            for (s in sessions) {
+            // 2026-09-25: per-session detail (duration + start time) so the user can
+            // see exactly what was detected — e.g. six 3-min auto-detected walks vs
+            // one real 45-min gym session hiding among them.
+            val zone = java.time.ZoneId.systemDefault()
+            val timeFmt = java.time.format.DateTimeFormatter.ofPattern("h:mma")
+            val sessionBits = mutableListOf<String>()
+            for (s in sessions.sortedBy { it.startTime }) {
                 val pkg = s.metadata.dataOrigin.packageName
                 origins[pkg] = (origins[pkg] ?: 0) + 1
                 val mins = ChronoUnit.MINUTES.between(s.startTime, s.endTime)
+                val t = ZonedDateTime.ofInstant(s.startTime, zone).format(timeFmt).lowercase()
+                sessionBits += "${mins}m@$t"
                 if (mins < MIN_WORKOUT_MINUTES) continue
                 counted++
                 var calToken: String? = null
@@ -229,13 +239,15 @@ class PhoneHealthSyncManager(private val context: Context) {
                 val originBits = origins.entries.joinToString(", ") {
                     "${it.key.substringAfterLast('.')} x${it.value}"
                 }
-                "samsung workouts: ${sessions.size} session(s) today [$originBits], " +
+                val detail = sessionBits.take(8).joinToString(", ") +
+                    if (sessionBits.size > 8) " +${sessionBits.size - 8} more" else ""
+                "samsung workouts: ${sessions.size} session(s) today [$originBits]: $detail — " +
                     "counted $counted (10+ min)"
             }
-            SamsungWorkoutSummary(counted, totalKcal.toInt(), diag)
+            SamsungWorkoutSummary(counted, totalKcal.toInt(), diag, sessions.size)
         } catch (e: Exception) {
             Timber.w(e, "Samsung workout summary read failed")
-            SamsungWorkoutSummary(0, 0, "samsung workouts: read failed (${e.message})")
+            SamsungWorkoutSummary(0, 0, "samsung workouts: read failed (${e.message})", 0)
         }
     }
 
@@ -416,30 +428,38 @@ class PhoneHealthSyncManager(private val context: Context) {
         return Pair(Pair(finalSteps, finalCals.toInt()), lastDiagString)
     }
 
-    suspend fun sendWorkoutSession(routineName: String, caloriesBurned: Int) {
+    /** 2026-09-25: sends the EXACT stat deltas the phone's Digimon just gained,
+     *  so the watch's Digimon gets the identical training bonus instead of
+     *  rolling its own different random numbers. Payload: UTF routine name +
+     *  4 ints (atk, hp, spd, def). Old watch builds read the name + first int
+     *  and ignore the rest, so this degrades gracefully. */
+    suspend fun sendWorkoutSession(routineName: String, atkDelta: Int, hpDelta: Int, spdDelta: Int, defDelta: Int) {
         try {
             val nodes = Wearable.getNodeClient(context).connectedNodes.await()
             val messageClient = Wearable.getMessageClient(context)
-            
+
             val payload = ByteArrayOutputStream().use { bos ->
                 val dos = DataOutputStream(bos)
                 dos.writeUTF(routineName)
-                dos.writeInt(caloriesBurned)
+                dos.writeInt(atkDelta)
+                dos.writeInt(hpDelta)
+                dos.writeInt(spdDelta)
+                dos.writeInt(defDelta)
                 dos.flush()
                 bos.toByteArray()
             }
-            
+
             for (node in nodes) {
                 messageClient.sendMessage(node.id, "/WORKOUT_SESSION", payload).await()
             }
-            Timber.i("Sent workout session to watch: $routineName, $caloriesBurned kcal")
+            Timber.i("Sent workout session to watch: $routineName (+$atkDelta/+$hpDelta/+$spdDelta/+$defDelta)")
         } catch (e: Exception) {
             Timber.e(e, "Failed to send workout session to watch")
         }
     }
 
     private suspend fun sendToWatch(steps: Long, calories: Int, hasWorkout: Boolean, startOfDayMillis: Long, weightKg: Float = 75f,
-                               samsungWorkouts: Int = 0, samsungWorkoutCals: Int = 0) {
+                               samsungWorkouts: Int = 0, samsungWorkoutCals: Int = 0, samsungSessions: Int = 0) {
         try {
             val nodes = Wearable.getNodeClient(context).connectedNodes.await()
             val messageClient = Wearable.getMessageClient(context)
@@ -456,6 +476,9 @@ class PhoneHealthSyncManager(private val context: Context) {
                 // weightKg, so appending is backward compatible.
                 dos.writeInt(samsungWorkouts)
                 dos.writeInt(samsungWorkoutCals)
+                // 2026-09-25: total detected sessions (counted or not) so the
+                // watch can show "6 sessions, 0 counted" instead of just 0.
+                dos.writeInt(samsungSessions)
                 dos.flush()
                 bos.toByteArray()
             }

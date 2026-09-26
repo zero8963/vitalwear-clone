@@ -104,6 +104,7 @@ fun WorkoutDashboard(syncManager: PhoneHealthSyncManager, workoutManager: Workou
     // are reaching the app through Health Connect.
     var samsungCount by remember { mutableIntStateOf(0) }
     var samsungCals by remember { mutableIntStateOf(0) }
+    var samsungSessions by remember { mutableIntStateOf(0) }
     var samsungDiag by remember { mutableStateOf("samsung workouts: loading...") }
     
     // Use a trigger to force re-fetch of custom routines
@@ -118,6 +119,7 @@ fun WorkoutDashboard(syncManager: PhoneHealthSyncManager, workoutManager: Workou
         val sw = syncManager.getSamsungWorkoutsToday()
         samsungCount = sw.count
         samsungCals = sw.caloriesKcal
+        samsungSessions = sw.totalSessions
         samsungDiag = sw.diag
     }
 
@@ -155,9 +157,14 @@ fun WorkoutDashboard(syncManager: PhoneHealthSyncManager, workoutManager: Workou
                     Text("Samsung Health Workouts", color = Color.Cyan, fontSize = 16.sp, fontWeight = FontWeight.Bold)
                     Spacer(Modifier.height(12.dp))
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-                        ActivityStat(label = "Workouts", value = samsungCount.toString(), icon = Icons.Default.FitnessCenter, color = Color.Yellow)
+                        ActivityStat(label = "Sessions", value = samsungSessions.toString(), icon = Icons.Default.FitnessCenter, color = Color.Yellow)
                         ActivityStat(label = "Calories", value = samsungCals.toString(), icon = Icons.Default.Whatshot, color = Color.Red)
                     }
+                    Spacer(Modifier.height(4.dp))
+                    // 2026-09-25: big number = every session detected today (proves the
+                    // link works); the gray line below says how many counted as real
+                    // workouts (10+ min) and lists each session's length + time.
+                    Text("$samsungCount counted as workouts (10+ min)", color = Color(0xFF9CCC65), fontSize = 12.sp)
                     Spacer(Modifier.height(8.dp))
                     Text(samsungDiag, color = Color.Gray, fontSize = 11.sp)
                 }
@@ -412,13 +419,13 @@ fun ActiveWorkoutScreen(routine: WorkoutRoutine, onComplete: () -> Unit) {
                 // Adjust calories based on completion percentage (Base 150)
                 val totalExercises = routine.exercises.size
                 val ratio = if (totalExercises > 0) completedCount.toFloat() / totalExercises else 0f
-                val finalCalories = (150 * ratio).toInt()
-                
-                // Power up the local monster
-                monsterManager.applyWorkoutPowerUp(ratio)
-                
+
+                // Power up the local monster and forward the EXACT same gains
+                // to the watch so both Digimon stay in lockstep (2026-09-25).
+                val deltas = monsterManager.applyWorkoutPowerUp(ratio)
+
                 // Sync with watch
-                syncManager.sendWorkoutSession(routine.name, finalCalories.coerceAtLeast(10)) 
+                syncManager.sendWorkoutSession(routine.name, deltas[0], deltas[1], deltas[2], deltas[3])
                 onComplete()
             }
         }

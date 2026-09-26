@@ -47,6 +47,8 @@ class DataTransferService : WearableListenerService() {
                     // 2026-09-25: Samsung Health workout counter (phone-computed).
                     val samsungWorkouts = try { dis.readInt() } catch (e: Exception) { 0 }
                     val samsungWorkoutCals = try { dis.readInt() } catch (e: Exception) { 0 }
+                    // 2026-09-25: total detected sessions (counted or not).
+                    val samsungSessions = try { dis.readInt() } catch (e: Exception) { 0 }
                     
                     Timber.i("Background received HEALTH_SYNC: Steps=$steps, Cals=$calories, WeightKg=$weightKg")
                     
@@ -58,6 +60,7 @@ class DataTransferService : WearableListenerService() {
                         putExtra("weight", weightKg)
                         putExtra("samsungWorkouts", samsungWorkouts)
                         putExtra("samsungWorkoutCals", samsungWorkoutCals)
+                        putExtra("samsungSessions", samsungSessions)
                         setPackage(packageName)
                     }
                     sendBroadcast(intent)
@@ -70,14 +73,24 @@ class DataTransferService : WearableListenerService() {
                     val data = messageEvent.data ?: return
                     val dis = DataInputStream(ByteArrayInputStream(data))
                     val routineName = readString(dis)
-                    val calories = dis.readInt()
-                    
-                    Timber.i("Background received WORKOUT_SESSION: $routineName, $calories kcal")
-                    
+                    val first = dis.readInt()
+                    // 2026-09-25: new phones send 4 exact stat deltas
+                    // (atk, hp, spd, def). Old phones sent 1 int (calories).
+                    val rest = try {
+                        Triple(dis.readInt(), dis.readInt(), dis.readInt())
+                    } catch (e: Exception) { null }
+
+                    Timber.i("Background received WORKOUT_SESSION: $routineName")
+
                     val monsterManager = MonsterManager(this@DataTransferService)
-                    // Calculate a multiplier based on calories (Base 150 = 1.0)
-                    val multiplier = (calories.toFloat() / 150f).coerceIn(0.1f, 1.5f)
-                    monsterManager.addTrainingBonus(routineName, multiplier)
+                    if (rest != null) {
+                        monsterManager.addExactTrainingBonus(first, rest.first, rest.second, rest.third)
+                        Timber.i("Applied exact phone gains: +$first/+${rest.first}/+${rest.second}/+${rest.third}")
+                    } else {
+                        // Old phone format: calories -> multiplier -> random bonus.
+                        val multiplier = (first.toFloat() / 150f).coerceIn(0.1f, 1.5f)
+                        monsterManager.addTrainingBonus(routineName, multiplier)
+                    }
                     
                     android.os.Handler(android.os.Looper.getMainLooper()).post {
                         android.widget.Toast.makeText(this@DataTransferService, "Phone Workout: $routineName Complete!", android.widget.Toast.LENGTH_SHORT).show()

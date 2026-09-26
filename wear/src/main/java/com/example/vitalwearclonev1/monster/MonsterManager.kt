@@ -324,6 +324,19 @@ class MonsterManager(private val context: Context) {
         applyCardBaseStats(cardName, characterId)
     }
 
+    /** 2026-09-25: applies the EXACT stat deltas from a phone workout so the
+     *  watch's Digimon gains identically to the phone's — no second roll of
+     *  the dice. Used by /WORKOUT_SESSION when the phone sends all 4 ints. */
+    fun addExactTrainingBonus(atkDelta: Int, hpDelta: Int, spdDelta: Int, defDelta: Int) {
+        val current = getCurrentMonster() ?: return
+        prefs.edit()
+            .putInt("current_attack_bonus", current.attackBonus + atkDelta)
+            .putInt("current_health_bonus", current.healthBonus + hpDelta)
+            .putInt("current_speed_bonus", current.speedBonus + spdDelta)
+            .putInt("current_defense_bonus", current.defenseBonus + defDelta)
+            .apply()
+    }
+
     fun addTrainingBonus(exercise: String, multiplier: Float = 1.0f) {
         val current = getCurrentMonster() ?: return
         val edit = prefs.edit()
