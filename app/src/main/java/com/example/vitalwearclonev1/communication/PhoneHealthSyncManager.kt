@@ -175,14 +175,23 @@ class PhoneHealthSyncManager(private val context: Context) {
         activeSeconds >= MIN_WORKOUT_MINUTES * 60
 
     /**
-     * Samsung Health workout healing (2026-09-23, block-aware 2026-09-25):
-     * every workout BLOCK that lands in Health Connect (Samsung Health syncs
-     * its workouts there) counts like one of the app's own workouts — each
-     * newly-qualifying block gets one call to
-     * PhoneMonsterManager.recordExerciseCompleted(), shaving 15 min off the
-     * critical timer. It's a no-op when the Digimon isn't critical, exactly
-     * like the in-app workouts. Each block is credited at most once (tracked
-     * by block start time), so this is safe to run on every sync.
+     * Samsung Health workout healing + training (2026-09-23, block-aware
+     * 2026-09-25, stat bonuses 2026-09-26): every workout BLOCK that lands in
+     * Health Connect (Samsung Health syncs its workouts there) counts like
+     * one of the app's own workouts —
+     *   1. each newly-qualifying block gets one call to
+     *      PhoneMonsterManager.recordExerciseCompleted(), shaving 15 min off
+     *      the critical timer and resetting the overwork counter (no-op when
+     *      the Digimon isn't critical, exactly like the in-app workouts);
+     *   2. each newly-qualifying block ALSO grants training stat bonuses via
+     *      applyWorkoutPowerUp(), with the completion ratio scaled by block
+     *      length (a 20+ min block = a fully completed in-app routine), and
+     *      the EXACT deltas are forwarded to the watch through
+     *      sendWorkoutSession() so both Digimon gain identically.
+     * Each block is credited at most once per purpose (tracked by block start
+     * time), so this is safe to run on every sync. The bonus marker starts at
+     * 0 on first run, so blocks already healing-credited by older builds still
+     * get their stat bonuses in one catch-up pass over the 48h window.
      */
     suspend fun creditNewExerciseSessions() {
         val client = getClient() ?: return
@@ -190,6 +199,7 @@ class PhoneHealthSyncManager(private val context: Context) {
             val now = Instant.now()
             val prefs = context.getSharedPreferences("workout_heal_prefs", Context.MODE_PRIVATE)
             val lastCreditedStart = prefs.getLong("last_credited_block_start", 0L)
+            val lastBonusStart = prefs.getLong("last_bonus_block_start", 0L)
 
             val response = client.readRecords(
                 ReadRecordsRequest(
@@ -203,17 +213,34 @@ class PhoneHealthSyncManager(private val context: Context) {
             )
 
             var maxCreditedStart = lastCreditedStart
+            var maxBonusStart = lastBonusStart
             val monsterManager = PhoneMonsterManager(context)
             for (block in clusterSessions(response.records)) {
                 val startMs = block.startTime.toEpochMilli()
-                if (startMs <= lastCreditedStart) continue
                 if (!block.isRealWorkout()) continue
-                val fullyHealed = monsterManager.recordExerciseCompleted()
-                Timber.i("Credited ${block.activeSeconds / 60}min Health Connect workout block " +
-                    "(${block.sessions.size} sessions, fully healed out of critical: $fullyHealed)")
-                if (startMs > maxCreditedStart) maxCreditedStart = startMs
+                if (startMs > lastCreditedStart) {
+                    val fullyHealed = monsterManager.recordExerciseCompleted()
+                    Timber.i("Credited ${block.activeSeconds / 60}min Health Connect workout block " +
+                        "(${block.sessions.size} sessions, fully healed out of critical: $fullyHealed)")
+                    if (startMs > maxCreditedStart) maxCreditedStart = startMs
+                }
+                if (startMs > lastBonusStart) {
+                    val ratio = (block.activeSeconds / (FULL_BONUS_MINUTES * 60).toFloat())
+                        .coerceIn(0f, 1f)
+                    val deltas = monsterManager.applyWorkoutPowerUp(ratio)
+                    val mins = block.activeSeconds / 60
+                    if (deltas.sum() > 0) {
+                        sendWorkoutSession("Samsung workout (${mins}m)", deltas[0], deltas[1], deltas[2], deltas[3])
+                        Timber.i("Granted Samsung workout training bonus +${deltas[0]}/+${deltas[1]}/" +
+                            "+${deltas[2]}/+${deltas[3]} for ${mins}min block (ratio $ratio)")
+                    }
+                    if (startMs > maxBonusStart) maxBonusStart = startMs
+                }
             }
-            prefs.edit().putLong("last_credited_block_start", maxCreditedStart).apply()
+            prefs.edit()
+                .putLong("last_credited_block_start", maxCreditedStart)
+                .putLong("last_bonus_block_start", maxBonusStart)
+                .apply()
         } catch (e: Exception) {
             Timber.w(e, "Exercise session credit check failed")
         }
@@ -298,7 +325,7 @@ class PhoneHealthSyncManager(private val context: Context) {
                 val detail = sessionBits.take(8).joinToString(", ") +
                     if (sessionBits.size > 8) " +${sessionBits.size - 8} more" else ""
                 "samsung workouts: ${sessions.size} session(s) in ${blockBits.size} block(s) " +
-                    "[$originBits]: $detail — counted $counted (10+ min active)"
+                    "[$originBits]: $detail — counted $counted (10+ min active, each earns training stats)"
             }
             SamsungWorkoutSummary(counted, totalKcal.toInt(), diag, sessions.size)
         } catch (e: Exception) {
@@ -322,6 +349,11 @@ class PhoneHealthSyncManager(private val context: Context) {
         /** Sessions starting within this many minutes of the previous
          *  session's end are clustered into one workout block (2026-09-25). */
         private const val BLOCK_GAP_MINUTES = 5L
+
+        /** A workout block this long (or longer) earns the full training
+         *  bonus of a completed in-app routine; shorter qualifying blocks
+         *  scale down proportionally (2026-09-26). */
+        private const val FULL_BONUS_MINUTES = 20L
     }
 
     // TEMP DIAGNOSTIC (2026-09-24): one-line summary of where today's step

@@ -165,7 +165,9 @@ fun WorkoutDashboard(syncManager: PhoneHealthSyncManager, workoutManager: Workou
                     // link works); Samsung splits one routine into a short session per
                     // exercise, so close-together sessions are grouped into workout
                     // blocks — the gray line below lists each session's length + time.
-                    Text("$samsungCount counted as workouts (10+ min active)", color = Color(0xFF9CCC65), fontSize = 12.sp)
+                    // 2026-09-26: each counted block now also grants training stat
+                    // bonuses, exactly like finishing an in-app routine.
+                    Text("$samsungCount counted as workouts (10+ min active) — each earns training stats", color = Color(0xFF9CCC65), fontSize = 12.sp)
                     Spacer(Modifier.height(8.dp))
                     Text(samsungDiag, color = Color.Gray, fontSize = 11.sp)
                 }
