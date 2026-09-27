@@ -130,6 +130,11 @@
             android:exported="true"
             android:label="Bracelet Tag Reader"
             android:theme="@style/Theme.VitalwearCloneV1" />
+        <activity
+            android:name=".communication.VBBraceletCharacterActivity"
+            android:exported="true"
+            android:label="Bracelet Character"
+            android:theme="@style/Theme.VitalwearCloneV1" />
 
         <activity
             android:name=".gridbattle.GridBattleActivity"

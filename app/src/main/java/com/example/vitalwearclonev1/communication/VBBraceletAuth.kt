@@ -58,16 +58,23 @@ object VBBraceletAuth {
 
     fun supportsProduct(productId: Int): Boolean = PRODUCT_KEYS.containsKey(productId)
 
+    fun sboxTableFor(productId: Int): IntArray =
+        if (productId == 4) SBOX_VBBE else SBOX_CLASSIC
+
+    /** Cache of unwrapped (key1, key2) per product — the unwrap is expensive. */
+    private val keyPairCache = mutableMapOf<Int, Pair<ByteArray, ByteArray>>()
+
     /**
-     * Derive the 4-byte PWD_AUTH password for [uid] (must be 7 bytes) and
-     * [productId] (2, 3 or 4). Throws on unknown product or bad UID length.
+     * Unwrapped per-product (key1, key2) ASCII key bytes, via the master-key
+     * AES-256-CBC unwrap. Shared by the PWD_AUTH derivation and the
+     * UID-bound AES-CTR data crypto. Throws on unknown product.
      */
-    fun derivePassword(uid: ByteArray, productId: Int): ByteArray {
-        require(uid.size == 7) { "UID must be 7 bytes, was ${uid.size}" }
+    @Synchronized
+    fun getKeyPair(productId: Int): Pair<ByteArray, ByteArray> {
+        keyPairCache[productId]?.let { return it }
         val (encKey1, encKey2) = PRODUCT_KEYS[productId]
             ?: throw IllegalArgumentException("unknown product ID: $productId")
-
-        // Master key -> AES-256 key (24 UTF-8 bytes + 8 zero bytes), IV = last 16 bytes.
+        // Master key -> AES-256 key (UTF-8 bytes zero-padded to 32), IV = last 16 bytes.
         val masterBytes = MASTER_KEY.toByteArray(Charsets.UTF_8)
         val aesKey = ByteArray(32).also { System.arraycopy(masterBytes, 0, it, 0, masterBytes.size) }
         val iv = masterBytes.copyOfRange(masterBytes.size - 16, masterBytes.size)
@@ -76,26 +83,36 @@ object VBBraceletAuth {
             cipher.init(Cipher.DECRYPT_MODE, SecretKeySpec(aesKey, "AES"), IvParameterSpec(iv))
             return cipher.doFinal(Base64.decode(b64, Base64.DEFAULT))
         }
-        val key1 = unwrap(encKey1)
-        val key2 = unwrap(encKey2)
+        val pair = Pair(unwrap(encKey1), unwrap(encKey2))
+        keyPairCache[productId] = pair
         Timber.d("VBBraceletAuth unwrapped key pair for product $productId")
+        return pair
+    }
+
+    /**
+     * Derive the 4-byte PWD_AUTH password for [uid] (must be 7 bytes) and
+     * [productId] (2, 3 or 4). Throws on unknown product or bad UID length.
+     */
+    fun derivePassword(uid: ByteArray, productId: Int): ByteArray {
+        require(uid.size == 7) { "UID must be 7 bytes, was ${uid.size}" }
+        val (key1, key2) = getKeyPair(productId)
 
         val h1 = hmacSha256(key1, uid)
-        val s = sboxNibbles(h1, if (productId == 4) SBOX_VBBE else SBOX_CLASSIC)
+        val s = sboxNibbles(h1, sboxTableFor(productId))
         val h2 = hmacSha256(key2, s)
         val password = h2.copyOfRange(28, 32)
         Timber.d("VBBraceletAuth derived password (product=$productId uid=${uid.toHex()}): ${password.toHex()}")
         return password
     }
 
-    private fun hmacSha256(key: ByteArray, data: ByteArray): ByteArray {
+    fun hmacSha256(key: ByteArray, data: ByteArray): ByteArray {
         val mac = Mac.getInstance("HmacSHA256")
         mac.init(SecretKeySpec(key, "HmacSHA256"))
         return mac.doFinal(data)
     }
 
     /** Nibble substitution, mirroring the official app's SBOX loop exactly. */
-    private fun sboxNibbles(input: ByteArray, table: IntArray): ByteArray =
+    fun sboxNibbles(input: ByteArray, table: IntArray): ByteArray =
         ByteArray(input.size) { i ->
             val b = input[i].toInt() and 0xFF
             var out = 0
