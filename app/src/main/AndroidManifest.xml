@@ -135,6 +135,11 @@
             android:exported="true"
             android:label="Bracelet Character"
             android:theme="@style/Theme.VitalwearCloneV1" />
+        <activity
+            android:name=".communication.VBBraceletBackupsActivity"
+            android:exported="true"
+            android:label="Bracelet Backups"
+            android:theme="@style/Theme.VitalwearCloneV1" />
 
         <activity
             android:name=".gridbattle.GridBattleActivity"

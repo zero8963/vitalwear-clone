@@ -66,6 +66,13 @@ import timber.log.Timber
  */
 class VBBraceletCharacterActivity : ComponentActivity(), NfcAdapter.ReaderCallback {
 
+    companion object {
+        /** Open the screen with a saved backup loaded (see VBBraceletBackups). */
+        const val EXTRA_BACKUP_ID = "bracelet_backup_id"
+        /** When true (with EXTRA_BACKUP_ID), arm the write confirm immediately. */
+        const val EXTRA_ARM_WRITE = "bracelet_arm_write"
+    }
+
     private enum class UiState {
         Idle, ReadArmed, Reading, ReadDone,
         WriteTap1Armed, WriteTap1, WriteTap2Armed, WriteTap2, Finished
@@ -82,6 +89,10 @@ class VBBraceletCharacterActivity : ComponentActivity(), NfcAdapter.ReaderCallba
     private val showConfirm = mutableStateOf(false)
     private val confirmLines = mutableStateOf(listOf<String>())
     private val doneMessage = mutableStateOf<String?>(null)
+    /** Non-null when editing a saved backup: write-back uses it as payload base. */
+    private var backupPayload: VBBraceletData.BraceletCharacter? = null
+    private var backupId: String? = null
+    private val backupCount = mutableStateOf(0)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -91,11 +102,34 @@ class VBBraceletCharacterActivity : ComponentActivity(), NfcAdapter.ReaderCallba
             finish()
             return
         }
+        val loadId = intent.getStringExtra(EXTRA_BACKUP_ID)
+        if (loadId != null) {
+            val backup = VBBraceletBackups.get(this, loadId)
+            if (backup != null) {
+                backupPayload = VBBraceletBackups.toCharacter(backup)
+                backupId = backup.id
+                charState.value = backupPayload
+                editedText = emptyMap()
+                uiState.value = UiState.ReadDone
+                statusFlow.value = "Loaded backup ${backup.dateStr} " +
+                        "(${backup.productName}, UID ${backup.uidShort}). " +
+                        "Edit fields, then Write Back to restore it to a bracelet."
+                if (intent.getBooleanExtra(EXTRA_ARM_WRITE, false)) {
+                    // Defer one frame so Compose is ready for the dialog.
+                    window.decorView.post { armWrite() }
+                }
+            } else {
+                statusFlow.value = "Backup not found — it may have been deleted."
+            }
+        }
         setContent { CharacterScreen() }
     }
 
     override fun onResume() {
         super.onResume()
+        backupCount.value = try {
+            VBBraceletBackups.list(this).size
+        } catch (e: Exception) { 0 }
         val adapter = nfcAdapter ?: return
         if (!adapter.isEnabled) {
             Toast.makeText(this, "NFC must be enabled", Toast.LENGTH_LONG).show()
@@ -161,10 +195,21 @@ class VBBraceletCharacterActivity : ComponentActivity(), NfcAdapter.ReaderCallba
                 is VBBraceletSession.ReadResult.Ok -> {
                     charState.value = r.character
                     editedText = emptyMap()
+                    backupPayload = null
+                    backupId = null
                     uiState.value = UiState.ReadDone
                     val present = VBBraceletData.hasCharacterData(r.character.plain, r.character.productId)
+                    val saved = try {
+                        val b = VBBraceletBackups.save(this@VBBraceletCharacterActivity, r.character)
+                        val hm = java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault())
+                            .format(java.util.Date(b.savedAt))
+                        "\nBackup saved ✓ $hm — find it in DigiLab → Bracelet Backups."
+                    } catch (e: Exception) {
+                        Timber.e(e, "auto-save backup failed")
+                        "\n⚠ Backup auto-save failed: ${e.message}"
+                    }
                     statusFlow.value = "Read OK — ${r.character.fields.size} known fields parsed " +
-                            "(character present: $present). Edit fields below, then Write Back."
+                            "(character present: $present). Edit fields below, then Write Back.$saved"
                 }
                 is VBBraceletSession.ReadResult.Err -> {
                     errorFlow.value = "Read failed [${r.step}]: ${r.message}"
@@ -178,8 +223,10 @@ class VBBraceletCharacterActivity : ComponentActivity(), NfcAdapter.ReaderCallba
     private fun doWriteTap1(tag: Tag) {
         uiState.value = UiState.WriteTap1
         errorFlow.value = null
+        // Writing from a saved backup: the bracelet may legitimately be empty.
+        val fromBackup = backupPayload != null
         withNfc(tag) { nfc ->
-            when (val r = VBBraceletSession.writeTap1(nfc, tag, ::progress)) {
+            when (val r = VBBraceletSession.writeTap1(nfc, tag, ::progress, requireCharacterData = !fromBackup)) {
                 is VBBraceletSession.Tap1Result.Ok -> {
                     tap1State = r.state
                     uiState.value = UiState.WriteTap2Armed
@@ -206,8 +253,11 @@ class VBBraceletCharacterActivity : ComponentActivity(), NfcAdapter.ReaderCallba
         val edits = currentEdits() ?: return // validation errors already shown
         uiState.value = UiState.WriteTap2
         errorFlow.value = null
+        // Restoring a saved backup: write the saved blob (with edits on top),
+        // re-encrypted for this bracelet's UID — not the tap-1 backup.
+        val payloadBase = backupPayload?.plain
         withNfc(tag) { nfc ->
-            when (val r = VBBraceletSession.writeTap2(nfc, tag, tap1, edits, ::progress)) {
+            when (val r = VBBraceletSession.writeTap2(nfc, tag, tap1, edits, ::progress, payloadBase = payloadBase)) {
                 is VBBraceletSession.WriteResult.Ok -> {
                     uiState.value = UiState.Finished
                     tap1State = null
@@ -260,12 +310,15 @@ class VBBraceletCharacterActivity : ComponentActivity(), NfcAdapter.ReaderCallba
 
     private fun armWrite() {
         val edits = currentEdits() ?: return
-        if (edits.isEmpty()) {
+        val fromBackup = backupPayload != null
+        if (edits.isEmpty() && !fromBackup) {
             errorFlow.value = "No fields changed — edit a value first."
             return
         }
         val ch = charState.value ?: return
-        confirmLines.value = edits.map { (id, v) ->
+        confirmLines.value = if (edits.isEmpty()) {
+            listOf("Restore the saved backup exactly (no field changes).")
+        } else edits.map { (id, v) ->
             val field = VBBraceletData.FIELDS.first { it.id == id }
             val old = ch.fields.first { it.field.id == id }.value
             "${field.label}: $old → $v"
@@ -368,6 +421,13 @@ class VBBraceletCharacterActivity : ComponentActivity(), NfcAdapter.ReaderCallba
                                 statusFlow.value = "Armed — tap the bracelet now."
                             }
                         ) { Text("Read Character from Bracelet") }
+                        Spacer(Modifier.height(8.dp))
+                        Button(
+                            onClick = {
+                                startActivity(Intent(this@VBBraceletCharacterActivity, VBBraceletBackupsActivity::class.java))
+                            },
+                            colors = ButtonDefaults.buttonColors(backgroundColor = Color(0xFF6A4C93))
+                        ) { Text("Saved Backups (${backupCount.value})") }
                     }
                     UiState.ReadArmed -> {
                         Button(
@@ -382,6 +442,8 @@ class VBBraceletCharacterActivity : ComponentActivity(), NfcAdapter.ReaderCallba
                             Button(
                                 onClick = {
                                     charState.value = null
+                                    backupPayload = null
+                                    backupId = null
                                     editedText = emptyMap()
                                     uiState.value = UiState.Idle
                                     statusFlow.value = "Tap “Read Character”, then tap the bracelet."

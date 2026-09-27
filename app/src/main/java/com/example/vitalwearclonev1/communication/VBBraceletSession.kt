@@ -227,8 +227,18 @@ object VBBraceletSession {
         data class Err(val step: String, val message: String) : Tap1Result
     }
 
-    /** Write tap 1: backup the bracelet, capture the session ID, ask for the DIM. */
-    fun writeTap1(nfc: NfcA, tag: Tag, progress: (String) -> Unit): Tap1Result {
+    /**
+     * Write tap 1: backup the bracelet, capture the session ID, ask for the DIM.
+     *
+     * @param requireCharacterData when false (restoring a saved backup to a
+     * possibly-empty bracelet), skip the "character data present" check.
+     */
+    fun writeTap1(
+        nfc: NfcA,
+        tag: Tag,
+        progress: (String) -> Unit,
+        requireCharacterData: Boolean = true
+    ): Tap1Result {
         try {
             val uid = tag.id
             if (uid.size != 7) return Tap1Result.Err("uid", "UID is ${uid.size} bytes, need 7")
@@ -246,7 +256,7 @@ object VBBraceletSession {
             val bad = VBBraceletData.verifyChecksums(plain)
             if (bad.isNotEmpty())
                 return Tap1Result.Err("checksum", "backup checksum error on pages ${bad.joinToString(", ")}")
-            if (!VBBraceletData.hasCharacterData(plain, hdr.productId))
+            if (requireCharacterData && !VBBraceletData.hasCharacterData(plain, hdr.productId))
                 return Tap1Result.Err("backup", "no character data on the bracelet to modify")
             progress("Requesting DIM check…")
             page6(nfc, hdr, OP_CHECK_DIM, hdr.dimId, "op=3 CHECK_DIM")
@@ -268,15 +278,21 @@ object VBBraceletSession {
     }
 
     /**
-     * Write tap 2: verify the session, patch ONLY [edits] into the tap-1
-     * backup, re-encrypt for this tap's UID, write all pages, commit.
+     * Write tap 2: verify the session, patch ONLY [edits] into the payload
+     * base, re-encrypt for this tap's UID, write all pages, commit.
+     *
+     * @param payloadBase when non-null (restoring a saved backup), the
+     * decrypted 864-byte blob the edits are applied onto INSTEAD of the
+     * tap-1 backup. Re-encrypted for the tapped bracelet's UID, so a
+     * backup can be transplanted to a different bracelet.
      */
     fun writeTap2(
         nfc: NfcA,
         tag: Tag,
         tap1: Tap1State,
         edits: Map<String, Int>,
-        progress: (String) -> Unit
+        progress: (String) -> Unit,
+        payloadBase: ByteArray? = null
     ): WriteResult {
         var pagesWritten = 0
         try {
@@ -294,8 +310,15 @@ object VBBraceletSession {
                 return WriteResult.Err("header", "DIM changed (was ${tap1.dimId}, now ${hdr.dimId})", 0)
             if (hdr.status and 0x01 == 0)
                 return WriteResult.Err("header", "bracelet not ready", 0)
+            val base = payloadBase ?: tap1.backupPlain
+            require(base.size == DATA_SIZE) { "payload base must be $DATA_SIZE bytes" }
+            if (payloadBase != null && payloadBase !== tap1.backupPlain) {
+                val bad = VBBraceletData.verifyChecksums(base)
+                if (bad.isNotEmpty())
+                    return WriteResult.Err("checksum", "saved backup checksum error on pages ${bad.joinToString(", ")}", 0)
+            }
             progress("Patching ${edits.size} field(s)…")
-            val plain = tap1.backupPlain.copyOf()
+            val plain = base.copyOf()
             val changes = VBBraceletData.applyEdits(plain, tap1.productId, edits)
             progress("Logging in…")
             page6(nfc, hdr, OP_SESSION_START, what = "op=1 session start")

@@ -294,6 +294,14 @@ fun LabUI() {
                     }, colors = androidx.compose.material.ButtonDefaults.buttonColors(backgroundColor = Color.Cyan)) {
                         Text("Receive", color = Color.Black)
                     }
+
+                    Button(onClick = {
+                        val intent = Intent(context, com.example.vitalwearclonev1.communication.VBBraceletBackupsActivity::class.java)
+                        context.startActivity(intent)
+                    }, colors = androidx.compose.material.ButtonDefaults.buttonColors(backgroundColor = Color(0xFF6A4C93)),
+                        modifier = Modifier.padding(end = 8.dp)) {
+                        Text("Bracelet", color = Color.White, fontSize = 10.sp)
+                    }
                 }
             }
 
