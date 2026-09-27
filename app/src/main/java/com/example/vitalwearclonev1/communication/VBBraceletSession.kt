@@ -175,8 +175,44 @@ object VBBraceletSession {
     // ------------------------------------------------------------------
 
     sealed interface ReadResult {
-        data class Ok(val character: VBBraceletData.BraceletCharacter) : ReadResult
+        /**
+         * @param slotEmpty true = the bracelet's character slot reads empty
+         * after op=2 (the Hero's anti-dupe cleared it — the Digimon now lives
+         * only in this backup); false = data still present; null = the
+         * re-verify read failed, state unknown.
+         */
+        data class Ok(
+            val character: VBBraceletData.BraceletCharacter,
+            val slotEmpty: Boolean?
+        ) : ReadResult
         data class Err(val step: String, val message: String) : ReadResult
+    }
+
+    /**
+     * After a transfer (op=2), the Hero's firmware clears the character slot
+     * (anti-dupe). Verify with ONE 16-byte read of the block holding the
+     * data-exists flag — no need to re-read all 864 bytes.
+     * Returns null when the verify read itself fails.
+     */
+    private fun verifySlotCleared(nfc: NfcA, uid: ByteArray, productId: Int): Boolean? {
+        return try {
+            if (productId == 4) {
+                // originDimId U16_BE at blob offset 74 -> block 4 (pages 24-27), block offset 10.
+                val block = read4(nfc, 24)
+                val plain = VBBraceletData.dataCryptBlock(uid, productId, 4, block)
+                val originDim = ((plain[10].toInt() and 0xFF) shl 8) or (plain[11].toInt() and 0xFF)
+                originDim == 0xFFFF
+            } else {
+                // dataExists U16_BE at blob offset 96 -> block 6 (pages 32-35), block offset 0.
+                val block = read4(nfc, 32)
+                val plain = VBBraceletData.dataCryptBlock(uid, productId, 6, block)
+                val dataExists = ((plain[0].toInt() and 0xFF) shl 8) or (plain[1].toInt() and 0xFF)
+                dataExists == 0
+            }
+        } catch (e: Exception) {
+            Timber.w(e, "VBBraceletSession slot-clear verify failed")
+            null
+        }
     }
 
     /** Single-tap backup/read session. */
@@ -200,12 +236,14 @@ object VBBraceletSession {
             if (bad.isNotEmpty())
                 return ReadResult.Err("checksum", "checksum error on pages ${bad.joinToString(", ")}")
             page6(nfc, hdr, OP_READ_DONE, what = "op=2 read done")
+            progress("Verifying bracelet slot state…")
+            val slotEmpty = verifySlotCleared(nfc, uid, hdr.productId)
             val ch = VBBraceletData.BraceletCharacter(
                 hdr.productId, uid.copyOf(), plain,
                 VBBraceletData.parseFields(plain, hdr.productId)
             )
-            Timber.d("VBBraceletSession read ok (product ${hdr.productId})")
-            return ReadResult.Ok(ch)
+            Timber.d("VBBraceletSession read ok (product ${hdr.productId}) slotEmpty=$slotEmpty")
+            return ReadResult.Ok(ch, slotEmpty)
         } catch (e: Exception) {
             Timber.e(e, "VBBraceletSession.readCharacter failed")
             return ReadResult.Err("error", e.message ?: e.toString())
@@ -217,6 +255,8 @@ object VBBraceletSession {
         val productId: Int,
         val deviceId: Int,
         val dimId: Int,
+        /** The DIM the bracelet must have active at tap 2 (official: dimId == dimno). */
+        val expectedDimId: Int,
         val sessionId: ByteArray,
         /** Decrypted 864-byte backup taken on tap 1 — the patch base. */
         val backupPlain: ByteArray
@@ -232,12 +272,15 @@ object VBBraceletSession {
      *
      * @param requireCharacterData when false (restoring a saved backup to a
      * possibly-empty bracelet), skip the "character data present" check.
+     * @param expectedDimId the DIM number CHECK_DIM asks the bracelet for —
+     * the user must insert this DIM before tap 2 (official: dimId == dimno).
      */
     fun writeTap1(
         nfc: NfcA,
         tag: Tag,
         progress: (String) -> Unit,
-        requireCharacterData: Boolean = true
+        requireCharacterData: Boolean = true,
+        expectedDimId: Int
     ): Tap1Result {
         try {
             val uid = tag.id
@@ -259,12 +302,12 @@ object VBBraceletSession {
             if (requireCharacterData && !VBBraceletData.hasCharacterData(plain, hdr.productId))
                 return Tap1Result.Err("backup", "no character data on the bracelet to modify")
             progress("Requesting DIM check…")
-            page6(nfc, hdr, OP_CHECK_DIM, hdr.dimId, "op=3 CHECK_DIM")
+            page6(nfc, hdr, OP_CHECK_DIM, expectedDimId, "op=3 CHECK_DIM dim=$expectedDimId")
             val state = Tap1State(
                 uid.copyOf(), hdr.productId, hdr.deviceId, hdr.dimId,
-                hdr.sessionId.copyOf(), plain
+                expectedDimId, hdr.sessionId.copyOf(), plain
             )
-            Timber.d("VBBraceletSession tap1 ok (sessionId=${hdr.sessionId.toHex()} dimId=${hdr.dimId})")
+            Timber.d("VBBraceletSession tap1 ok (sessionId=${hdr.sessionId.toHex()} expectedDim=$expectedDimId)")
             return Tap1Result.Ok(state)
         } catch (e: Exception) {
             Timber.e(e, "VBBraceletSession.writeTap1 failed")
@@ -306,10 +349,28 @@ object VBBraceletSession {
                 return WriteResult.Err("header", "a different bracelet was tapped", 0)
             if (!hdr.sessionId.contentEquals(tap1.sessionId))
                 return WriteResult.Err("session", "session ID mismatch — start tap 1 again", 0)
-            if (hdr.dimId != tap1.dimId)
-                return WriteResult.Err("header", "DIM changed (was ${tap1.dimId}, now ${hdr.dimId})", 0)
             if (hdr.status and 0x01 == 0)
                 return WriteResult.Err("header", "bracelet not ready", 0)
+            // A DIM must be ACTIVE for the bracelet to receive a character
+            // (official ReturnCharacter requires dim-ready; NFC-layer ACKs
+            // alone don't mean the bracelet accepted the data).
+            val dimEmpty = if (hdr.productId == 4) hdr.dimId == 0xFFFF else hdr.dimId == 0xFF
+            if (hdr.status and 0x02 == 0 || dimEmpty)
+                return WriteResult.Err(
+                    "dim",
+                    "Insert a DIM into the bracelet to receive the Digimon " +
+                            "(no DIM active — status ${"%02X".format(hdr.status)}). " +
+                            "Insert DIM ${tap1.expectedDimId}, wait for it to load, then tap again.",
+                    0
+                )
+            if (hdr.dimId != tap1.expectedDimId)
+                return WriteResult.Err(
+                    "dim",
+                    "DIM mismatch — bracelet has DIM ${hdr.dimId}, " +
+                            "expected DIM ${tap1.expectedDimId}. Insert the right DIM, " +
+                            "wait for it to load, then tap again.",
+                    0
+                )
             val base = payloadBase ?: tap1.backupPlain
             require(base.size == DATA_SIZE) { "payload base must be $DATA_SIZE bytes" }
             if (payloadBase != null && payloadBase !== tap1.backupPlain) {

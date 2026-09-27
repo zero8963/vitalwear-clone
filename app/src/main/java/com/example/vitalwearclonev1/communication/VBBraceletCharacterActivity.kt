@@ -93,6 +93,9 @@ class VBBraceletCharacterActivity : ComponentActivity(), NfcAdapter.ReaderCallba
     private var backupPayload: VBBraceletData.BraceletCharacter? = null
     private var backupId: String? = null
     private val backupCount = mutableStateOf(0)
+    /** The DIM number the bracelet must have active at tap 2 (set in the confirm dialog). */
+    private var expectedDimId: Int? = null
+    private val dimText = mutableStateOf("")
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -208,8 +211,18 @@ class VBBraceletCharacterActivity : ComponentActivity(), NfcAdapter.ReaderCallba
                         Timber.e(e, "auto-save backup failed")
                         "\n⚠ Backup auto-save failed: ${e.message}"
                     }
+                    // op=2 is the official "transfer complete" signal; the Hero's
+                    // firmware clears the character slot (anti-dupe). Say so plainly.
+                    val slotMsg = when (r.slotEmpty) {
+                        true -> "\n⚠ Bracelet slot is now EMPTY — the Hero cleared it on " +
+                                "transfer (anti-dupe). Your Digimon now lives only in " +
+                                "this backup. Write it back to restore it to the bracelet."
+                        false -> "\nBracelet slot still reports character data present."
+                        null -> "\n(Slot re-check failed — op=2 was ACKed, so assume the " +
+                                "Digimon moved to this app backup.)"
+                    }
                     statusFlow.value = "Read OK — ${r.character.fields.size} known fields parsed " +
-                            "(character present: $present). Edit fields below, then Write Back.$saved"
+                            "(character present: $present).$slotMsg$saved"
                 }
                 is VBBraceletSession.ReadResult.Err -> {
                     errorFlow.value = "Read failed [${r.step}]: ${r.message}"
@@ -225,13 +238,23 @@ class VBBraceletCharacterActivity : ComponentActivity(), NfcAdapter.ReaderCallba
         errorFlow.value = null
         // Writing from a saved backup: the bracelet may legitimately be empty.
         val fromBackup = backupPayload != null
+        val dim = expectedDimId
+        if (dim == null) {
+            errorFlow.value = "No DIM number set — open Write Back again and enter one."
+            uiState.value = UiState.ReadDone
+            return
+        }
         withNfc(tag) { nfc ->
-            when (val r = VBBraceletSession.writeTap1(nfc, tag, ::progress, requireCharacterData = !fromBackup)) {
+            when (val r = VBBraceletSession.writeTap1(
+                nfc, tag, ::progress,
+                requireCharacterData = !fromBackup,
+                expectedDimId = dim
+            )) {
                 is VBBraceletSession.Tap1Result.Ok -> {
                     tap1State = r.state
                     uiState.value = UiState.WriteTap2Armed
                     statusFlow.value = "Tap 1 OK — backup taken, session locked. " +
-                            "Insert the DIM card into the bracelet, wait for it to load, " +
+                            "Insert DIM #$dim into the bracelet, wait for it to load, " +
                             "then press “Tap 2: Write” and tap the bracelet again."
                 }
                 is VBBraceletSession.Tap1Result.Err -> {
@@ -261,6 +284,7 @@ class VBBraceletCharacterActivity : ComponentActivity(), NfcAdapter.ReaderCallba
                 is VBBraceletSession.WriteResult.Ok -> {
                     uiState.value = UiState.Finished
                     tap1State = null
+                    expectedDimId = null
                     editedText = emptyMap()
                     val lines = if (r.changes.isEmpty()) "no field values actually changed"
                     else r.changes.joinToString("\n")
@@ -268,11 +292,23 @@ class VBBraceletCharacterActivity : ComponentActivity(), NfcAdapter.ReaderCallba
                     statusFlow.value = "Done. The bracelet now holds the updated character."
                 }
                 is VBBraceletSession.WriteResult.Err -> {
+                    // DIM problems are retryable in place: the user inserts the
+                    // DIM and taps again without redoing tap 1.
+                    val retryableDim = r.step == "dim"
                     errorFlow.value = "Write tap 2 failed [${r.step}] after ${r.pagesWritten} pages: ${r.message}\n" +
-                            "The commit did NOT run, so the bracelet should still hold its previous data. " +
-                            "Re-run Write Back with no edits to restore the backup exactly."
-                    uiState.value = UiState.ReadDone
-                    statusFlow.value = "Write failed — nothing was committed. See error above."
+                            if (retryableDim) {
+                                "Nothing was written (the check runs before any page " +
+                                        "writes). Insert the DIM, wait for it to load, then tap again."
+                            } else {
+                                "The commit did NOT run, so the bracelet should still hold its previous data. " +
+                                        "Re-run Write Back with no edits to restore the backup exactly."
+                            }
+                    uiState.value = if (retryableDim) UiState.WriteTap2Armed else UiState.ReadDone
+                    statusFlow.value = if (retryableDim) {
+                        "Tap 2 armed — insert the DIM, wait for it to load, then tap the bracelet."
+                    } else {
+                        "Write failed — nothing was committed. See error above."
+                    }
                 }
             }
         }
@@ -316,6 +352,10 @@ class VBBraceletCharacterActivity : ComponentActivity(), NfcAdapter.ReaderCallba
             return
         }
         val ch = charState.value ?: return
+        // Prefill the DIM number from the character's origin DIM when sane.
+        val origin = ch.fields.firstOrNull { it.field.id == "originDimId" }?.value
+        val maxDim = if (ch.productId == 4) 65534 else 254
+        dimText.value = if (origin != null && origin in 1..maxDim) origin.toString() else ""
         confirmLines.value = if (edits.isEmpty()) {
             listOf("Restore the saved backup exactly (no field changes).")
         } else edits.map { (id, v) ->
@@ -325,6 +365,17 @@ class VBBraceletCharacterActivity : ComponentActivity(), NfcAdapter.ReaderCallba
         }
         errorFlow.value = null
         showConfirm.value = true
+    }
+
+    /** Validate the dialog's DIM input; null = invalid (error shown). */
+    private fun parseDimInput(productId: Int): Int? {
+        val v = dimText.value.trim().toIntOrNull()
+        val maxDim = if (productId == 4) 65534 else 254
+        if (v == null || v !in 1..maxDim) {
+            errorFlow.value = "Enter the DIM card number you will insert (1–$maxDim)."
+            return null
+        }
+        return v
     }
 
     // ------------------------------------------------------------------
@@ -444,6 +495,7 @@ class VBBraceletCharacterActivity : ComponentActivity(), NfcAdapter.ReaderCallba
                                     charState.value = null
                                     backupPayload = null
                                     backupId = null
+                                    expectedDimId = null
                                     editedText = emptyMap()
                                     uiState.value = UiState.Idle
                                     statusFlow.value = "Tap “Read Character”, then tap the bracelet."
@@ -452,7 +504,8 @@ class VBBraceletCharacterActivity : ComponentActivity(), NfcAdapter.ReaderCallba
                             ) { Text("Discard") }
                         }
                         Text(
-                            "Write Back = 2 taps. Tap 1 backs up + asks for the DIM; tap 2 writes + commits.",
+                            "Write Back = 2 taps. Tap 1 backs up + asks for the DIM; " +
+                                    "tap 2 needs that DIM inserted and loaded, then writes + commits.",
                             color = Color.Gray, fontSize = 11.sp, textAlign = TextAlign.Center,
                             modifier = Modifier.padding(top = 8.dp)
                         )
@@ -490,6 +543,7 @@ class VBBraceletCharacterActivity : ComponentActivity(), NfcAdapter.ReaderCallba
         }
 
         if (confirm) {
+            val dimInput = dimText.value
             AlertDialog(
                 onDismissRequest = { showConfirm.value = false },
                 title = { Text("Write to bracelet?") },
@@ -500,10 +554,28 @@ class VBBraceletCharacterActivity : ComponentActivity(), NfcAdapter.ReaderCallba
                         for (line in confirmLines.value) {
                             Text("• $line", fontFamily = FontFamily.Monospace, fontSize = 13.sp)
                         }
+                        Spacer(Modifier.height(12.dp))
+                        Text(
+                            "The bracelet needs a DIM inserted to receive a Digimon. " +
+                                    "Enter the number on the DIM card you will insert:",
+                            fontSize = 13.sp
+                        )
+                        Spacer(Modifier.height(4.dp))
+                        TextField(
+                            value = dimInput,
+                            onValueChange = { dimText.value = it.filter { c -> c.isDigit() } },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            singleLine = true,
+                            placeholder = { Text("DIM number") },
+                            modifier = Modifier.width(140.dp)
+                        )
                     }
                 },
                 confirmButton = {
                     TextButton(onClick = {
+                        val productId = ch?.productId ?: 2
+                        val dim = parseDimInput(productId) ?: return@TextButton
+                        expectedDimId = dim
                         showConfirm.value = false
                         uiState.value = UiState.WriteTap1Armed
                         statusFlow.value = "Tap 1 armed — tap the bracelet."

@@ -140,6 +140,11 @@
             android:exported="true"
             android:label="Bracelet Backups"
             android:theme="@style/Theme.VitalwearCloneV1" />
+        <activity
+            android:name=".communication.VBBraceletDiffActivity"
+            android:exported="true"
+            android:label="Backup Diff"
+            android:theme="@style/Theme.VitalwearCloneV1" />
 
         <activity
             android:name=".gridbattle.GridBattleActivity"

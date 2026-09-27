@@ -5,6 +5,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -52,6 +53,9 @@ class VBBraceletBackupsActivity : ComponentActivity() {
 
     private var backups by mutableStateOf(listOf<VBBraceletBackups.Backup>())
     private var deleteTarget by mutableStateOf<VBBraceletBackups.Backup?>(null)
+    /** Compare mode: tap two cards to select them, then diff. */
+    private var compareMode by mutableStateOf(false)
+    private var selectedIds by mutableStateOf(listOf<String>())
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -117,12 +121,67 @@ class VBBraceletBackupsActivity : ComponentActivity() {
                         textAlign = TextAlign.Center, fontFamily = FontFamily.Monospace
                     )
                 } else {
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Button(
+                            onClick = {
+                                compareMode = !compareMode
+                                selectedIds = emptyList()
+                            },
+                            colors = ButtonDefaults.buttonColors(
+                                backgroundColor = if (compareMode) Color(0xFF6A4C93) else Color(0xFF444444)
+                            )
+                        ) { Text(if (compareMode) "Cancel Compare" else "Compare Two", fontSize = 12.sp) }
+                        if (compareMode) {
+                            Text(
+                                "${selectedIds.size}/2 selected",
+                                color = Color(0xFFFFD54F), fontSize = 12.sp,
+                                fontFamily = FontFamily.Monospace
+                            )
+                            if (selectedIds.size == 2) {
+                                Button(
+                                    onClick = {
+                                        startActivity(
+                                            Intent(this@VBBraceletBackupsActivity, VBBraceletDiffActivity::class.java).apply {
+                                                putExtra(VBBraceletDiffActivity.EXTRA_BACKUP_ID_A, selectedIds[0])
+                                                putExtra(VBBraceletDiffActivity.EXTRA_BACKUP_ID_B, selectedIds[1])
+                                            }
+                                        )
+                                    },
+                                    colors = ButtonDefaults.buttonColors(backgroundColor = Color(0xFF2E7D32))
+                                ) { Text("Show Diff", fontSize = 12.sp) }
+                            }
+                        }
+                    }
+                    if (compareMode) {
+                        Spacer(Modifier.height(4.dp))
+                        Text(
+                            "Tap two backups to compare them byte-for-byte.",
+                            color = Color.Gray, fontSize = 11.sp, textAlign = TextAlign.Center
+                        )
+                    }
+                    Spacer(Modifier.height(8.dp))
                     LazyColumn(
                         modifier = Modifier.weight(1f).fillMaxWidth(),
                         verticalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
                         items(list, key = { it.id }) { backup ->
-                            BackupCard(backup)
+                            BackupCard(
+                                backup,
+                                selectable = compareMode,
+                                selectedOrder = selectedIds.indexOf(backup.id).let { if (it < 0) null else it },
+                                onToggleSelect = {
+                                    selectedIds = if (selectedIds.contains(backup.id)) {
+                                        selectedIds - backup.id
+                                    } else if (selectedIds.size < 2) {
+                                        selectedIds + backup.id
+                                    } else {
+                                        selectedIds
+                                    }
+                                }
+                            )
                         }
                     }
                 }
@@ -158,17 +217,33 @@ class VBBraceletBackupsActivity : ComponentActivity() {
     }
 
     @androidx.compose.runtime.Composable
-    private fun BackupCard(backup: VBBraceletBackups.Backup) {
+    private fun BackupCard(
+        backup: VBBraceletBackups.Backup,
+        selectable: Boolean = false,
+        selectedOrder: Int? = null,
+        onToggleSelect: () -> Unit = {}
+    ) {
+        var cardModifier = Modifier.fillMaxWidth()
+        if (selectable) cardModifier = cardModifier.clickable(onClick = onToggleSelect)
         Card(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = cardModifier,
             elevation = 4.dp,
-            backgroundColor = Color(0xFF1E3A5F)
+            backgroundColor = if (selectedOrder != null) Color(0xFF3A5A8F) else Color(0xFF1E3A5F)
         ) {
             Column(modifier = Modifier.padding(14.dp)) {
-                Text(
-                    "${backup.productName} · UID ${backup.uidShort}",
-                    color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold
-                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    if (selectedOrder != null) {
+                        Text(
+                            if (selectedOrder == 0) "Ⓐ " else "Ⓑ ",
+                            color = Color(0xFFFFD54F), fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                    Text(
+                        "${backup.productName} · UID ${backup.uidShort}",
+                        color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold
+                    )
+                }
                 Text(
                     backup.dateStr,
                     color = Color(0xFF8A9BB5), fontSize = 12.sp,

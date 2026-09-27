@@ -46,6 +46,32 @@ object VBBraceletData {
 
     /** UID-bound AES-CTR. Symmetric: the same call encrypts and decrypts. */
     fun dataCrypt(uid: ByteArray, productId: Int, data: ByteArray): ByteArray {
+        val (key, iv) = cryptParams(uid, productId)
+        val cipher = Cipher.getInstance("AES/CTR/NoPadding")
+        cipher.init(Cipher.ENCRYPT_MODE, key, iv)
+        return cipher.doFinal(data)
+    }
+
+    /**
+     * Decrypt a single 16-byte block at [blockIndex] (0-based within the
+     * 864-byte region) without touching the rest. AES-CTR blocks are
+     * independent, so this is exact — used to verify the data-exists flag
+     * after a transfer without re-reading all 864 bytes.
+     */
+    fun dataCryptBlock(uid: ByteArray, productId: Int, blockIndex: Int, cipherBlock: ByteArray): ByteArray {
+        require(uid.size == 7) { "UID must be 7 bytes" }
+        require(cipherBlock.size == 16) { "block must be 16 bytes" }
+        val (key, iv) = cryptParams(uid, productId)
+        val cipher = Cipher.getInstance("AES/CTR/NoPadding")
+        cipher.init(Cipher.ENCRYPT_MODE, key, iv)
+        // Advance the CTR counter past the preceding blocks (update() with
+        // complete blocks only moves the counter, output discarded).
+        if (blockIndex > 0) cipher.update(ByteArray(blockIndex * 16))
+        return cipher.doFinal(cipherBlock)
+    }
+
+    /** Shared AES key + IV derivation for [dataCrypt]/[dataCryptBlock]. */
+    private fun cryptParams(uid: ByteArray, productId: Int): Pair<SecretKeySpec, IvParameterSpec> {
         require(uid.size == 7) { "UID must be 7 bytes" }
         val (key1, key2) = VBBraceletAuth.getKeyPair(productId)
         val h1 = VBBraceletAuth.hmacSha256(key1, uid)
@@ -55,9 +81,7 @@ object VBBraceletData {
         val t1 = h2.copyOfRange(24, 32) + uid // 15 bytes
         val t2 = h2.copyOfRange(0, 15)        // 15 bytes
         val iv = ByteArray(16) { i -> if (i < 15) (t1[i] xor t2[i]) else 0.toByte() }
-        val cipher = Cipher.getInstance("AES/CTR/NoPadding")
-        cipher.init(Cipher.ENCRYPT_MODE, SecretKeySpec(aesKey, "AES"), IvParameterSpec(iv))
-        return cipher.doFinal(data)
+        return SecretKeySpec(aesKey, "AES") to IvParameterSpec(iv)
     }
 
     /** Returns the list of absolute pages whose checksum FAILED (empty = all OK). */
