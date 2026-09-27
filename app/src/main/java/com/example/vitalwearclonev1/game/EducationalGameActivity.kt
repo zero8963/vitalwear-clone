@@ -2,6 +2,7 @@ package com.example.vitalwearclonev1.game
 
 import android.graphics.Bitmap
 import android.os.Bundle
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.animation.*
@@ -244,9 +245,18 @@ fun InstructionalLessonScreen(mode: String, grade: String, isAdjusted: Boolean, 
                                                 onClick = { 
                                                     if (userAnswer == null) {
                                                         userAnswer = option
-                                                        if (option == targetLesson.practiceAnswer) {
+                                                        val correct = option == targetLesson.practiceAnswer
+                                                        if (correct) {
                                                             monsterManager.addXp(100)
                                                         }
+                                                        // 2026-09-27: lessons grant the secret crit-CHANCE bonus.
+                                                        // Roll 1-5%, minus 1% if the answer was wrong (never below 0).
+                                                        val gain = monsterManager.grantLessonCritBonus(if (correct) 0 else 1)
+                                                        val total = monsterManager.getSecretCritChanceBonus()
+                                                        Toast.makeText(context, if (gain > 0)
+                                                            "Secret Crit Chance +$gain%! (total +$total%)"
+                                                            else "No crit bonus - wrong answer.",
+                                                            Toast.LENGTH_LONG).show()
                                                     }
                                                 },
                                                 modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
@@ -276,9 +286,17 @@ fun InstructionalLessonScreen(mode: String, grade: String, isAdjusted: Boolean, 
                                         Button(
                                             onClick = { 
                                                 userAnswer = textInput
-                                                if (textInput.trim().equals(targetLesson.practiceAnswer, ignoreCase = true)) {
+                                                val correct = textInput.trim().equals(targetLesson.practiceAnswer, ignoreCase = true)
+                                                if (correct) {
                                                     monsterManager.addXp(100)
                                                 }
+                                                // 2026-09-27: lessons grant the secret crit-CHANCE bonus.
+                                                val gain = monsterManager.grantLessonCritBonus(if (correct) 0 else 1)
+                                                val total = monsterManager.getSecretCritChanceBonus()
+                                                Toast.makeText(context, if (gain > 0)
+                                                    "Secret Crit Chance +$gain%! (total +$total%)"
+                                                    else "No crit bonus - wrong answer.",
+                                                    Toast.LENGTH_LONG).show()
                                             },
                                             modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
                                             enabled = userAnswer == null
@@ -521,6 +539,7 @@ fun GamePlayScreen(mode: String, grade: String, floor: Int, isAdjusted: Boolean,
     var isWin by remember { mutableStateOf(false) }
     
     var enemiesDefeated by remember { mutableIntStateOf(0) }
+    var mistakes by remember { mutableIntStateOf(0) } // wrong answers + timeouts this floor
     val enemiesPerFloor = 3
 
     val mySprites = remember { mutableStateOf<Map<String, Bitmap?>>(emptyMap()) }
@@ -572,6 +591,7 @@ fun GamePlayScreen(mode: String, grade: String, floor: Int, isAdjusted: Boolean,
             if (timer == 0 && !isGameOver) {
                 // Timeout = Penalty
                 playerHP -= damagePerWrong
+                mistakes++
                 timer = baseTimer
                 
                 scope.launch {
@@ -622,6 +642,14 @@ fun GamePlayScreen(mode: String, grade: String, floor: Int, isAdjusted: Boolean,
                     enemiesDefeated++
                     if (enemiesDefeated >= enemiesPerFloor) {
                         progressManager.markFloorCleared(mode, grade, floor)
+                        // 2026-09-27: practice floors grant the secret crit-DAMAGE bonus.
+                        // Roll 1-5%, minus 1% per mistake on this floor (never below 0).
+                        val gain = monsterManager.grantPracticeCritBonus(mistakes)
+                        val total = monsterManager.getSecretCritDamageBonus()
+                        Toast.makeText(context, if (gain > 0)
+                            "Secret Crit Damage +$gain%! (total +$total%)"
+                            else "Floor cleared! No crit bonus - too many mistakes.",
+                            Toast.LENGTH_LONG).show()
                         isWin = true
                         isGameOver = true
                     } else {
@@ -644,7 +672,8 @@ fun GamePlayScreen(mode: String, grade: String, floor: Int, isAdjusted: Boolean,
                 }
             }
         } else {
-            // Enemy Attacks
+            // Enemy Attacks (wrong answer = mistake)
+            mistakes++
             scope.launch {
                 enemyOffset.animateTo(-50f, tween(200))
                 playerHP -= damagePerWrong

@@ -253,7 +253,8 @@ fun NetworldAdventure(
     val attackFxProgress = remember { androidx.compose.animation.core.Animatable(0f) }
     // NaviCust Core program attack animation (replaces the DIM one when a core is installed)
     val coreFxKey = remember { mutableStateOf<String?>(null) }
-    val critChance = remember(cardName, charId) { phoneManager.getCritChance(cardName, charId) }
+    // Crit chance = card base + secret lesson bonus, capped at 50%.
+    val critChance = remember(cardName, charId) { phoneManager.getEffectiveCritChance(cardName, charId) }
 
     fun generateArea(lvl: Int) {
         roads.clear()
@@ -273,7 +274,8 @@ fun NetworldAdventure(
         mapItems.clear()
         val itemRoads = roadSet.shuffled().take(15)
         itemRoads.forEachIndexed { index, road ->
-            val type = if (Random.nextInt(100) < 20) BattleProgramType.MYSTERY_DATA
+            // 2026-09-27: DIM secrets are endgame loot — 1% spawn, floors 15+ only.
+            val type = if (lvl >= 15 && Random.nextInt(100) < 1) BattleProgramType.MYSTERY_DATA
             else BattleProgramType.values().filter { it != BattleProgramType.MYSTERY_DATA }.random()
             mapItems.add(AdventureItem(index, type, road.first, road.second))
         }
@@ -597,11 +599,12 @@ fun NetworldAdventure(
                         },
                         onAttack = { type ->
                             isAttackingAnim = true
-                            // Roll the DIM-programmed attacks: big attack lands as a crit (1.5x).
+                            // Roll the DIM-programmed attacks: big attack lands as a crit.
+                            // Crit damage = 1.5x base + secret practice bonus, capped at 1.75x.
                             // Charge programs widen the crit window.
                             val isBig = Random.nextFloat() < critChance + programBonuses.chargePct / 400f
                             val usedAttackId = if (isBig) attackIds.second else attackIds.first
-                            val dmgMult = if (isBig) 1.5f else 1f
+                            val dmgMult = if (isBig) phoneManager.getEffectiveCritDamageMult() else 1f
                             // Core programs REPLACE the DIM-programmed attack animation with their element effect
                             val coreKey = if (type == "SWORD") swordOverride?.animKey else busterOverride?.animKey
                             if (coreKey != null) {

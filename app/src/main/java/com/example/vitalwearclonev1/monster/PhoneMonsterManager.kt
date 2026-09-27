@@ -75,7 +75,10 @@ class PhoneMonsterManager(private val context: Context) {
         val lastCareTick: Long = 0L,
         val lastSyncedSteps: Int = 0,
         val consecutiveLosses: Int = 0,
-        val criticalRemainingMs: Long = 0L
+        val criticalRemainingMs: Long = 0L,
+        // --- Secret education stats (2026-09-27): lesson/practice bonuses ---
+        val secretCritChance: Int = 0,
+        val secretCritDamage: Int = 0
     )
 
     fun getCurrentMonster(): MonsterState? {
@@ -135,9 +138,11 @@ class PhoneMonsterManager(private val context: Context) {
         val lastSyncedSteps = prefs.getInt("current_last_synced_steps", 0)
         val consecutiveLosses = prefs.getInt("current_consecutive_losses", 0)
         val criticalRemainingMs = prefs.getLong("current_critical_remaining_ms", 0L)
+        val secretCritChance = prefs.getInt("current_secret_crit_chance", 0)
+        val secretCritDamage = prefs.getInt("current_secret_crit_damage", 0)
         
         if (characterId == -1) return null
-        return MonsterState(cardName, characterId, stage, timeAlive, evolutionTime, attackBonus, healthBonus, speedBonus, defenseBonus, isPaused, currentWins, winsRequired, xp, level, raw, nickname, isBem, attribute, mood, steps, bp, sp, winRatio, trophies, losses, vitalPoints, stageBattles, stageWins, stageVitalPoints, stageTrophies, baseHp, baseAp, lifespanHoursRemaining, maxLifespanHours, careMistakes, consecutiveBattles, lastActiveDay, lastCareTick, lastSyncedSteps, consecutiveLosses, criticalRemainingMs)
+        return MonsterState(cardName, characterId, stage, timeAlive, evolutionTime, attackBonus, healthBonus, speedBonus, defenseBonus, isPaused, currentWins, winsRequired, xp, level, raw, nickname, isBem, attribute, mood, steps, bp, sp, winRatio, trophies, losses, vitalPoints, stageBattles, stageWins, stageVitalPoints, stageTrophies, baseHp, baseAp, lifespanHoursRemaining, maxLifespanHours, careMistakes, consecutiveBattles, lastActiveDay, lastCareTick, lastSyncedSteps, consecutiveLosses, criticalRemainingMs, secretCritChance, secretCritDamage)
     }
 
     fun setCurrentMonster(
@@ -492,6 +497,59 @@ class PhoneMonsterManager(private val context: Context) {
     fun getCritChance(cardName: String, characterId: Int): Float {
         val card = CardManager(context).getCard(cardName) ?: return 0.15f
         return getCritChance(card, characterId)
+    }
+
+    /**
+     * Secret education stats (2026-09-27): hidden crit bonuses earned in the
+     * education modes. Lessons grant crit CHANCE, practice floors grant crit
+     * DAMAGE. Stored as percentage points on the current monster, like the
+     * training bonuses.
+     */
+    fun getSecretCritChanceBonus(): Int = prefs.getInt("current_secret_crit_chance", 0)
+    fun setSecretCritChanceBonus(pct: Int) {
+        prefs.edit().putInt("current_secret_crit_chance", pct.coerceAtLeast(0)).apply()
+    }
+    fun getSecretCritDamageBonus(): Int = prefs.getInt("current_secret_crit_damage", 0)
+    fun setSecretCritDamageBonus(pct: Int) {
+        prefs.edit().putInt("current_secret_crit_damage", pct.coerceAtLeast(0)).apply()
+    }
+
+    /**
+     * Effective crit chance: the card's programmed base plus the secret lesson
+     * bonus, hard-capped at 50%.
+     */
+    fun getEffectiveCritChance(cardName: String, characterId: Int): Float {
+        return (getCritChance(cardName, characterId) + getSecretCritChanceBonus() / 100f)
+            .coerceIn(0f, 0.50f)
+    }
+
+    /**
+     * Effective crit damage multiplier: 1.5x base plus the secret practice
+     * bonus, hard-capped at 1.75x (75% bonus damage).
+     */
+    fun getEffectiveCritDamageMult(): Float {
+        return (1.5f + getSecretCritDamageBonus() / 100f).coerceAtMost(1.75f)
+    }
+
+    /**
+     * Rolls the secret bonus for one education completion: 1-5%, minus 1% per
+     * mistake, never below zero. Returns the granted gain so the UI can report it.
+     */
+    private fun rollSecretGain(mistakes: Int): Int =
+        (kotlin.random.Random.nextInt(1, 6) - mistakes).coerceAtLeast(0)
+
+    /** Call when a lesson's practice question is answered. Returns granted crit-chance %. */
+    fun grantLessonCritBonus(mistakes: Int): Int {
+        val gain = rollSecretGain(mistakes)
+        if (gain > 0) setSecretCritChanceBonus(getSecretCritChanceBonus() + gain)
+        return gain
+    }
+
+    /** Call when a practice floor is cleared. Returns granted crit-damage %. */
+    fun grantPracticeCritBonus(mistakes: Int): Int {
+        val gain = rollSecretGain(mistakes)
+        if (gain > 0) setSecretCritDamageBonus(getSecretCritDamageBonus() + gain)
+        return gain
     }
 
     /**

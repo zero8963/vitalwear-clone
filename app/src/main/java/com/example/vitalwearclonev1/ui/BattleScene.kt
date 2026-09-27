@@ -159,7 +159,7 @@ fun BattleScene(
 
         }
 
-        val myCritChance = monsterManager.getCritChance(myCardName, myCharId)
+        val myCritChance = monsterManager.getEffectiveCritChance(myCardName, myCharId)
 
         // VB-style attack cutscene: camera jumps to the attacker, plays the
         // DIM-programmed attack (small = regular, big = critical), impact
@@ -205,7 +205,8 @@ fun BattleScene(
                 if (myRoll > myDodgeChance) {
                     val isCrit = battleRandom.nextFloat() < myCritChance
                     val rawDmg = (((myState?.baseAp ?: 0) + (myState?.attackBonus ?: 0)) / 4 + myDmgRoll).toFloat()
-                    val damage = if (isCrit) rawDmg * 1.5f else rawDmg
+                    // Player crits use the secret practice bonus (1.5x -> 1.75x max); enemy crits stay at 1.5x.
+                    val damage = if (isCrit) rawDmg * monsterManager.getEffectiveCritDamageMult() else rawDmg
                     playAttackCutscene(
                         attackerIsMe = true, isCrit = isCrit,
                         applyDamage = { enemyCurrentHP = (enemyCurrentHP - damage).coerceAtLeast(0f) },
@@ -259,7 +260,7 @@ fun BattleScene(
                 if (myRoll > myDodgeChance) {
                     val isCrit = battleRandom.nextFloat() < myCritChance
                     val rawDmg = (((myState?.baseAp ?: 0) + (myState?.attackBonus ?: 0)) / 4 + myDmgRoll).toFloat()
-                    val damage = if (isCrit) rawDmg * 1.5f else rawDmg
+                    val damage = if (isCrit) rawDmg * monsterManager.getEffectiveCritDamageMult() else rawDmg
                     playAttackCutscene(
                         attackerIsMe = true, isCrit = isCrit,
                         applyDamage = { enemyCurrentHP = (enemyCurrentHP - damage).coerceAtLeast(0f) },

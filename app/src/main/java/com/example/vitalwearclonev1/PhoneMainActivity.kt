@@ -840,6 +840,50 @@ fun HomeScreen(monsterManager: PhoneMonsterManager, isWatchConnected: Boolean?) 
                             ) {
                                 Text("Apply Stats", fontSize = 10.sp)
                             }
+
+                            Spacer(Modifier.height(16.dp))
+                            Text("Secret Crit Stats (Education)", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                            val effCritPct = (monsterManager.getEffectiveCritChance(state.cardName, state.characterId) * 100).toInt()
+                            val effCritMult = monsterManager.getEffectiveCritDamageMult()
+                            Text(
+                                "Crit Chance +${state.secretCritChance}% (lands ${effCritPct}%, cap 50%) · " +
+                                "Crit Damage +${state.secretCritDamage}% (x${"%.2f".format(effCritMult)}, cap x1.75)",
+                                color = Color.Gray, fontSize = 10.sp
+                            )
+
+                            var editCrit by remember { mutableStateOf(state.secretCritChance.toString()) }
+                            var editCritDmg by remember { mutableStateOf(state.secretCritDamage.toString()) }
+
+                            Row(modifier = Modifier.fillMaxWidth().padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                OutlinedTextField(
+                                    value = editCrit,
+                                    onValueChange = { editCrit = it },
+                                    label = { Text("CRIT+% ", fontSize = 8.sp) },
+                                    modifier = Modifier.weight(1f),
+                                    singleLine = true,
+                                    colors = TextFieldDefaults.outlinedTextFieldColors(textColor = Color.White, focusedBorderColor = Color.Cyan)
+                                )
+                                OutlinedTextField(
+                                    value = editCritDmg,
+                                    onValueChange = { editCritDmg = it },
+                                    label = { Text("CRITDMG+%", fontSize = 8.sp) },
+                                    modifier = Modifier.weight(1f),
+                                    singleLine = true,
+                                    colors = TextFieldDefaults.outlinedTextFieldColors(textColor = Color.White, focusedBorderColor = Color.Cyan)
+                                )
+                            }
+
+                            Button(
+                                modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                                onClick = {
+                                    monsterManager.setSecretCritChanceBonus(editCrit.toIntOrNull() ?: state.secretCritChance)
+                                    monsterManager.setSecretCritDamageBonus(editCritDmg.toIntOrNull() ?: state.secretCritDamage)
+                                    monsterState.value = monsterManager.getCurrentMonster()
+                                    Toast.makeText(context, "Secret Crit Stats Updated!", Toast.LENGTH_SHORT).show()
+                                }
+                            ) {
+                                Text("Apply Crit Stats", fontSize = 10.sp)
+                            }
                         }
                     }
                 }
