@@ -136,7 +136,23 @@ object LabStorage {
         val current = _monsters.value.toMutableList()
         if (index in current.indices) {
             val old = current[index]
-            current[index] = old.copy(attack = atk, calories = cals, speed = spd, defense = def, xp = xp, level = level, rawPayload = raw, currentWins = wins, winsRequired = winsReq, timeAlive = time, evolutionTime = evo)
+            current[index] = old.copy(attack = atk, calories = cals, speed = spd, defense = def, xp = xp, level = level, rawPayload = raw ?: old.rawPayload, currentWins = wins, winsRequired = winsReq, timeAlive = time, evolutionTime = evo)
+            _monsters.value = current
+            save(context, current)
+        }
+    }
+
+    /**
+     * (Re)link a lab partner to a bracelet backup so Sync Training knows
+     * which backup to patch. Used when the adopt link was lost (e.g. wiped
+     * by an older training write) or to point a partner at a fresh backup.
+     */
+    fun setAdoptLink(context: Context, index: Int, backupId: String) {
+        val current = _monsters.value.toMutableList()
+        if (index in current.indices) {
+            current[index] = current[index].copy(
+                rawPayload = com.example.vitalwearclonev1.communication.VBBraceletSyncBack.PREFIX + backupId
+            )
             _monsters.value = current
             save(context, current)
         }
@@ -443,6 +459,7 @@ fun MonsterCard(monster: StoredMonster, index: Int, onRestore: () -> Unit, onAdv
     var showReleaseConfirm by remember { mutableStateOf(false) }
     var showNicknameDialog by remember { mutableStateOf(false) }
     var showSyncDialog by remember { mutableStateOf(false) }
+    var showLinkDialog by remember { mutableStateOf(false) }
     var nicknameText by remember { mutableStateOf(monster.nickname ?: "") }
 
     if (showNicknameDialog) {
@@ -565,6 +582,45 @@ fun MonsterCard(monster: StoredMonster, index: Int, onRestore: () -> Unit, onAdv
             },
             dismissButton = {
                 Button(onClick = { showSyncDialog = false }) { Text("Cancel") }
+            }
+        )
+    }
+
+    if (showLinkDialog) {
+        val backups = remember {
+            com.example.vitalwearclonev1.communication.VBBraceletBackups.list(context)
+                .filter { it.productId == 2 }
+                .sortedByDescending { it.savedAt }
+        }
+        AlertDialog(
+            onDismissRequest = { showLinkDialog = false },
+            title = { Text("Link Bracelet Backup") },
+            text = {
+                Column {
+                    Text("Which bracelet backup is this partner? Sync Training will patch that backup's training bytes.")
+                    if (backups.isEmpty()) {
+                        Text("No bracelet backups found — read the bracelet first.", color = Color.Gray)
+                    } else {
+                        LazyColumn(Modifier.height(220.dp)) {
+                            items(backups.size) { i ->
+                                val b = backups[i]
+                                Column(
+                                    modifier = Modifier.fillMaxWidth().clickable {
+                                        LabStorage.setAdoptLink(context, index, b.id)
+                                        showLinkDialog = false
+                                        Toast.makeText(context, "Linked to backup ${b.dateStr}", Toast.LENGTH_SHORT).show()
+                                    }.padding(8.dp)
+                                ) {
+                                    Text(if (b.note.isNotBlank()) b.note else b.dateStr, fontWeight = FontWeight.Bold)
+                                    Text(b.fieldSummary(), fontSize = 12.sp, color = Color.Gray)
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                Button(onClick = { showLinkDialog = false }) { Text("Cancel") }
             }
         )
     }
@@ -753,6 +809,14 @@ fun MonsterCard(monster: StoredMonster, index: Int, onRestore: () -> Unit, onAdv
                         colors = androidx.compose.material.ButtonDefaults.buttonColors(backgroundColor = Color(0xFF6A4C93))
                     ) {
                         Text(text = "Sync Training", fontSize = 10.sp, color = Color.White)
+                    }
+                } else {
+                    Button(
+                        onClick = { showLinkDialog = true },
+                        modifier = Modifier.padding(top = 4.dp),
+                        colors = androidx.compose.material.ButtonDefaults.buttonColors(backgroundColor = Color(0xFF2E7D32))
+                    ) {
+                        Text(text = "Link Bracelet", fontSize = 10.sp, color = Color.White)
                     }
                 }
                 Button(onClick = { showSetHomeConfirm = true }, modifier = Modifier.padding(top = 4.dp), colors = androidx.compose.material.ButtonDefaults.buttonColors(backgroundColor = Color(0, 150, 80))) {
