@@ -123,6 +123,16 @@ object VBBraceletAdopt {
         stage: Int
     ): StoredMonster {
         val mental = backup.fields["mental"]?.coerceIn(0, 100) ?: 50
+        // Seed the app-side battle record from the bracelet's own record
+        // (read from the blob so even pre-mapping backups work).
+        val bbWins = if (backup.productId == 2)
+            VBBraceletData.readField(
+                backup.plain, VBBraceletData.FIELDS.first { it.id == "braceletWins" }
+            ).coerceIn(0, 255) else 0
+        val bbLosses = if (backup.productId == 2)
+            VBBraceletData.readField(
+                backup.plain, VBBraceletData.FIELDS.first { it.id == "braceletLosses" }
+            ).coerceIn(0, 255) else 0
         val monster = StoredMonster(
             name = candidate.cardName,
             charId = candidate.charId,
@@ -135,12 +145,13 @@ object VBBraceletAdopt {
             level = 1,
             rawPayload = "bracelet-adopt:${backup.id}",
             nickname = nickname.ifBlank { null },
-            currentWins = 0,
+            currentWins = bbWins,
             winsRequired = 0,
             timeAlive = 0,
             evolutionTime = 3600,
             attribute = candidate.attribute,
-            mood = mental
+            mood = mental,
+            losses = bbLosses
         )
         LabStorage.addMonster(context, monster)
         rememberChoice(context, backup.id, candidate.cardName, candidate.charId)

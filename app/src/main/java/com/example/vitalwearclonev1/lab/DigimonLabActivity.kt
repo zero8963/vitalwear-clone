@@ -84,7 +84,9 @@ data class StoredMonster(
     val bp: Int = 0,
     val sp: Int = 0,
     val winRatio: Int = 0,
-    val trophies: Int = 0
+    val trophies: Int = 0,
+    /** Lifetime losses (app-side battle record). Seeded from the bracelet at adoption. */
+    val losses: Int = 0
 )
 
 object LabStorage {
@@ -112,7 +114,7 @@ object LabStorage {
     private fun save(context: Context, monsters: List<StoredMonster>) {
         val prefs = context.getSharedPreferences("lab_prefs", Context.MODE_PRIVATE)
         val list = monsters.map { 
-            "${it.name}|${it.charId}|${it.stage}|${it.attack}|${it.calories}|${it.speed}|${it.defense}|${it.xp}|${it.level}|${it.rawPayload ?: ""}|${it.nickname ?: ""}|${it.currentWins}|${it.winsRequired}|${it.timeAlive}|${it.evolutionTime}|${it.attribute}|${it.mood}|${it.steps}|${it.bp}|${it.sp}|${it.winRatio}|${it.trophies}" 
+            "${it.name}|${it.charId}|${it.stage}|${it.attack}|${it.calories}|${it.speed}|${it.defense}|${it.xp}|${it.level}|${it.rawPayload ?: ""}|${it.nickname ?: ""}|${it.currentWins}|${it.winsRequired}|${it.timeAlive}|${it.evolutionTime}|${it.attribute}|${it.mood}|${it.steps}|${it.bp}|${it.sp}|${it.winRatio}|${it.trophies}|${it.losses}" 
         }
         // Use a Set only for the SharedPreferences storage mechanism if required by API, 
         // but ensure uniqueness by appending index if necessary. 
@@ -170,7 +172,8 @@ object LabStorage {
                         parts[18].toIntOrNull() ?: 0,
                         parts[19].toIntOrNull() ?: 0,
                         parts[20].toIntOrNull() ?: 0,
-                        parts[21].toIntOrNull() ?: 0
+                        parts[21].toIntOrNull() ?: 0,
+                        losses = parts.getOrNull(22)?.toIntOrNull() ?: 0
                     ))
                 } catch (e: Exception) {}
             } else if (parts.size >= 15) {
@@ -439,6 +442,7 @@ fun MonsterCard(monster: StoredMonster, index: Int, onRestore: () -> Unit, onAdv
     var showSetHomeConfirm by remember { mutableStateOf(false) }
     var showReleaseConfirm by remember { mutableStateOf(false) }
     var showNicknameDialog by remember { mutableStateOf(false) }
+    var showSyncDialog by remember { mutableStateOf(false) }
     var nicknameText by remember { mutableStateOf(monster.nickname ?: "") }
 
     if (showNicknameDialog) {
@@ -496,6 +500,71 @@ fun MonsterCard(monster: StoredMonster, index: Int, onRestore: () -> Unit, onAdv
             }
         )
     }
+    val adoptedBackupId = remember(monster.rawPayload) {
+        com.example.vitalwearclonev1.communication.VBBraceletSyncBack.sourceBackupId(monster)
+    }
+    if (showSyncDialog && adoptedBackupId != null) {
+        val preview = remember(monster) {
+            com.example.vitalwearclonev1.communication.VBBraceletSyncBack.preview(monster)
+        }
+        AlertDialog(
+            onDismissRequest = { showSyncDialog = false },
+            title = { Text("Sync training to Bracelet?") },
+            text = {
+                Column {
+                    Text(
+                        "This patches ${monster.nickname ?: monster.name}'s training into a NEW " +
+                            "bracelet backup (the original backup is kept):"
+                    )
+                    Text("• Mental ← mood ${preview.mental}", fontSize = 13.sp)
+                    Text("• Wins ← ${preview.wins}", fontSize = 13.sp)
+                    Text("• Losses ← ${preview.losses}", fontSize = 13.sp)
+                    Text("• Win rate ← ${preview.winRate}% (recomputed)", fontSize = 13.sp)
+                    Text(
+                        "Training stat bonuses can't be mapped to bracelet bytes yet — " +
+                            "they stay in the app only.",
+                        fontSize = 12.sp, color = Color.Yellow
+                    )
+                }
+            },
+            confirmButton = {
+                Button(onClick = {
+                    showSyncDialog = false
+                    scope.launch {
+                        try {
+                            val result = withContext(Dispatchers.IO) {
+                                com.example.vitalwearclonev1.communication.VBBraceletSyncBack
+                                    .syncToNewBackup(context, monster)
+                            }
+                            val changed = if (result.changes.isEmpty()) "no values changed"
+                            else result.changes.joinToString("; ")
+                            Toast.makeText(context, "Synced backup saved: $changed", Toast.LENGTH_LONG).show()
+                            val intent = Intent(
+                                context,
+                                com.example.vitalwearclonev1.communication.VBBraceletCharacterActivity::class.java
+                            ).apply {
+                                putExtra(
+                                    com.example.vitalwearclonev1.communication.VBBraceletCharacterActivity.EXTRA_BACKUP_ID,
+                                    result.newBackup.id
+                                )
+                                putExtra(
+                                    com.example.vitalwearclonev1.communication.VBBraceletCharacterActivity.EXTRA_ARM_WRITE,
+                                    true
+                                )
+                            }
+                            context.startActivity(intent)
+                        } catch (e: Exception) {
+                            timber.log.Timber.e(e, "bracelet sync failed")
+                            Toast.makeText(context, "Sync failed: ${e.message}", Toast.LENGTH_LONG).show()
+                        }
+                    }
+                }) { Text("Sync & Write…") }
+            },
+            dismissButton = {
+                Button(onClick = { showSyncDialog = false }) { Text("Cancel") }
+            }
+        )
+    }
 
     if (showMatchDialog) {
         val cards = remember { cardManager.listCards() }
@@ -512,7 +581,7 @@ fun MonsterCard(monster: StoredMonster, index: Int, onRestore: () -> Unit, onAdv
                                 current[index] = current[index].copy(name = cards[i])
                                 val prefs = context.getSharedPreferences("lab_prefs", Context.MODE_PRIVATE)
                                 val set = current.map { 
-                                    "${it.name}|${it.charId}|${it.stage}|${it.attack}|${it.calories}|${it.speed}|${it.defense}|${it.xp}|${it.level}|${it.rawPayload ?: ""}|${it.nickname ?: ""}|${it.currentWins}" 
+                                    "${it.name}|${it.charId}|${it.stage}|${it.attack}|${it.calories}|${it.speed}|${it.defense}|${it.xp}|${it.level}|${it.rawPayload ?: ""}|${it.nickname ?: ""}|${it.currentWins}|${it.winsRequired}|${it.timeAlive}|${it.evolutionTime}|${it.attribute}|${it.mood}|${it.steps}|${it.bp}|${it.sp}|${it.winRatio}|${it.trophies}|${it.losses}" 
                                 }.toSet()
                                 prefs.edit().putStringSet("monsters", set).apply()
                                 LabStorage.load(context)
@@ -670,6 +739,15 @@ fun MonsterCard(monster: StoredMonster, index: Int, onRestore: () -> Unit, onAdv
                 }
                 Button(onClick = onSyncToVB, modifier = Modifier.padding(top = 4.dp), colors = androidx.compose.material.ButtonDefaults.buttonColors(backgroundColor = Color.Cyan)) {
                     Text(text = "Sync to VB", fontSize = 10.sp, color = Color.Black)
+                }
+                if (adoptedBackupId != null) {
+                    Button(
+                        onClick = { showSyncDialog = true },
+                        modifier = Modifier.padding(top = 4.dp),
+                        colors = androidx.compose.material.ButtonDefaults.buttonColors(backgroundColor = Color(0xFF6A4C93))
+                    ) {
+                        Text(text = "Sync Training", fontSize = 10.sp, color = Color.White)
+                    }
                 }
                 Button(onClick = { showSetHomeConfirm = true }, modifier = Modifier.padding(top = 4.dp), colors = androidx.compose.material.ButtonDefaults.buttonColors(backgroundColor = Color(0, 150, 80))) {
                     Text(text = "Set Home", fontSize = 10.sp, color = Color.White)

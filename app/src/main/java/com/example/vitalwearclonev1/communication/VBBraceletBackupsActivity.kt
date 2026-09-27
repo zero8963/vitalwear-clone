@@ -269,6 +269,14 @@ class VBBraceletBackupsActivity : ComponentActivity() {
                     fontFamily = FontFamily.Monospace
                 )
                 Spacer(Modifier.height(4.dp))
+                if (backup.note.isNotBlank()) {
+                    Text(
+                        backup.note,
+                        color = Color(0xFFFFD54F), fontSize = 12.sp,
+                        fontFamily = FontFamily.Monospace
+                    )
+                    Spacer(Modifier.height(4.dp))
+                }
                 Text(
                     backup.fieldSummary(),
                     color = Color(0, 255, 200), fontSize = 12.sp,

@@ -34,7 +34,9 @@ object VBBraceletBackups {
         /** Decrypted 864-byte blob. Unknown regions preserved verbatim. */
         val plain: ByteArray,
         /** fieldId -> value at save time (for list summaries). */
-        val fields: Map<String, Int>
+        val fields: Map<String, Int>,
+        /** Optional human label, e.g. "Agumon — synced 2026-09-27 15:20". */
+        val note: String = ""
     ) {
         val productName: String get() = VBBraceletAuth.productName(productId)
         val uidShort: String get() = if (uidHex.length >= 8) uidHex.take(8) + "…" else uidHex
@@ -45,6 +47,12 @@ object VBBraceletBackups {
             val parts = mutableListOf<String>()
             fields["mental"]?.let { parts.add("Mental $it") }
             fields["vital"]?.let { parts.add("Vital $it") }
+            val w = fields["braceletWins"]
+            val l = fields["braceletLosses"]
+            if (w != null || l != null) {
+                parts.add("${w ?: 0}W–${l ?: 0}L")
+            }
+            fields["braceletWinRate"]?.let { parts.add("$it%") }
             fields["originDimId"]?.let {
                 parts.add("DIM " + if (it == 0xFFFF) "empty" else it.toString())
             }
@@ -61,7 +69,7 @@ object VBBraceletBackups {
     private fun uidToHex(uid: ByteArray): String =
         uid.joinToString("") { "%02X".format(it) }
 
-    private fun hexToBytes(hex: String): ByteArray {
+    internal fun hexToBytes(hex: String): ByteArray {
         val out = ByteArray(hex.length / 2)
         for (i in out.indices) out[i] = hex.substring(i * 2, i * 2 + 2).toInt(16).toByte()
         return out
@@ -73,6 +81,7 @@ object VBBraceletBackups {
         put("uidHex", b.uidHex)
         put("productId", b.productId)
         put("blob", android.util.Base64.encodeToString(b.plain, android.util.Base64.NO_WRAP))
+        if (b.note.isNotBlank()) put("note", b.note)
         val fj = JSONObject()
         for ((k, v) in b.fields) fj.put(k, v)
         put("fields", fj)
@@ -92,7 +101,8 @@ object VBBraceletBackups {
             uidHex = o.getString("uidHex"),
             productId = o.getInt("productId"),
             plain = android.util.Base64.decode(o.getString("blob"), android.util.Base64.NO_WRAP),
-            fields = fields
+            fields = fields,
+            note = o.optString("note", "")
         )
     } catch (e: Exception) {
         Timber.w(e, "VBBraceletBackups skipping corrupt entry")
@@ -120,14 +130,19 @@ object VBBraceletBackups {
      * Auto-save a freshly read character. Returns the saved backup.
      * Caps the store at [MAX_BACKUPS], dropping the oldest.
      */
-    fun save(context: Context, character: VBBraceletData.BraceletCharacter): Backup {
+    fun save(
+        context: Context,
+        character: VBBraceletData.BraceletCharacter,
+        note: String = ""
+    ): Backup {
         val backup = Backup(
             id = "bb_${System.currentTimeMillis()}",
             savedAt = System.currentTimeMillis(),
             uidHex = uidToHex(character.uid),
             productId = character.productId,
             plain = character.plain.copyOf(),
-            fields = character.fields.associate { it.field.id to it.value }
+            fields = character.fields.associate { it.field.id to it.value },
+            note = note
         )
         val all = (list(context) + backup).sortedByDescending { it.savedAt }.take(MAX_BACKUPS)
         val arr = JSONArray()

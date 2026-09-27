@@ -125,9 +125,22 @@ object VBBraceletData {
         val cap: Int?,
         val products: Set<Int>,
         val editable: Boolean,
-        val hint: String = ""
+        val hint: String = "",
+        /**
+         * Extra blob offsets holding a live mirror copy of this field.
+         * Product 2 keeps the battle record (0x0060/0x0070) and the live
+         * stat block (0x0080/0x0090) in duplicate 16-byte blocks; edits
+         * patch every copy so the blob stays self-consistent.
+         * [mirrorProducts] restricts which products get the mirrors
+         * (null = same as [products]).
+         */
+        val mirrorOffsets: List<Int> = emptyList(),
+        val mirrorProducts: Set<Int>? = null
     ) {
         val offset: Int get() = (page - DATA_FIRST_PAGE) * 4 + byte
+        fun mirrorsFor(productId: Int): List<Int> =
+            if (mirrorProducts == null || productId in mirrorProducts) mirrorOffsets
+            else emptyList()
     }
 
     val FIELDS = listOf(
@@ -136,11 +149,26 @@ object VBBraceletData {
         CharField("dataExists", "Character present", 32, 0, FieldType.U16_BE, null,
             setOf(2, 3), false, "non-zero = data exists (classic)"),
         CharField("mental", "Mental", 40, 1, FieldType.U8, 100,
-            setOf(2, 3, 4), true, "cap 100"),
+            setOf(2, 3, 4), true, "cap 100",
+            mirrorOffsets = listOf(0x91), mirrorProducts = setOf(2)),
         CharField("vital", "Vital value", 41, 0, FieldType.U16_BE, null,
             setOf(2, 3, 4), true),
         CharField("nextTimer", "Next timer", 43, 1, FieldType.U16_BE, null,
             setOf(2, 3, 4), true),
+        // Product 2 battle record (live copies at 0x0060 and 0x0070),
+        // mapped live on the user's real Hero via read→battle→read diffs
+        // (2026-09-27, checksums verified): byte 3 = wins, byte 5 = losses,
+        // bytes 7/9 = mirror copies, byte 10 = win rate % (truncated),
+        // bytes 12/14 = mission flags (read-only, never written).
+        CharField("braceletWins", "Wins", 32, 3, FieldType.U8, null,
+            setOf(2), true, "bracelet battle record",
+            mirrorOffsets = listOf(0x73)),
+        CharField("braceletLosses", "Losses", 33, 1, FieldType.U8, null,
+            setOf(2), true, "bracelet battle record",
+            mirrorOffsets = listOf(0x75)),
+        CharField("braceletWinRate", "Win rate %", 34, 2, FieldType.U8, 100,
+            setOf(2), false, "auto from wins/losses",
+            mirrorOffsets = listOf(0x7A)),
         CharField("hpPlus", "HP+", 72, 0, FieldType.U16_BE, 999,
             setOf(4), true, "VBBE only, cap 999"),
         CharField("apPlus", "AP+", 72, 2, FieldType.U16_BE, 999,
@@ -205,16 +233,35 @@ object VBBraceletData {
             if (field.cap != null) require(value <= field.cap) { "${field.label} max is ${field.cap}" }
             val old = readField(plain, field)
             if (old != value) {
-                when (field.type) {
-                    FieldType.U8 -> plain[field.offset] = value.toByte()
-                    FieldType.U16_BE -> {
-                        plain[field.offset] = (value shr 8).toByte()
-                        plain[field.offset + 1] = value.toByte()
+                // Patch the primary offset plus every live mirror copy,
+                // recomputing each touched block's checksum.
+                for (off in listOf(field.offset) + field.mirrorsFor(productId)) {
+                    when (field.type) {
+                        FieldType.U8 -> plain[off] = value.toByte()
+                        FieldType.U16_BE -> {
+                            plain[off] = (value shr 8).toByte()
+                            plain[off + 1] = value.toByte()
+                        }
                     }
+                    recomputeBlockChecksum(plain, off)
                 }
-                recomputeBlockChecksum(plain, field.offset)
                 changed.add("${field.label}: $old → $value")
                 Timber.d("VBBraceletData patched ${field.id} $old -> $value (page ${field.page})")
+            }
+        }
+        // Keep the derived win-rate field consistent when the record is edited.
+        if (productId == 2 && ("braceletWins" in edits || "braceletLosses" in edits)) {
+            val wins = readField(plain, FIELDS.first { it.id == "braceletWins" })
+            val losses = readField(plain, FIELDS.first { it.id == "braceletLosses" })
+            val rate = if (wins + losses > 0) wins * 100 / (wins + losses) else 0
+            val rateField = FIELDS.first { it.id == "braceletWinRate" }
+            val oldRate = readField(plain, rateField)
+            if (oldRate != rate) {
+                for (off in listOf(rateField.offset) + rateField.mirrorsFor(productId)) {
+                    plain[off] = rate.toByte()
+                    recomputeBlockChecksum(plain, off)
+                }
+                changed.add("Win rate %: $oldRate → $rate (auto)")
             }
         }
         return changed

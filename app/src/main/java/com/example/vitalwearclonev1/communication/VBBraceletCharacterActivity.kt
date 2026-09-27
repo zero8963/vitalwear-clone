@@ -46,6 +46,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.flow.MutableStateFlow
 import timber.log.Timber
+import com.example.vitalwearclonev1.lab.StoredMonster
 
 /**
  * Bracelet character backup / transfer screen (Phase 2).
@@ -96,6 +97,8 @@ class VBBraceletCharacterActivity : ComponentActivity(), NfcAdapter.ReaderCallba
     /** The DIM number the bracelet must have active at tap 2 (set in the confirm dialog). */
     private var expectedDimId: Int? = null
     private val dimText = mutableStateOf("")
+    /** (partner, preview) for the "sync training" confirm dialog, or null. */
+    private val syncDialogData = mutableStateOf<Pair<StoredMonster, VBBraceletSyncBack.SyncPreview>?>(null)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -378,6 +381,57 @@ class VBBraceletCharacterActivity : ComponentActivity(), NfcAdapter.ReaderCallba
         return v
     }
 
+    /**
+     * "Sync training from partner" (backup detail only): find the DigiLab
+     * partner adopted from this backup and open the sync confirm dialog.
+     */
+    private fun trySyncFromPartner() {
+        val id = backupId ?: return
+        try {
+            com.example.vitalwearclonev1.lab.LabStorage.load(this)
+            val partner = com.example.vitalwearclonev1.lab.LabStorage.monsters.value
+                .firstOrNull { VBBraceletSyncBack.sourceBackupId(it) == id }
+            if (partner == null) {
+                Toast.makeText(
+                    this,
+                    "No adopted partner for this backup — adopt it from " +
+                            "DigiLab → Bracelet Backups first.",
+                    Toast.LENGTH_LONG
+                ).show()
+                return
+            }
+            syncDialogData.value = partner to VBBraceletSyncBack.preview(partner)
+        } catch (e: Exception) {
+            Timber.e(e, "partner lookup failed")
+            Toast.makeText(this, "Lookup failed: ${e.message}", Toast.LENGTH_LONG).show()
+        }
+    }
+
+    /** Run the sync off the UI thread, then reload on the new backup with write armed. */
+    private fun runSyncAndReload(partner: StoredMonster) {
+        Thread {
+            try {
+                val result = VBBraceletSyncBack.syncToNewBackup(this, partner)
+                runOnUiThread {
+                    val changed = if (result.changes.isEmpty()) "no values changed"
+                    else result.changes.joinToString("; ")
+                    Toast.makeText(this, "Synced backup saved: $changed", Toast.LENGTH_LONG).show()
+                    val intent = Intent(this, VBBraceletCharacterActivity::class.java).apply {
+                        putExtra(EXTRA_BACKUP_ID, result.newBackup.id)
+                        putExtra(EXTRA_ARM_WRITE, true)
+                    }
+                    startActivity(intent)
+                    finish()
+                }
+            } catch (e: Exception) {
+                Timber.e(e, "bracelet sync failed")
+                runOnUiThread {
+                    Toast.makeText(this, "Sync failed: ${e.message}", Toast.LENGTH_LONG).show()
+                }
+            }
+        }.start()
+    }
+
     // ------------------------------------------------------------------
     // UI
     // ------------------------------------------------------------------
@@ -509,6 +563,19 @@ class VBBraceletCharacterActivity : ComponentActivity(), NfcAdapter.ReaderCallba
                             color = Color.Gray, fontSize = 11.sp, textAlign = TextAlign.Center,
                             modifier = Modifier.padding(top = 8.dp)
                         )
+                        if (backupId != null) {
+                            Spacer(Modifier.height(8.dp))
+                            Button(
+                                onClick = { trySyncFromPartner() },
+                                colors = ButtonDefaults.buttonColors(backgroundColor = Color(0xFF6A4C93))
+                            ) { Text("Sync training from partner") }
+                            Text(
+                                "Patches the adopted partner's mood + battle record into a " +
+                                        "NEW backup (original kept), then arms the write flow.",
+                                color = Color.Gray, fontSize = 11.sp, textAlign = TextAlign.Center,
+                                modifier = Modifier.padding(top = 4.dp)
+                            )
+                        }
                     }
                     UiState.WriteTap1Armed -> {
                         Text("Tap 1 armed — tap the bracelet.", color = Color.Yellow, fontSize = 14.sp)
@@ -583,6 +650,46 @@ class VBBraceletCharacterActivity : ComponentActivity(), NfcAdapter.ReaderCallba
                 },
                 dismissButton = {
                     TextButton(onClick = { showConfirm.value = false }) { Text("Cancel") }
+                }
+            )
+        }
+
+        val syncData = syncDialogData.value
+        if (syncData != null) {
+            val (partner, preview) = syncData
+            AlertDialog(
+                onDismissRequest = { syncDialogData.value = null },
+                title = { Text("Sync training to Bracelet?") },
+                text = {
+                    Column {
+                        Text(
+                            "This patches ${(partner.nickname ?: partner.name)}'s training " +
+                                    "into a NEW backup (the original backup is kept):"
+                        )
+                        Spacer(Modifier.height(8.dp))
+                        Text("• Mental ← mood ${preview.mental}", fontFamily = FontFamily.Monospace, fontSize = 13.sp)
+                        Text("• Wins ← ${preview.wins}", fontFamily = FontFamily.Monospace, fontSize = 13.sp)
+                        Text("• Losses ← ${preview.losses}", fontFamily = FontFamily.Monospace, fontSize = 13.sp)
+                        Text(
+                            "• Win rate ← ${preview.winRate}% (recomputed)",
+                            fontFamily = FontFamily.Monospace, fontSize = 13.sp
+                        )
+                        Spacer(Modifier.height(8.dp))
+                        Text(
+                            "Training stat bonuses can't be mapped to bracelet bytes yet — " +
+                                    "they stay in the app only.",
+                            fontSize = 12.sp, color = Color(0xFFFFD54F)
+                        )
+                    }
+                },
+                confirmButton = {
+                    TextButton(onClick = {
+                        syncDialogData.value = null
+                        runSyncAndReload(partner)
+                    }) { Text("Sync & Write…") }
+                },
+                dismissButton = {
+                    TextButton(onClick = { syncDialogData.value = null }) { Text("Cancel") }
                 }
             )
         }
