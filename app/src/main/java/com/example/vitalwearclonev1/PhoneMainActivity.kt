@@ -843,8 +843,14 @@ fun HomeScreen(monsterManager: PhoneMonsterManager, isWatchConnected: Boolean?) 
 
                             Spacer(Modifier.height(16.dp))
                             Text("Secret Crit Stats (Education)", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                            val effCritPct = (monsterManager.getEffectiveCritChance(state.cardName, state.characterId) * 100).toInt()
-                            val effCritMult = monsterManager.getEffectiveCritDamageMult()
+                            // 2026-09-27: remember these so the card file isn't re-read on
+                            // every recomposition (the DIM parse was stuttering the UI).
+                            val effCritPct = remember(state.cardName, state.characterId, state.secretCritChance) {
+                                (monsterManager.getEffectiveCritChance(state.cardName, state.characterId) * 100).toInt()
+                            }
+                            val effCritMult = remember(state.secretCritDamage) {
+                                monsterManager.getEffectiveCritDamageMult()
+                            }
                             Text(
                                 "Crit Chance +${state.secretCritChance}% (lands ${effCritPct}%, cap 50%) · " +
                                 "Crit Damage +${state.secretCritDamage}% (x${"%.2f".format(effCritMult)}, cap x1.75)",

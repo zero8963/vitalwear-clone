@@ -17,6 +17,13 @@ class PhoneMonsterManager(private val context: Context) {
     // One-shot guard for the base-stat migration in getCurrentMonster (per process).
     private var baseStatsMigrationDone = false
 
+    // 2026-09-27: cache the card's base crit chance per card+character. The
+    // DIM parse behind getCritChance(cardName, ...) reads the whole card file
+    // off disk, and it was being re-run on UI recompositions (dev menu) and
+    // battle setup, stuttering the main thread. Card data never changes at
+    // runtime, so a process-lifetime cache is safe.
+    private val baseCritCache = mutableMapOf<String, Float>()
+
     companion object {
         /** DIM stats are uint16 (up to 65535). Dividing by 100 maps them onto
          *  the app's battle balance (the old flat-500-HP scale) so training
@@ -493,10 +500,16 @@ class PhoneMonsterManager(private val context: Context) {
         } catch (e: Exception) { 0.15f }
     }
 
-    /** Name-based convenience: loads the card first, then delegates. */
+    /** Name-based convenience: loads the card first, then delegates. The base
+     * chance is cached per card+character so repeated UI reads don't re-parse
+     * the DIM file off disk (that was stuttering the dev menu and battles). */
     fun getCritChance(cardName: String, characterId: Int): Float {
+        val key = "$cardName|$characterId"
+        baseCritCache[key]?.let { return it }
         val card = CardManager(context).getCard(cardName) ?: return 0.15f
-        return getCritChance(card, characterId)
+        val chance = getCritChance(card, characterId)
+        baseCritCache[key] = chance
+        return chance
     }
 
     /**
@@ -572,11 +585,13 @@ class PhoneMonsterManager(private val context: Context) {
             "current_lifespan_remaining", "current_max_lifespan",
             "current_care_mistakes", "current_care_consecutive_battles",
             "current_last_active_day", "current_last_care_tick", "current_last_synced_steps",
-            "current_consecutive_losses", "current_critical_remaining_ms", "current_death_cause"
+            "current_consecutive_losses", "current_critical_remaining_ms", "current_death_cause",
+            "current_secret_crit_chance", "current_secret_crit_damage"
         )
         val edit = prefs.edit()
         keys.forEach { edit.remove(it) }
         edit.apply()
+        baseCritCache.clear()
     }
 
     fun isExpired(): Boolean {
