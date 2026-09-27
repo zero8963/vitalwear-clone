@@ -355,7 +355,7 @@ class VBBraceletCharacterActivity : ComponentActivity(), NfcAdapter.ReaderCallba
         // Prefill the DIM number from the character's origin DIM when sane.
         val origin = ch.fields.firstOrNull { it.field.id == "originDimId" }?.value
         val maxDim = if (ch.productId == 4) 65534 else 254
-        dimText.value = if (origin != null && origin in 1..maxDim) origin.toString() else ""
+        dimText.value = if (origin != null && origin in 0..maxDim) origin.toString() else ""
         confirmLines.value = if (edits.isEmpty()) {
             listOf("Restore the saved backup exactly (no field changes).")
         } else edits.map { (id, v) ->
@@ -371,8 +371,8 @@ class VBBraceletCharacterActivity : ComponentActivity(), NfcAdapter.ReaderCallba
     private fun parseDimInput(productId: Int): Int? {
         val v = dimText.value.trim().toIntOrNull()
         val maxDim = if (productId == 4) 65534 else 254
-        if (v == null || v !in 1..maxDim) {
-            errorFlow.value = "Enter the DIM card number you will insert (1–$maxDim)."
+        if (v == null || v !in 0..maxDim) {
+            errorFlow.value = "Enter the DIM card number you will insert (0–$maxDim)."
             return null
         }
         return v
