@@ -143,7 +143,7 @@ object VBBraceletSyncBack {
             "Source backup blob is corrupt (${source.plain.size} bytes)."
         }
 
-        val p = preview(monster)
+        val p = preview(context, monster)
         val patched = source.plain.copyOf()
         val changes = patchTrainingBytes(patched, p)
 
