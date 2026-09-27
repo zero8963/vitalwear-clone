@@ -172,6 +172,19 @@ fun ManageCardsScreen(onBack: () -> Unit, onVerify: (CardBrowserEntry) -> Unit) 
                 ) {
                     Text("Import DIM", color = Color.White)
                 }
+                Button(
+                    onClick = {
+                        context.startActivity(
+                            Intent(
+                                context,
+                                com.example.vitalwearclonev1.communication.VBBraceletTagReaderActivity::class.java
+                            )
+                        )
+                    },
+                    colors = ButtonDefaults.buttonColors(backgroundColor = Color(0, 90, 160))
+                ) {
+                    Text("Read Tag", color = Color.White)
+                }
             }
             OutlinedTextField(
                 value = query,

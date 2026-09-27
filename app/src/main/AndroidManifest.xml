@@ -125,6 +125,11 @@
             android:exported="true"
             android:label="Verify Card with Bracelet"
             android:theme="@style/Theme.VitalwearCloneV1" />
+        <activity
+            android:name=".communication.VBBraceletTagReaderActivity"
+            android:exported="true"
+            android:label="Bracelet Tag Reader"
+            android:theme="@style/Theme.VitalwearCloneV1" />
 
         <activity
             android:name=".gridbattle.GridBattleActivity"
