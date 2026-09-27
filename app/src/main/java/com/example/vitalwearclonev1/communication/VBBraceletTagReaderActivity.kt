@@ -298,7 +298,7 @@ class VBBraceletTagReaderActivity : ComponentActivity(), NfcAdapter.ReaderCallba
                 Spacer(Modifier.height(12.dp))
                 Button(
                     onClick = {
-                        startActivity(Intent(this, VBBraceletCharacterActivity::class.java))
+                        startActivity(Intent(this@VBBraceletTagReaderActivity, VBBraceletCharacterActivity::class.java))
                     }
                 ) {
                     Text("Character Backup / Transfer")
