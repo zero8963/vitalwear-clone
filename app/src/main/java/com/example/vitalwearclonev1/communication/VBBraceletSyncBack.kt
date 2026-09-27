@@ -24,6 +24,10 @@ import java.util.Locale
  *   in app-side fields with no known bracelet counterpart. The UI says so
  *   plainly instead of inventing bytes.
  *
+ * Trophies (0x006C/0x007C) are read for display but never written by sync:
+ * missions are earned on the bracelet, so the counter is preserved verbatim
+ * in the new backup.
+ *
  * Safety: strict read-modify-write. The source backup is never altered — the
  * patched blob is saved as a NEW backup. Only the 8 mapped bytes change;
  * all four touched 16-byte blocks get fresh checksums. Pages 0–7, the
@@ -45,11 +49,17 @@ object VBBraceletSyncBack {
         val mental: Int,
         val wins: Int,
         val losses: Int,
-        val winRate: Int
+        val winRate: Int,
+        /**
+         * Bracelet-side trophy count read from the source backup.
+         * Display only: missions are earned on the bracelet, so sync never
+         * writes trophies — the counter is preserved verbatim.
+         */
+        val trophies: Int?
     )
 
     /** What the sync would write, derived from the partner's app-side state. */
-    fun preview(monster: StoredMonster): SyncPreview {
+    fun preview(context: Context, monster: StoredMonster): SyncPreview {
         val wins = monster.currentWins.coerceIn(0, 255)
         val losses = monster.losses.coerceIn(0, 255)
         val total = wins + losses
@@ -57,7 +67,26 @@ object VBBraceletSyncBack {
             mental = monster.mood.coerceIn(0, 100),
             wins = wins,
             losses = losses,
-            winRate = if (total > 0) wins * 100 / total else 0
+            winRate = if (total > 0) wins * 100 / total else 0,
+            trophies = sourceTrophies(context, monster)
+        )
+    }
+
+    /**
+     * Current trophy count on the partner's source backup (bracelet-side).
+     * Null when the partner wasn't adopted from a bracelet backup or the
+     * backup is unreadable.
+     */
+    fun sourceTrophies(context: Context, monster: StoredMonster): Int? {
+        val backupId = sourceBackupId(monster) ?: return null
+        val source = try {
+            VBBraceletBackups.get(context, backupId)
+        } catch (e: Exception) {
+            null
+        } ?: return null
+        if (source.productId != 2 || source.plain.size != VBBraceletData.DATA_SIZE) return null
+        return VBBraceletData.readField(
+            source.plain, VBBraceletData.FIELDS.first { it.id == "braceletTrophies" }
         )
     }
 

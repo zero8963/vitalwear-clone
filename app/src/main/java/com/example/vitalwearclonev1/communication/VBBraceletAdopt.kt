@@ -133,6 +133,13 @@ object VBBraceletAdopt {
             VBBraceletData.readField(
                 backup.plain, VBBraceletData.FIELDS.first { it.id == "braceletLosses" }
             ).coerceIn(0, 255) else 0
+        // Seed the app-side trophy count from the bracelet's trophy counter
+        // (0x006C, stage-scoped). Missions are bracelet-side, so the app never
+        // earns these — this is a display record of the bracelet's count.
+        val bbTrophies = if (backup.productId == 2)
+            VBBraceletData.readField(
+                backup.plain, VBBraceletData.FIELDS.first { it.id == "braceletTrophies" }
+            ).coerceIn(0, 255) else 0
         val monster = StoredMonster(
             name = candidate.cardName,
             charId = candidate.charId,
@@ -151,7 +158,8 @@ object VBBraceletAdopt {
             evolutionTime = 3600,
             attribute = candidate.attribute,
             mood = mental,
-            losses = bbLosses
+            losses = bbLosses,
+            trophies = bbTrophies
         )
         LabStorage.addMonster(context, monster)
         rememberChoice(context, backup.id, candidate.cardName, candidate.charId)

@@ -34,6 +34,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -99,6 +100,8 @@ class VBBraceletCharacterActivity : ComponentActivity(), NfcAdapter.ReaderCallba
     private val dimText = mutableStateOf("")
     /** (partner, preview) for the "sync training" confirm dialog, or null. */
     private val syncDialogData = mutableStateOf<Pair<StoredMonster, VBBraceletSyncBack.SyncPreview>?>(null)
+    /** Non-null while the evolution tracker dialog is open. */
+    private val trackerOpen = mutableStateOf(false)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -400,7 +403,7 @@ class VBBraceletCharacterActivity : ComponentActivity(), NfcAdapter.ReaderCallba
                 ).show()
                 return
             }
-            syncDialogData.value = partner to VBBraceletSyncBack.preview(partner)
+            syncDialogData.value = partner to VBBraceletSyncBack.preview(this, partner)
         } catch (e: Exception) {
             Timber.e(e, "partner lookup failed")
             Toast.makeText(this, "Lookup failed: ${e.message}", Toast.LENGTH_LONG).show()
@@ -576,6 +579,18 @@ class VBBraceletCharacterActivity : ComponentActivity(), NfcAdapter.ReaderCallba
                                 modifier = Modifier.padding(top = 4.dp)
                             )
                         }
+                        if (ch != null && ch.productId == 2) {
+                            Spacer(Modifier.height(8.dp))
+                            Button(
+                                onClick = { trackerOpen.value = true },
+                                colors = ButtonDefaults.buttonColors(backgroundColor = Color(0xFF2E7D32))
+                            ) { Text("Evolution Tracker") }
+                            Text(
+                                "Live evolution requirements vs. this character's stats.",
+                                color = Color.Gray, fontSize = 11.sp, textAlign = TextAlign.Center,
+                                modifier = Modifier.padding(top = 4.dp)
+                            )
+                        }
                     }
                     UiState.WriteTap1Armed -> {
                         Text("Tap 1 armed — tap the bracelet.", color = Color.Yellow, fontSize = 14.sp)
@@ -674,6 +689,12 @@ class VBBraceletCharacterActivity : ComponentActivity(), NfcAdapter.ReaderCallba
                             "• Win rate ← ${preview.winRate}% (recomputed)",
                             fontFamily = FontFamily.Monospace, fontSize = 13.sp
                         )
+                        if (preview.trophies != null) {
+                            Text(
+                                "• Trophies: ${preview.trophies} 🏆 (bracelet-side, kept as-is)",
+                                fontFamily = FontFamily.Monospace, fontSize = 13.sp
+                            )
+                        }
                         Spacer(Modifier.height(8.dp))
                         Text(
                             "Training stat bonuses can't be mapped to bracelet bytes yet — " +
@@ -693,12 +714,77 @@ class VBBraceletCharacterActivity : ComponentActivity(), NfcAdapter.ReaderCallba
                 }
             )
         }
+        if (trackerOpen.value) {
+            val c = ch
+            if (c != null) {
+                EvoTrackerDialog(
+                    plain = c.plain,
+                    productId = c.productId,
+                    onClose = { trackerOpen.value = false }
+                )
+            } else {
+                trackerOpen.value = false
+            }
+        }
     }
 
     private fun armTap2() {
         // No-op: the tap-2 arm is the state itself; this keeps the button honest.
         uiState.value = UiState.WriteTap2Armed
         statusFlow.value = "Tap 2 armed — tap the bracelet now."
+    }
+
+    @Composable
+    private fun EvoTrackerDialog(plain: ByteArray, productId: Int, onClose: () -> Unit) {
+        val current = remember { VBBraceletEvoTracker.readCurrent(plain, productId) }
+        AlertDialog(
+            onDismissRequest = onClose,
+            title = { Text("Evolution Tracker") },
+            text = {
+                if (current == null) {
+                    Text("Couldn't parse this character (not a mapped product).")
+                } else {
+                    val reports = remember { VBBraceletEvoTracker.reportAll(current) }
+                    Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+                        Text(
+                            "Current: \uD83C\uDFC6${current.trophies} · Vitals ${current.vitals} · " +
+                                    "${current.wins}W–${current.losses}L · ${current.winRate}% · " +
+                                    "⏱${current.timerMinutes?.let { VBBraceletData.formatMinutes(it) } ?: "?"} left",
+                            fontFamily = FontFamily.Monospace, fontSize = 12.sp
+                        )
+                        Spacer(Modifier.height(10.dp))
+                        for (r in reports) {
+                            Text(
+                                r.path.label + if (r.allMet) " — READY ✓" else "",
+                                fontWeight = FontWeight.Bold, fontSize = 14.sp,
+                                color = if (r.allMet) Color(0xFF9DFF9D) else Color.White
+                            )
+                            for (req in r.requirements) {
+                                val mark = if (req.met) "✓" else "✗"
+                                val need = if (req.met) "" else " (need ${req.deficit} more)"
+                                Text(
+                                    "$mark ${req.label}: ${req.current}${req.suffix} / " +
+                                            "${req.target}${req.suffix}$need",
+                                    fontFamily = FontFamily.Monospace, fontSize = 12.sp,
+                                    color = if (req.met) Color(0xFF9DFF9D) else Color(0xFFFFAB91)
+                                )
+                            }
+                            Spacer(Modifier.height(8.dp))
+                        }
+                        Text(
+                            "The bracelet grants the HIGHEST path you qualify for — " +
+                                    "aim at one tier or you'll overshoot into another. " +
+                                    "Holding the bottom button at the evolution screen cancels it " +
+                                    "and buys time.",
+                            fontSize = 11.sp, color = Color.Gray
+                        )
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = onClose) { Text("Close") }
+            }
+        )
     }
 
     @Composable

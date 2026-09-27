@@ -152,14 +152,18 @@ object VBBraceletData {
             setOf(2, 3, 4), true, "cap 100",
             mirrorOffsets = listOf(0x91), mirrorProducts = setOf(2)),
         CharField("vital", "Vital value", 41, 0, FieldType.U16_BE, null,
-            setOf(2, 3, 4), true),
+            setOf(2, 3, 4), true, "mirror at 0x0094 on product 2",
+            mirrorOffsets = listOf(0x94), mirrorProducts = setOf(2)),
         CharField("nextTimer", "Next timer", 43, 1, FieldType.U16_BE, null,
-            setOf(2, 3, 4), true),
+            setOf(2, 3, 4), true, "minutes; mirror at 0x009D on product 2",
+            mirrorOffsets = listOf(0x9D), mirrorProducts = setOf(2)),
         // Product 2 battle record (live copies at 0x0060 and 0x0070),
         // mapped live on the user's real Hero via read→battle→read diffs
         // (2026-09-27, checksums verified): byte 3 = wins, byte 5 = losses,
         // bytes 7/9 = mirror copies, byte 10 = win rate % (truncated),
-        // bytes 12/14 = mission flags (read-only, never written).
+        // byte 12 = TROPHY COUNTER (stage-scoped, resets on evolution,
+        // per-character blob — display-mirrored in backups D/J/L/G),
+        // byte 14 = per-mission record (read-only, never written).
         CharField("braceletWins", "Wins", 32, 3, FieldType.U8, null,
             setOf(2), true, "bracelet battle record",
             mirrorOffsets = listOf(0x73)),
@@ -169,6 +173,9 @@ object VBBraceletData {
         CharField("braceletWinRate", "Win rate %", 34, 2, FieldType.U8, 100,
             setOf(2), false, "auto from wins/losses",
             mirrorOffsets = listOf(0x7A)),
+        CharField("braceletTrophies", "Trophies", 35, 0, FieldType.U8, null,
+            setOf(2), true, "stage trophies — resets on evolution",
+            mirrorOffsets = listOf(0x7C)),
         CharField("hpPlus", "HP+", 72, 0, FieldType.U16_BE, 999,
             setOf(4), true, "VBBE only, cap 999"),
         CharField("apPlus", "AP+", 72, 2, FieldType.U16_BE, 999,
@@ -268,6 +275,12 @@ object VBBraceletData {
     }
 
     fun ByteArray.toHex(): String = joinToString(" ") { "%02X".format(it) }
+
+    /** Format a next-timer minute count as "23h45m" / "45m". */
+    fun formatMinutes(minutes: Int): String {
+        val m = minutes.coerceAtLeast(0)
+        return if (m >= 60) "${m / 60}h${m % 60}m" else "${m}m"
+    }
 
     fun hexDump(bytes: ByteArray, bytesPerLine: Int = 16): String {
         val sb = StringBuilder()

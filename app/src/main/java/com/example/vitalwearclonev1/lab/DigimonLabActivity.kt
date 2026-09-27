@@ -505,7 +505,7 @@ fun MonsterCard(monster: StoredMonster, index: Int, onRestore: () -> Unit, onAdv
     }
     if (showSyncDialog && adoptedBackupId != null) {
         val preview = remember(monster) {
-            com.example.vitalwearclonev1.communication.VBBraceletSyncBack.preview(monster)
+            com.example.vitalwearclonev1.communication.VBBraceletSyncBack.preview(context, monster)
         }
         AlertDialog(
             onDismissRequest = { showSyncDialog = false },
@@ -520,6 +520,9 @@ fun MonsterCard(monster: StoredMonster, index: Int, onRestore: () -> Unit, onAdv
                     Text("• Wins ← ${preview.wins}", fontSize = 13.sp)
                     Text("• Losses ← ${preview.losses}", fontSize = 13.sp)
                     Text("• Win rate ← ${preview.winRate}% (recomputed)", fontSize = 13.sp)
+                    if (preview.trophies != null) {
+                        Text("• Trophies: ${preview.trophies} \uD83C\uDFC6 (bracelet-side, kept as-is)", fontSize = 13.sp)
+                    }
                     Text(
                         "Training stat bonuses can't be mapped to bracelet bytes yet — " +
                             "they stay in the app only.",
@@ -717,6 +720,9 @@ fun MonsterCard(monster: StoredMonster, index: Int, onRestore: () -> Unit, onAdv
                     }
                 }
                 Text(text = "Wins: ${monster.currentWins}", color = Color.Yellow, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                if (monster.trophies > 0) {
+                    Text(text = "\uD83C\uDFC6 Trophies: ${monster.trophies}", color = Color(0xFFFFD54F), fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                }
                 Text(text = "ATK: ${monster.attack} | Cals: ${monster.calories}", color = Color.White, fontSize = 12.sp)
                 Text(text = "SPD: ${monster.speed} | DEF: ${monster.defense}", color = Color.White, fontSize = 12.sp)
                 if (isCardMissing.value) {

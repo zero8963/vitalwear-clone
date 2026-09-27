@@ -53,6 +53,8 @@ object VBBraceletBackups {
                 parts.add("${w ?: 0}W–${l ?: 0}L")
             }
             fields["braceletWinRate"]?.let { parts.add("$it%") }
+            fields["braceletTrophies"]?.let { parts.add("\uD83C\uDFC6$it") }
+            fields["nextTimer"]?.let { parts.add("⏱${VBBraceletData.formatMinutes(it)}") }
             fields["originDimId"]?.let {
                 parts.add("DIM " + if (it == 0xFFFF) "empty" else it.toString())
             }
