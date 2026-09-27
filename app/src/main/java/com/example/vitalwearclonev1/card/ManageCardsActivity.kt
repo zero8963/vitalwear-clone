@@ -38,20 +38,49 @@ data class CardBrowserEntry(
     val name: String,
     val charCount: Int,
     val isBem: Boolean,
+    val dimId: Int,
+    val validated: Boolean,
     val thumb: Bitmap?
 )
 
 class ManageCardsActivity : ComponentActivity() {
+
+    private var validateLauncher: androidx.activity.result.ActivityResultLauncher<Intent>? = null
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        validateLauncher = registerForActivityResult(
+            androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult()
+        ) { result ->
+            if (result.resultCode == RESULT_OK) {
+                val id = result.data?.getIntExtra(
+                    com.example.vitalwearclonev1.communication.VBCardValidateActivity.RESULT_VALIDATED_DIM_ID, -1
+                ) ?: -1
+                if (id >= 0) {
+                    com.example.vitalwearclonev1.communication.BraceletValidationStore.markValidated(this, id)
+                    Toast.makeText(this, "Card verified with your real bracelet!", Toast.LENGTH_LONG).show()
+                }
+            }
+        }
         setContent {
-            ManageCardsScreen(onBack = { finish() })
+            ManageCardsScreen(
+                onBack = { finish() },
+                onVerify = { entry ->
+                    val intent = Intent(
+                        this,
+                        com.example.vitalwearclonev1.communication.VBCardValidateActivity::class.java
+                    )
+                        .putExtra(com.example.vitalwearclonev1.communication.VBCardValidateActivity.EXTRA_DIM_ID, entry.dimId)
+                        .putExtra(com.example.vitalwearclonev1.communication.VBCardValidateActivity.EXTRA_CARD_NAME, entry.name)
+                    validateLauncher?.launch(intent)
+                }
+            )
         }
     }
 }
 
 @Composable
-fun ManageCardsScreen(onBack: () -> Unit) {
+fun ManageCardsScreen(onBack: () -> Unit, onVerify: (CardBrowserEntry) -> Unit) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val cardManager = remember { CardManager(context) }
@@ -72,12 +101,14 @@ fun ManageCardsScreen(onBack: () -> Unit) {
                             val card = cardManager.getCard(name) ?: continue
                             val count = try { card.characterStats.characterEntries.size } catch (e: Exception) { 0 }
                             val isBem = card is BemCard
+                            val dimId = try { card.header.dimId } catch (e: Exception) { 0 }
+                            val validated = com.example.vitalwearclonev1.communication.BraceletValidationStore.isValidated(context, dimId)
                             val thumb = try {
                                 val sprites = card.spriteData.sprites
                                 val base = if (isBem) 54 else 10 // charBaseIndex(0, isBem)
                                 sprites.getOrNull(base + 1)?.let { SpriteBitmapHandler.getBitmap(it) }
                             } catch (e: Exception) { null }
-                            out.add(CardBrowserEntry(name, count, isBem, thumb))
+                            out.add(CardBrowserEntry(name, count, isBem, dimId, validated, thumb))
                         } catch (e: Exception) {
                             Timber.w(e, "Skipping unreadable card $name")
                         }
@@ -169,7 +200,7 @@ fun ManageCardsScreen(onBack: () -> Unit) {
             } else {
                 LazyColumn(modifier = Modifier.fillMaxSize().padding(16.dp)) {
                     items(shown, key = { it.name }) { entry ->
-                        CardBrowserRow(entry, onDelete = { cardToDelete = entry.name })
+                        CardBrowserRow(entry, onDelete = { cardToDelete = entry.name }, onVerify = { onVerify(entry) })
                         Spacer(Modifier.height(8.dp))
                     }
                 }
@@ -208,7 +239,7 @@ fun ManageCardsScreen(onBack: () -> Unit) {
 }
 
 @Composable
-fun CardBrowserRow(entry: CardBrowserEntry, onDelete: () -> Unit) {
+fun CardBrowserRow(entry: CardBrowserEntry, onDelete: () -> Unit, onVerify: () -> Unit) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         backgroundColor = Color(0, 80, 150),
@@ -235,6 +266,19 @@ fun CardBrowserRow(entry: CardBrowserEntry, onDelete: () -> Unit) {
                     color = Color.LightGray,
                     fontSize = 12.sp
                 )
+            }
+            if (entry.validated) {
+                Text(
+                    "\u2713 Bracelet",
+                    color = Color(140, 255, 140),
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(end = 4.dp)
+                )
+            } else {
+                TextButton(onClick = onVerify) {
+                    Text("Verify", color = Color.Cyan, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                }
             }
             IconButton(onClick = onDelete) {
                 Icon(Icons.Default.Delete, contentDescription = "Delete", tint = Color(255, 130, 130))

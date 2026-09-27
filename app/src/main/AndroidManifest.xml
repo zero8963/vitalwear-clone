@@ -119,6 +119,13 @@
             android:label="VB Sync"
             android:theme="@style/Theme.VitalwearCloneV1" />
 
+        <!-- 2026-09-27: real-bracelet card verification (Vital Hero / VBBE App Loglink) -->
+        <activity
+            android:name=".communication.VBCardValidateActivity"
+            android:exported="true"
+            android:label="Verify Card with Bracelet"
+            android:theme="@style/Theme.VitalwearCloneV1" />
+
         <activity
             android:name=".gridbattle.GridBattleActivity"
             android:exported="true"
