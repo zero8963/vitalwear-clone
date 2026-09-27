@@ -16,13 +16,17 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.AlertDialog
 import androidx.compose.material.Button
 import androidx.compose.material.Card
@@ -46,6 +50,7 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
 import com.example.vitalwearclonev1.card.CardManager
 import com.example.vitalwearclonev1.monster.PhoneMonsterManager
 import com.example.vitalwearclonev1.common.SpriteBitmapHandler
@@ -153,6 +158,18 @@ object LabStorage {
             current[index] = current[index].copy(
                 rawPayload = com.example.vitalwearclonev1.communication.VBBraceletSyncBack.PREFIX + backupId
             )
+            _monsters.value = current
+            save(context, current)
+        }
+    }
+
+    /**
+     * Replace the monster at [index] wholesale (used by bracelet refresh).
+     */
+    fun setMonster(context: Context, index: Int, monster: StoredMonster) {
+        val current = _monsters.value.toMutableList()
+        if (index in current.indices) {
+            current[index] = monster
             _monsters.value = current
             save(context, current)
         }
@@ -449,6 +466,190 @@ fun LabUI() {
 }
 
 @Composable
+private fun RefreshPartnerDialog(
+    backup: com.example.vitalwearclonev1.communication.VBBraceletBackups.Backup,
+    currentStage: Int,
+    onClose: () -> Unit,
+    onRefresh: (com.example.vitalwearclonev1.communication.VBBraceletAdopt.AdoptCandidate, Int) -> Unit
+) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    var candidates by remember { mutableStateOf(listOf<com.example.vitalwearclonev1.communication.VBBraceletAdopt.AdoptCandidate>()) }
+    var loading by remember { mutableStateOf(true) }
+    var query by remember { mutableStateOf("") }
+    var selected by remember { mutableStateOf<com.example.vitalwearclonev1.communication.VBBraceletAdopt.AdoptCandidate?>(null) }
+    var stage by remember { mutableIntStateOf(currentStage.coerceIn(0, 5)) }
+
+    LaunchedEffect(backup.id) {
+        loading = true
+        val list = withContext(Dispatchers.IO) {
+            com.example.vitalwearclonev1.communication.VBBraceletAdopt.loadCandidates(context)
+        }
+        candidates = list
+        com.example.vitalwearclonev1.communication.VBBraceletAdopt
+            .rememberedChoice(context, backup.id)?.let { (cardName, charId) ->
+                list.firstOrNull { it.cardName == cardName && it.charId == charId }?.let { pick ->
+                    selected = pick
+                    stage = pick.stage
+                }
+            }
+        loading = false
+    }
+
+    val shown = remember(candidates, query) {
+        val q = query.trim().lowercase()
+        if (q.isEmpty()) candidates
+        else candidates.filter {
+            it.cardName.lowercase().contains(q) || it.label.lowercase().contains(q)
+        }
+    }
+
+    Dialog(onDismissRequest = onClose) {
+        Card(backgroundColor = Color(0xFF1E3A5F), elevation = 8.dp) {
+            Column(
+                modifier = Modifier.padding(16.dp).fillMaxWidth()
+                    .verticalScroll(rememberScrollState())
+            ) {
+                Text(
+                    "Refresh Partner",
+                    color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold
+                )
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    "Backup ${backup.dateStr} — ${backup.fieldSummary()}\n" +
+                            "Pick the evolved species. Mood, trophies and the battle record " +
+                            "are re-seeded from the bracelet; nickname, training bonuses " +
+                            "and level are kept.",
+                    color = Color(0xFF8A9BB5), fontSize = 12.sp
+                )
+                Spacer(Modifier.height(10.dp))
+                TextField(
+                    value = query,
+                    onValueChange = { query = it },
+                    placeholder = { Text("Search cards…", fontSize = 13.sp) },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
+                )
+                Spacer(Modifier.height(8.dp))
+                when {
+                    loading -> {
+                        Row(
+                            modifier = Modifier.fillMaxWidth().height(120.dp),
+                            horizontalArrangement = Arrangement.Center,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) { CircularProgressIndicator(color = Color(0xFFFFD54F)) }
+                    }
+                    candidates.isEmpty() -> {
+                        Text(
+                            "No DIM/BEM cards imported yet.\nImport one in Manage Cards first.",
+                            color = Color(0xFFFFB74D), fontSize = 13.sp,
+                            modifier = Modifier.fillMaxWidth().padding(16.dp)
+                        )
+                    }
+                    else -> {
+                        LazyColumn(
+                            modifier = Modifier.fillMaxWidth().height(220.dp),
+                            verticalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            itemsIndexed(shown) { _, c ->
+                                val isSel = selected?.cardName == c.cardName &&
+                                        selected?.charId == c.charId
+                                Row(
+                                    modifier = Modifier.fillMaxWidth()
+                                        .clickable {
+                                            selected = c
+                                            stage = c.stage
+                                        }
+                                        .background(if (isSel) Color(0xFF3A5A8F) else Color(0xFF14273F))
+                                        .padding(8.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    val bmp = c.sprite
+                                    if (bmp != null) {
+                                        Image(
+                                            bitmap = bmp.asImageBitmap(),
+                                            contentDescription = c.label,
+                                            modifier = Modifier.size(44.dp)
+                                        )
+                                    } else {
+                                        Box(
+                                            modifier = Modifier.size(44.dp)
+                                                .background(Color(0xFF0A1A2F)),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Text("?", color = Color.Gray, fontSize = 18.sp)
+                                        }
+                                    }
+                                    Spacer(Modifier.width(10.dp))
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            c.cardName, color = Color.White,
+                                            fontSize = 13.sp, fontWeight = FontWeight.Bold
+                                        )
+                                        Text(
+                                            "Character #${c.charId} · " +
+                                                    com.example.vitalwearclonev1.communication.VBBraceletAdopt.STAGE_NAMES.getOrElse(c.stage) { "Stage ${c.stage}" },
+                                            color = Color(0xFF8A9BB5), fontSize = 11.sp
+                                        )
+                                    }
+                                    if (isSel) {
+                                        Text(
+                                            "✓", color = Color(0xFF00E5A0),
+                                            fontSize = 18.sp, fontWeight = FontWeight.Bold
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                Spacer(Modifier.height(10.dp))
+                Text("Stage", color = Color(0xFF8A9BB5), fontSize = 12.sp)
+                Spacer(Modifier.height(4.dp))
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    for (row in 0 until 2) {
+                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            for (i in row * 3 until row * 3 + 3) {
+                                val label = com.example.vitalwearclonev1.communication.VBBraceletAdopt.STAGE_NAMES[i]
+                                Button(
+                                    onClick = { stage = i },
+                                    modifier = Modifier.weight(1f),
+                                    colors = androidx.compose.material.ButtonDefaults.buttonColors(
+                                        backgroundColor = if (stage == i) Color(0xFF00897B)
+                                        else Color(0xFF333333)
+                                    )
+                                ) {
+                                    Text(label, fontSize = 10.sp, maxLines = 1)
+                                }
+                            }
+                        }
+                    }
+                }
+                Spacer(Modifier.height(12.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Button(
+                        onClick = onClose,
+                        modifier = Modifier.weight(1f),
+                        colors = androidx.compose.material.ButtonDefaults.buttonColors(backgroundColor = Color(0xFF555555))
+                    ) { Text("Cancel", fontSize = 13.sp) }
+                    Button(
+                        onClick = {
+                            val pick = selected ?: return@Button
+                            onRefresh(pick, stage)
+                        },
+                        enabled = selected != null,
+                        modifier = Modifier.weight(1f),
+                        colors = androidx.compose.material.ButtonDefaults.buttonColors(backgroundColor = Color(0xFF00897B))
+                    ) { Text("Refresh!", fontSize = 13.sp) }
+                }
+            }
+        }
+    }
+}
+
+@Composable
 fun MonsterCard(monster: StoredMonster, index: Int, onRestore: () -> Unit, onAdventure: () -> Unit, onSyncToVB: () -> Unit, onSetHome: () -> Unit, onRelease: () -> Unit) {
     val context = androidx.compose.ui.platform.LocalContext.current
     val scope = rememberCoroutineScope()
@@ -460,6 +661,8 @@ fun MonsterCard(monster: StoredMonster, index: Int, onRestore: () -> Unit, onAdv
     var showNicknameDialog by remember { mutableStateOf(false) }
     var showSyncDialog by remember { mutableStateOf(false) }
     var showLinkDialog by remember { mutableStateOf(false) }
+    var showRefreshPicker by remember { mutableStateOf(false) }
+    var refreshBackup by remember { mutableStateOf<com.example.vitalwearclonev1.communication.VBBraceletBackups.Backup?>(null) }
     var nicknameText by remember { mutableStateOf(monster.nickname ?: "") }
 
     if (showNicknameDialog) {
@@ -621,6 +824,73 @@ fun MonsterCard(monster: StoredMonster, index: Int, onRestore: () -> Unit, onAdv
             },
             confirmButton = {
                 Button(onClick = { showLinkDialog = false }) { Text("Cancel") }
+            }
+        )
+    }
+
+    if (showRefreshPicker) {
+        val backups = remember {
+            com.example.vitalwearclonev1.communication.VBBraceletBackups.list(context)
+                .filter { it.productId == 2 }
+                .sortedByDescending { it.savedAt }
+        }
+        AlertDialog(
+            onDismissRequest = { showRefreshPicker = false },
+            title = { Text("Refresh From Bracelet") },
+            text = {
+                Column {
+                    Text("Pick the NEW bracelet backup (e.g. after digivolution). The partner's species, mood, trophies and battle record are re-seeded from it.")
+                    if (backups.isEmpty()) {
+                        Text("No bracelet backups found — read the bracelet first.", color = Color.Gray)
+                    } else {
+                        LazyColumn(Modifier.height(220.dp)) {
+                            itemsIndexed(backups) { _, b ->
+                                val isLinked = b.id == adoptedBackupId
+                                Column(
+                                    modifier = Modifier.fillMaxWidth().clickable {
+                                        if (isLinked) {
+                                            Toast.makeText(context, "Already linked to this backup", Toast.LENGTH_SHORT).show()
+                                        } else {
+                                            refreshBackup = b
+                                            showRefreshPicker = false
+                                        }
+                                    }.padding(8.dp)
+                                ) {
+                                    Text(
+                                        (if (b.note.isNotBlank()) b.note else b.dateStr) +
+                                                if (isLinked) "  (linked)" else "",
+                                        fontWeight = FontWeight.Bold,
+                                        color = if (isLinked) Color(0xFF00E5A0) else Color.White
+                                    )
+                                    Text(b.fieldSummary(), fontSize = 12.sp, color = Color.Gray)
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                Button(onClick = { showRefreshPicker = false }) { Text("Cancel") }
+            }
+        )
+    }
+
+    val rb = refreshBackup
+    if (rb != null) {
+        RefreshPartnerDialog(
+            backup = rb,
+            currentStage = monster.stage,
+            onClose = { refreshBackup = null },
+            onRefresh = { candidate, stage ->
+                try {
+                    com.example.vitalwearclonev1.communication.VBBraceletAdopt.refresh(
+                        context, index, rb, candidate, stage
+                    )
+                } catch (e: Exception) {
+                    Timber.e(e, "refresh failed")
+                    Toast.makeText(context, "Refresh failed: ${e.message}", Toast.LENGTH_LONG).show()
+                }
+                refreshBackup = null
             }
         )
     }
@@ -809,6 +1079,13 @@ fun MonsterCard(monster: StoredMonster, index: Int, onRestore: () -> Unit, onAdv
                         colors = androidx.compose.material.ButtonDefaults.buttonColors(backgroundColor = Color(0xFF6A4C93))
                     ) {
                         Text(text = "Sync Training", fontSize = 10.sp, color = Color.White)
+                    }
+                    Button(
+                        onClick = { showRefreshPicker = true },
+                        modifier = Modifier.padding(top = 4.dp),
+                        colors = androidx.compose.material.ButtonDefaults.buttonColors(backgroundColor = Color(0xFF00897B))
+                    ) {
+                        Text(text = "Refresh", fontSize = 10.sp, color = Color.White)
                     }
                 } else {
                     Button(

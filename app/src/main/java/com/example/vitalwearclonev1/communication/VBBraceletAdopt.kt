@@ -171,4 +171,52 @@ object VBBraceletAdopt {
         )
         return monster
     }
+
+    /**
+     * Refresh an adopted partner from a NEWER bracelet backup (e.g. after the
+     * bracelet digivolved). Re-links rawPayload to the new backup, swaps
+     * species/stage/appearance to the newly picked card character, and
+     * re-seeds mood/trophies/wins/losses from the bracelet blob.
+     * App-earned state (nickname, training bonuses, xp/level) is kept.
+     * Purely app-side: never touches the bracelet or the backups.
+     */
+    fun refresh(
+        context: Context,
+        index: Int,
+        backup: VBBraceletBackups.Backup,
+        candidate: AdoptCandidate,
+        stage: Int
+    ) {
+        val current = LabStorage.monsters.value.toMutableList()
+        if (index !in current.indices) return
+        val old = current[index]
+        fun blobU8(id: String, fallback: Int): Int =
+            if (backup.productId == 2 && backup.plain.size == VBBraceletData.DATA_SIZE) {
+                try {
+                    VBBraceletData.readField(
+                        backup.plain, VBBraceletData.FIELDS.first { it.id == id }
+                    ).coerceIn(0, 255)
+                } catch (e: Exception) {
+                    fallback
+                }
+            } else fallback
+        val updated = old.copy(
+            name = candidate.cardName,
+            charId = candidate.charId,
+            stage = stage.coerceIn(0, 5),
+            attribute = candidate.attribute,
+            rawPayload = "bracelet-adopt:${backup.id}",
+            mood = backup.fields["mental"]?.coerceIn(0, 100) ?: old.mood,
+            currentWins = blobU8("braceletWins", old.currentWins),
+            losses = blobU8("braceletLosses", old.losses),
+            trophies = blobU8("braceletTrophies", old.trophies)
+        )
+        LabStorage.setMonster(context, index, updated)
+        rememberChoice(context, backup.id, candidate.cardName, candidate.charId)
+        Toast.makeText(context, "Partner refreshed from the bracelet.", Toast.LENGTH_LONG).show()
+        Timber.d(
+            "VBBraceletAdopt.refresh: index=$index -> backup ${backup.id} " +
+                    "as ${candidate.cardName}#${candidate.charId} stage=$stage"
+        )
+    }
 }
