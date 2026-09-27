@@ -304,6 +304,27 @@ fun LabUI() {
                     }
                 }
             }
+            // Bracelet character backups - full-width entry (the header
+            // "Bracelet" chip is easy to miss; this is the canonical way in).
+            run {
+                val backups = com.example.vitalwearclonev1.communication.VBBraceletBackups
+                    .list(context)
+                Button(
+                    onClick = {
+                        val intent = Intent(context, com.example.vitalwearclonev1.communication.VBBraceletBackupsActivity::class.java)
+                        context.startActivity(intent)
+                    },
+                    colors = androidx.compose.material.ButtonDefaults.buttonColors(
+                        backgroundColor = Color(0xFF6A4C93)),
+                    modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp).height(52.dp)
+                ) {
+                    Text(
+                        "Bracelet Backups" +
+                            if (backups.isEmpty()) "" else " (${backups.size})",
+                        color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold
+                    )
+                }
+            }
 
             if (monsters.isEmpty()) {
                 Text(text = "No monsters stored in the Lab yet.", color = Color.LightGray)
