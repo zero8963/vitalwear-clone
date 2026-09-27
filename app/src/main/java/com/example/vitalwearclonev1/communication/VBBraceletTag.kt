@@ -35,7 +35,10 @@ import kotlin.experimental.or
  *   tap 2 -> wasCardIdValidated(): phone re-reads page 4 and confirms the
  *   bracelet reports the same dimId with operation == READY and both status flags.
  */
-class VBBraceletTag(nfc: MifareUltralight) {
+class VBBraceletTag(val raw: ByteArray) {
+
+    /** Convenience ctor that reads the header window itself (existing callers). */
+    constructor(nfc: MifareUltralight) : this(nfc.transceive(CMD_READ_PAGE_4))
 
     companion object {
         private const val ITEM_ID_BE: UShort = 4u
@@ -52,22 +55,23 @@ class VBBraceletTag(nfc: MifareUltralight) {
         private const val CHECK_PAGE = 6
     }
 
-    /** Raw 16 bytes returned by the page-4 read, kept for diagnostics. */
-    val raw: ByteArray
+    /** Raw 16 bytes of the page-4 read, kept for diagnostics. */
     val magic: UInt
     val itemId: UShort
     val itemNumber: UShort
     val status: Byte
     val operation: Byte
     val dimId: UShort
+    /** Product ID byte (header[5]): 2=Digimon, 3=CHARACTERS, 4=VBBE — see VBBraceletAuth. */
+    val productId: Int
 
     init {
-        raw = nfc.transceive(CMD_READ_PAGE_4)
         Timber.d("VBBraceletTag page-4 raw: ${raw.joinToString(" ") { "%02X".format(it) }}")
         magic = raw.getUInt32(0, Endian.Big)
         itemId = raw.getUInt16(4, Endian.Big)
         itemNumber = raw.getUInt16(6, Endian.Big)
         status = raw[8]
+        productId = raw[5].toInt() and 0xFF
         if (itemId == ITEM_ID_BE) {
             operation = raw[9]
             dimId = raw.getUInt16(10, Endian.Big)

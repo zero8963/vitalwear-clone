@@ -4,14 +4,17 @@ import android.content.Intent
 import android.nfc.NfcAdapter
 import android.nfc.Tag
 import android.nfc.tech.MifareUltralight
+import android.nfc.tech.NfcA
 import android.os.Bundle
 import android.provider.Settings
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
@@ -52,6 +55,8 @@ class VBBraceletTagReaderActivity : ComponentActivity(), NfcAdapter.ReaderCallba
     private var nfcAdapter: NfcAdapter? = null
     private val reportFlow = MutableStateFlow("Waiting for a tap…")
     private val tapCount = mutableStateOf(0)
+    private val authArmed = mutableStateOf(false)
+    private val authReportFlow = MutableStateFlow<String?>(null)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -88,6 +93,11 @@ class VBBraceletTagReaderActivity : ComponentActivity(), NfcAdapter.ReaderCallba
 
     override fun onTagDiscovered(tag: Tag?) {
         if (tag == null) return
+        if (authArmed.value) {
+            authArmed.value = false
+            runAuthProbe(tag)
+            return
+        }
         try {
             val nfc = MifareUltralight.get(tag)
             if (nfc == null) {
@@ -108,13 +118,77 @@ class VBBraceletTagReaderActivity : ComponentActivity(), NfcAdapter.ReaderCallba
         }
     }
 
+    /**
+     * Phase-1 login probe: read the UID + header over NfcA, derive the
+     * official-app PWD_AUTH password, send the single 0x1B auth command and
+     * report the bracelet's answer. Read-only apart from the auth command.
+     */
+    private fun runAuthProbe(tag: Tag) {
+        authReportFlow.value = "Probing…"
+        val sb = StringBuilder()
+        try {
+            val nfcA = NfcA.get(tag)
+            if (nfcA == null) {
+                authReportFlow.value = "Tag is not NFC-A — cannot test login."
+                return
+            }
+            nfcA.connect()
+            nfcA.use { nfc ->
+                val uid = tag.id
+                sb.append("UID (${uid.size} bytes): ${uid.toHex()}\n")
+                if (uid.size != 7) {
+                    sb.append("UID is not 7 bytes — password derivation needs exactly 7.\n")
+                    authReportFlow.value = sb.toString()
+                    return@use
+                }
+                val header = nfc.transceive(byteArrayOf(0x30, 0x04))
+                if (header.size < 16) {
+                    sb.append("Header read returned ${header.size} bytes (expected 16).\n")
+                    authReportFlow.value = sb.toString()
+                    return@use
+                }
+                val productId = header[5].toInt() and 0xFF
+                sb.append("Product ID: $productId (${VBBraceletAuth.productName(productId)})\n")
+                if (!VBBraceletAuth.supportsProduct(productId)) {
+                    sb.append("No known login keys for this product — not attempting login.\n")
+                    authReportFlow.value = sb.toString()
+                    return@use
+                }
+                sb.append("Sending PWD_AUTH (0x1B)…\n")
+                when (val r = VBBraceletAuth.pwdAuth(nfc, uid, productId)) {
+                    is VBBraceletAuth.PwdAuthResult.Success -> {
+                        sb.append("\n\u2713 LOGIN ACCEPTED — PACK: ${r.pack.toHex()}\n")
+                        sb.append("The bracelet speaks the transfer protocol.\n")
+                        if (!r.ackOk) sb.append("(note: first PACK byte was not 0x0A)\n")
+                    }
+                    is VBBraceletAuth.PwdAuthResult.Nak -> {
+                        sb.append("\n\u2717 LOGIN REJECTED — NAK: ${r.response.toHex()}\n")
+                        sb.append("The bracelet does not accept this login.\n")
+                    }
+                    is VBBraceletAuth.PwdAuthResult.Error ->
+                        sb.append("\n\u2717 ERROR: ${r.message}\n")
+                }
+                authReportFlow.value = sb.toString()
+            }
+        } catch (e: Exception) {
+            Timber.e(e, "Auth probe failed")
+            sb.append("\n\u2717 ERROR: ${e.message}\n")
+            authReportFlow.value = sb.toString()
+        }
+    }
+
+    private fun ByteArray.toHex(): String = joinToString(" ") { "%02X".format(it) }
+
     private fun readReport(nfc: MifareUltralight): String {
         // Pages 0-3: UID + lock bytes (raw only — standard Ultralight layout).
         val header = nfc.transceive(byteArrayOf(0x30, 0x00))
         // Pages 4-7: the bracelet protocol window (parsed by VBBraceletTag).
         val proto = VBBraceletTag(nfc)
+        val productId = proto.productId
         val sb = StringBuilder()
-        sb.append("Pages 0-3 (UID/header):\n")
+        sb.append("Product ID: $productId (${VBBraceletAuth.productName(productId)})\n")
+        sb.append("Login keys: ${if (VBBraceletAuth.supportsProduct(productId)) "available" else "NOT available"}\n")
+        sb.append("\nPages 0-3 (UID/header):\n")
         sb.append(hexDump(header, 0))
         sb.append("\nPages 4-7 (protocol):\n")
         sb.append(hexDump(proto.raw, 4))
@@ -158,6 +232,8 @@ class VBBraceletTagReaderActivity : ComponentActivity(), NfcAdapter.ReaderCallba
     private fun ReaderScreen() {
         val report by reportFlow.collectAsState()
         val taps by tapCount
+        val armed by authArmed
+        val authReport by authReportFlow.collectAsState()
         Box(
             modifier = Modifier.fillMaxSize().background(Color(0, 20, 40)),
             contentAlignment = Alignment.Center
@@ -176,7 +252,7 @@ class VBBraceletTagReaderActivity : ComponentActivity(), NfcAdapter.ReaderCallba
                     color = Color.Gray, fontSize = 12.sp, textAlign = TextAlign.Center
                 )
                 Spacer(Modifier.height(16.dp))
-                if (taps == 0) {
+                if (taps == 0 && authReport == null) {
                     CircularProgressIndicator(color = Color.Cyan)
                     Spacer(Modifier.height(16.dp))
                 }
@@ -188,9 +264,36 @@ class VBBraceletTagReaderActivity : ComponentActivity(), NfcAdapter.ReaderCallba
                     textAlign = TextAlign.Start,
                     modifier = Modifier.fillMaxSize()
                 )
+                if (authReport != null) {
+                    Spacer(Modifier.height(16.dp))
+                    Text(
+                        "Bracelet Login Test",
+                        color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold
+                    )
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        authReport!!,
+                        color = Color(0xFFFFD54F),
+                        fontSize = 13.sp,
+                        fontFamily = FontFamily.Monospace,
+                        textAlign = TextAlign.Start,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                }
                 Spacer(Modifier.height(24.dp))
-                Button(onClick = { finish() }) {
-                    Text("Done")
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Button(
+                        onClick = {
+                            authArmed.value = true
+                            authReportFlow.value = "Armed — tap the bracelet now (App Loglink mode)."
+                        },
+                        enabled = !armed
+                    ) {
+                        Text(if (armed) "Tap the bracelet…" else "Test Bracelet Login")
+                    }
+                    Button(onClick = { finish() }) {
+                        Text("Done")
+                    }
                 }
             }
         }
