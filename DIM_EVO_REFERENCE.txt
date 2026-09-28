@@ -1,0 +1,1870 @@
+DIM EVOLUTION REFERENCE
+Parsed from official DIM backups using cfogrady/VB-DIM-Reader table layout.
+Character table: w0=stage w1=unlock w2=attr w3=type w4=smAtk w5=bgAtk w6=dpStars w7=dp w8=hp w9=ap
+Evolution table: from -> to, hours, vitals, trophies, battles, winRate
+======================================================================
+
+### 00._Ancient_Warriors_15_bwmz.bin
+Roster (idx: stage/attr/type):
+   0: stage=0 attr=0 type=2 unlock=65535
+   1: stage=1 attr=0 type=2 unlock=65535
+   2: stage=2 attr=4 type=1 unlock=65535
+   3: stage=3 attr=3 type=0 unlock=65535
+   4: stage=3 attr=4 type=1 unlock=65535
+   5: stage=3 attr=4 type=2 unlock=65535
+   6: stage=3 attr=4 type=2 unlock=65535
+   7: stage=4 attr=3 type=0 unlock=65535
+   8: stage=4 attr=4 type=2 unlock=65535
+   9: stage=4 attr=4 type=3 unlock=65535
+  10: stage=4 attr=4 type=4 unlock=65535
+  11: stage=4 attr=3 type=0 unlock=65535
+  12: stage=4 attr=2 type=4 unlock=65535
+  13: stage=5 attr=3 type=1 unlock=65535
+  14: stage=5 attr=4 type=3 unlock=65535
+  15: stage=5 attr=4 type=2 unlock=65535
+  16: stage=5 attr=4 type=0 unlock=1
+Evolutions (from -> to | hrs vitals troph battles winRate):
+   0 ->    1 | hrs=1 vitals=0 troph=0 battles=0 winRate=0
+   1 ->    2 | hrs=3 vitals=0 troph=0 battles=0 winRate=0
+   2 ->    3 | hrs=16 vitals=1200 troph=8 battles=8 winRate=0
+   2 ->    4 | hrs=16 vitals=800 troph=5 battles=3 winRate=0
+   2 ->    5 | hrs=16 vitals=500 troph=3 battles=0 winRate=0
+   2 ->    6 | hrs=16 vitals=0 troph=0 battles=0 winRate=0
+   3 ->    7 | hrs=24 vitals=3000 troph=12 battles=15 winRate=70
+   3 ->    9 | hrs=24 vitals=2500 troph=10 battles=10 winRate=50
+   3 ->   11 | hrs=24 vitals=2000 troph=6 battles=10 winRate=50
+   4 ->    8 | hrs=24 vitals=3000 troph=12 battles=15 winRate=70
+   4 ->   10 | hrs=24 vitals=2500 troph=10 battles=10 winRate=50
+   4 ->   11 | hrs=24 vitals=2000 troph=6 battles=10 winRate=50
+   5 ->    7 | hrs=24 vitals=3000 troph=12 battles=15 winRate=70
+   5 ->    9 | hrs=24 vitals=2500 troph=10 battles=10 winRate=50
+   5 ->   12 | hrs=24 vitals=2000 troph=6 battles=10 winRate=50
+   6 ->    8 | hrs=24 vitals=3000 troph=12 battles=15 winRate=70
+   6 ->   10 | hrs=24 vitals=2500 troph=10 battles=10 winRate=50
+   6 ->   12 | hrs=24 vitals=2000 troph=6 battles=10 winRate=50
+   7 ->   13 | hrs=24 vitals=5000 troph=20 battles=20 winRate=70
+   7 ->   14 | hrs=24 vitals=4500 troph=15 battles=15 winRate=70
+   8 ->   16 | hrs=24 vitals=7000 troph=20 battles=25 winRate=70
+   8 ->   14 | hrs=24 vitals=4500 troph=15 battles=15 winRate=70
+   9 ->   13 | hrs=24 vitals=5000 troph=20 battles=20 winRate=70
+   9 ->   15 | hrs=24 vitals=4500 troph=10 battles=15 winRate=50
+  10 ->   16 | hrs=24 vitals=7000 troph=20 battles=25 winRate=70
+  10 ->   14 | hrs=24 vitals=4500 troph=15 battles=15 winRate=70
+  11 ->   16 | hrs=24 vitals=7000 troph=20 battles=25 winRate=70
+  11 ->   15 | hrs=24 vitals=4500 troph=10 battles=15 winRate=50
+  12 ->   13 | hrs=24 vitals=5000 troph=20 battles=20 winRate=70
+  12 ->   15 | hrs=24 vitals=4500 troph=10 battles=15 winRate=50
+  13 -> NONE(fusion-check) | hrs=65535 vitals=0 troph=0 battles=0 winRate=0
+  14 -> NONE(fusion-check) | hrs=65535 vitals=0 troph=0 battles=0 winRate=0
+  15 -> NONE(fusion-check) | hrs=65535 vitals=0 troph=0 battles=0 winRate=0
+  16 -> NONE(fusion-check) | hrs=65535 vitals=0 troph=0 battles=0 winRate=0
+
+### 01._Agumon_16_f02x.bin
+Roster (idx: stage/attr/type):
+   0: stage=0 attr=0 type=2 unlock=65535
+   1: stage=1 attr=0 type=2 unlock=65535
+   2: stage=2 attr=3 type=1 unlock=65535
+   3: stage=3 attr=3 type=1 unlock=65535
+   4: stage=3 attr=2 type=2 unlock=65535
+   5: stage=3 attr=1 type=0 unlock=65535
+   6: stage=3 attr=1 type=4 unlock=65535
+   7: stage=4 attr=3 type=1 unlock=65535
+   8: stage=4 attr=3 type=3 unlock=65535
+   9: stage=4 attr=2 type=4 unlock=65535
+  10: stage=4 attr=2 type=2 unlock=65535
+  11: stage=4 attr=1 type=0 unlock=65535
+  12: stage=4 attr=1 type=2 unlock=65535
+  13: stage=5 attr=3 type=1 unlock=65535
+  14: stage=5 attr=3 type=2 unlock=65535
+  15: stage=5 attr=1 type=3 unlock=65535
+  16: stage=5 attr=1 type=0 unlock=1
+Evolutions (from -> to | hrs vitals troph battles winRate):
+   0 ->    1 | hrs=1 vitals=0 troph=0 battles=0 winRate=0
+   1 ->    2 | hrs=3 vitals=0 troph=0 battles=0 winRate=0
+   2 ->    3 | hrs=16 vitals=1200 troph=5 battles=8 winRate=0
+   2 ->    6 | hrs=16 vitals=800 troph=5 battles=3 winRate=0
+   2 ->    5 | hrs=16 vitals=500 troph=3 battles=0 winRate=0
+   2 ->    4 | hrs=16 vitals=0 troph=0 battles=0 winRate=0
+   3 ->    7 | hrs=24 vitals=3000 troph=12 battles=15 winRate=70
+   3 ->    9 | hrs=24 vitals=2500 troph=10 battles=10 winRate=50
+   3 ->   12 | hrs=24 vitals=2000 troph=6 battles=10 winRate=50
+   4 ->    8 | hrs=24 vitals=3000 troph=12 battles=15 winRate=70
+   4 ->    9 | hrs=24 vitals=2500 troph=10 battles=10 winRate=50
+   4 ->   11 | hrs=24 vitals=2000 troph=6 battles=10 winRate=50
+   5 ->    8 | hrs=24 vitals=3000 troph=12 battles=15 winRate=70
+   5 ->   10 | hrs=24 vitals=2500 troph=10 battles=10 winRate=50
+   5 ->   11 | hrs=24 vitals=2000 troph=6 battles=10 winRate=50
+   6 ->    7 | hrs=24 vitals=3000 troph=12 battles=15 winRate=70
+   6 ->   10 | hrs=24 vitals=2500 troph=10 battles=10 winRate=50
+   6 ->   12 | hrs=24 vitals=2000 troph=6 battles=10 winRate=50
+   7 ->   13 | hrs=24 vitals=5000 troph=10 battles=20 winRate=70
+   7 ->   15 | hrs=24 vitals=4500 troph=15 battles=15 winRate=70
+   8 ->   16 | hrs=24 vitals=7000 troph=20 battles=25 winRate=70
+   8 ->   13 | hrs=24 vitals=5000 troph=20 battles=20 winRate=70
+   9 ->   13 | hrs=24 vitals=5000 troph=20 battles=20 winRate=70
+   9 ->   15 | hrs=24 vitals=4500 troph=15 battles=15 winRate=70
+  10 ->   16 | hrs=24 vitals=7000 troph=20 battles=25 winRate=70
+  10 ->   15 | hrs=24 vitals=4500 troph=15 battles=15 winRate=70
+  11 ->   16 | hrs=24 vitals=7000 troph=20 battles=25 winRate=70
+  11 ->   15 | hrs=24 vitals=4500 troph=15 battles=15 winRate=70
+  12 ->   13 | hrs=24 vitals=5000 troph=20 battles=20 winRate=70
+  12 ->   15 | hrs=24 vitals=4500 troph=15 battles=15 winRate=70
+  13 -> NONE(fusion-check) | hrs=3 vitals=0 troph=0 battles=0 winRate=0
+  14 -> NONE(fusion-check) | hrs=65535 vitals=0 troph=0 battles=0 winRate=0
+  15 -> NONE(fusion-check) | hrs=65535 vitals=0 troph=0 battles=0 winRate=0
+  16 -> NONE(fusion-check) | hrs=65535 vitals=0 troph=0 battles=0 winRate=0
+
+### 01._Black_Roar_12_etp3.bin
+Roster (idx: stage/attr/type):
+   0: stage=0 attr=0 type=2 unlock=65535
+   1: stage=1 attr=0 type=2 unlock=65535
+   2: stage=2 attr=1 type=1 unlock=65535
+   3: stage=3 attr=1 type=1 unlock=65535
+   4: stage=4 attr=1 type=1 unlock=65535
+   5: stage=5 attr=1 type=1 unlock=65535
+   6: stage=5 attr=3 type=2 unlock=65535
+   7: stage=65535 attr=65535 type=65535 unlock=65535
+   8: stage=65535 attr=65535 type=65535 unlock=65535
+   9: stage=65535 attr=65535 type=65535 unlock=65535
+  10: stage=65535 attr=65535 type=65535 unlock=65535
+  11: stage=65535 attr=65535 type=65535 unlock=65535
+  12: stage=65535 attr=65535 type=65535 unlock=65535
+  13: stage=65535 attr=65535 type=65535 unlock=65535
+  14: stage=65535 attr=65535 type=65535 unlock=65535
+  15: stage=65535 attr=65535 type=65535 unlock=65535
+  16: stage=65535 attr=65535 type=65535 unlock=65535
+Evolutions (from -> to | hrs vitals troph battles winRate):
+   0 ->    1 | hrs=1 vitals=0 troph=0 battles=0 winRate=0
+   1 ->    2 | hrs=3 vitals=0 troph=0 battles=0 winRate=0
+   2 ->    3 | hrs=16 vitals=1200 troph=5 battles=8 winRate=0
+   3 ->    4 | hrs=24 vitals=3000 troph=12 battles=15 winRate=70
+   4 ->    5 | hrs=24 vitals=5000 troph=20 battles=20 winRate=70
+   5 -> NONE(fusion-check) | hrs=3 vitals=0 troph=0 battles=0 winRate=0
+   6 -> NONE(fusion-check) | hrs=65535 vitals=0 troph=0 battles=0 winRate=0
+
+### 01._Guilmon_22_a6h1.bin
+Roster (idx: stage/attr/type):
+   0: stage=0 attr=0 type=2 unlock=65535
+   1: stage=1 attr=0 type=2 unlock=65535
+   2: stage=2 attr=1 type=3 unlock=65535
+   3: stage=3 attr=1 type=1 unlock=65535
+   4: stage=4 attr=1 type=1 unlock=65535
+   5: stage=5 attr=2 type=0 unlock=65535
+   6: stage=5 attr=1 type=1 unlock=65535
+   7: stage=5 attr=1 type=2 unlock=65535
+   8: stage=65535 attr=65535 type=65535 unlock=65535
+   9: stage=65535 attr=65535 type=65535 unlock=65535
+  10: stage=65535 attr=65535 type=65535 unlock=65535
+  11: stage=65535 attr=65535 type=65535 unlock=65535
+  12: stage=65535 attr=65535 type=65535 unlock=65535
+  13: stage=65535 attr=65535 type=65535 unlock=65535
+  14: stage=65535 attr=65535 type=65535 unlock=65535
+  15: stage=65535 attr=65535 type=65535 unlock=65535
+  16: stage=65535 attr=65535 type=65535 unlock=65535
+Evolutions (from -> to | hrs vitals troph battles winRate):
+   0 ->    1 | hrs=1 vitals=0 troph=0 battles=0 winRate=0
+   1 ->    2 | hrs=3 vitals=0 troph=0 battles=0 winRate=0
+   2 ->    3 | hrs=16 vitals=1300 troph=10 battles=8 winRate=0
+   3 ->    4 | hrs=24 vitals=3000 troph=12 battles=15 winRate=70
+   4 ->    7 | hrs=24 vitals=7000 troph=20 battles=25 winRate=70
+   4 ->    6 | hrs=24 vitals=5000 troph=20 battles=20 winRate=70
+   4 ->    5 | hrs=24 vitals=4500 troph=10 battles=15 winRate=50
+   5 -> NONE(fusion-check) | hrs=65535 vitals=0 troph=0 battles=0 winRate=0
+   6 -> NONE(fusion-check) | hrs=65535 vitals=0 troph=0 battles=0 winRate=0
+   7 -> NONE(fusion-check) | hrs=65535 vitals=0 troph=0 battles=0 winRate=0
+
+### 01._Impulse_City_14_amd3.bin
+Roster (idx: stage/attr/type):
+   0: stage=0 attr=0 type=2 unlock=65535
+   1: stage=1 attr=0 type=2 unlock=65535
+   2: stage=2 attr=3 type=1 unlock=65535
+   3: stage=3 attr=3 type=0 unlock=65535
+   4: stage=3 attr=2 type=3 unlock=65535
+   5: stage=3 attr=1 type=1 unlock=65535
+   6: stage=3 attr=1 type=4 unlock=65535
+   7: stage=4 attr=3 type=0 unlock=65535
+   8: stage=4 attr=3 type=1 unlock=65535
+   9: stage=4 attr=2 type=2 unlock=65535
+  10: stage=4 attr=2 type=1 unlock=65535
+  11: stage=4 attr=1 type=3 unlock=65535
+  12: stage=4 attr=1 type=2 unlock=65535
+  13: stage=5 attr=3 type=2 unlock=65535
+  14: stage=5 attr=2 type=3 unlock=65535
+  15: stage=5 attr=1 type=1 unlock=65535
+  16: stage=5 attr=1 type=0 unlock=1
+Evolutions (from -> to | hrs vitals troph battles winRate):
+   0 ->    1 | hrs=1 vitals=0 troph=0 battles=0 winRate=0
+   1 ->    2 | hrs=3 vitals=0 troph=0 battles=0 winRate=0
+   2 ->    3 | hrs=16 vitals=1200 troph=8 battles=8 winRate=0
+   2 ->    5 | hrs=16 vitals=800 troph=5 battles=3 winRate=0
+   2 ->    4 | hrs=16 vitals=500 troph=3 battles=0 winRate=0
+   2 ->    6 | hrs=16 vitals=0 troph=0 battles=0 winRate=0
+   3 ->    7 | hrs=24 vitals=3000 troph=12 battles=15 winRate=70
+   3 ->    9 | hrs=24 vitals=2500 troph=10 battles=10 winRate=50
+   3 ->   11 | hrs=24 vitals=2000 troph=6 battles=10 winRate=50
+   4 ->    8 | hrs=24 vitals=3000 troph=12 battles=15 winRate=70
+   4 ->   10 | hrs=24 vitals=2500 troph=10 battles=10 winRate=50
+   4 ->   12 | hrs=24 vitals=2000 troph=6 battles=10 winRate=50
+   5 ->    7 | hrs=24 vitals=3000 troph=12 battles=15 winRate=70
+   5 ->    9 | hrs=24 vitals=2500 troph=10 battles=10 winRate=50
+   5 ->   12 | hrs=24 vitals=2000 troph=6 battles=10 winRate=50
+   6 ->    8 | hrs=24 vitals=3000 troph=12 battles=15 winRate=70
+   6 ->   10 | hrs=24 vitals=2500 troph=10 battles=10 winRate=50
+   6 ->   11 | hrs=24 vitals=2000 troph=6 battles=10 winRate=50
+   7 ->   16 | hrs=24 vitals=7000 troph=20 battles=25 winRate=70
+   7 ->   13 | hrs=24 vitals=5000 troph=20 battles=20 winRate=70
+   8 ->   14 | hrs=24 vitals=4500 troph=15 battles=15 winRate=70
+   8 ->   15 | hrs=24 vitals=4500 troph=10 battles=15 winRate=50
+   9 ->   16 | hrs=24 vitals=7000 troph=20 battles=25 winRate=70
+   9 ->   14 | hrs=24 vitals=4500 troph=15 battles=15 winRate=70
+  10 ->   13 | hrs=24 vitals=5000 troph=20 battles=20 winRate=70
+  10 ->   15 | hrs=24 vitals=4500 troph=10 battles=15 winRate=50
+  11 ->   16 | hrs=24 vitals=7000 troph=20 battles=25 winRate=70
+  11 ->   14 | hrs=24 vitals=4500 troph=15 battles=15 winRate=70
+  12 ->   13 | hrs=24 vitals=5000 troph=20 battles=20 winRate=70
+  12 ->   15 | hrs=24 vitals=4500 troph=10 battles=15 winRate=50
+  13 -> NONE(fusion-check) | hrs=65535 vitals=0 troph=0 battles=0 winRate=0
+  14 -> NONE(fusion-check) | hrs=65535 vitals=0 troph=0 battles=0 winRate=0
+  15 -> NONE(fusion-check) | hrs=65535 vitals=0 troph=0 battles=0 winRate=0
+  16 -> NONE(fusion-check) | hrs=65535 vitals=0 troph=0 battles=0 winRate=0
+
+### 02._Gabumon_17_dr73.bin
+Roster (idx: stage/attr/type):
+   0: stage=0 attr=0 type=2 unlock=65535
+   1: stage=1 attr=0 type=2 unlock=65535
+   2: stage=2 attr=2 type=1 unlock=65535
+   3: stage=3 attr=3 type=1 unlock=65535
+   4: stage=3 attr=2 type=2 unlock=65535
+   5: stage=3 attr=1 type=0 unlock=65535
+   6: stage=3 attr=1 type=4 unlock=65535
+   7: stage=4 attr=3 type=1 unlock=65535
+   8: stage=4 attr=3 type=3 unlock=65535
+   9: stage=4 attr=2 type=4 unlock=65535
+  10: stage=4 attr=2 type=2 unlock=65535
+  11: stage=4 attr=1 type=0 unlock=65535
+  12: stage=4 attr=1 type=2 unlock=65535
+  13: stage=5 attr=2 type=1 unlock=65535
+  14: stage=5 attr=3 type=2 unlock=65535
+  15: stage=5 attr=2 type=3 unlock=65535
+  16: stage=5 attr=1 type=0 unlock=1
+Evolutions (from -> to | hrs vitals troph battles winRate):
+   0 ->    1 | hrs=1 vitals=0 troph=0 battles=0 winRate=0
+   1 ->    2 | hrs=3 vitals=0 troph=0 battles=0 winRate=0
+   2 ->    3 | hrs=16 vitals=1200 troph=5 battles=8 winRate=0
+   2 ->    4 | hrs=16 vitals=800 troph=5 battles=3 winRate=0
+   2 ->    5 | hrs=16 vitals=500 troph=3 battles=0 winRate=0
+   2 ->    6 | hrs=16 vitals=0 troph=0 battles=0 winRate=0
+   3 ->    7 | hrs=24 vitals=3000 troph=12 battles=15 winRate=70
+   3 ->    9 | hrs=24 vitals=2500 troph=10 battles=10 winRate=50
+   3 ->   12 | hrs=24 vitals=2000 troph=6 battles=10 winRate=50
+   4 ->    8 | hrs=24 vitals=3000 troph=12 battles=15 winRate=70
+   4 ->    9 | hrs=24 vitals=2500 troph=10 battles=10 winRate=50
+   4 ->   11 | hrs=24 vitals=2000 troph=6 battles=10 winRate=50
+   5 ->    8 | hrs=24 vitals=3000 troph=12 battles=15 winRate=70
+   5 ->   10 | hrs=24 vitals=2500 troph=10 battles=10 winRate=50
+   5 ->   11 | hrs=24 vitals=2000 troph=6 battles=10 winRate=50
+   6 ->    7 | hrs=24 vitals=3000 troph=12 battles=15 winRate=70
+   6 ->   10 | hrs=24 vitals=2500 troph=10 battles=10 winRate=50
+   6 ->   12 | hrs=24 vitals=2000 troph=6 battles=10 winRate=50
+   7 ->   13 | hrs=24 vitals=5000 troph=20 battles=20 winRate=70
+   7 ->   15 | hrs=24 vitals=4500 troph=15 battles=15 winRate=70
+   8 ->   16 | hrs=24 vitals=7000 troph=20 battles=25 winRate=70
+   8 ->   13 | hrs=24 vitals=5000 troph=20 battles=20 winRate=70
+   9 ->   13 | hrs=24 vitals=5000 troph=20 battles=20 winRate=70
+   9 ->   15 | hrs=24 vitals=4500 troph=15 battles=15 winRate=70
+  10 ->   16 | hrs=24 vitals=7000 troph=20 battles=25 winRate=70
+  10 ->   15 | hrs=24 vitals=4500 troph=15 battles=15 winRate=70
+  11 ->   16 | hrs=24 vitals=7000 troph=20 battles=25 winRate=70
+  11 ->   15 | hrs=24 vitals=4500 troph=15 battles=15 winRate=70
+  12 ->   13 | hrs=24 vitals=5000 troph=20 battles=20 winRate=70
+  12 ->   15 | hrs=24 vitals=4500 troph=15 battles=15 winRate=70
+  13 -> NONE(fusion-check) | hrs=3 vitals=0 troph=0 battles=0 winRate=0
+  14 -> NONE(fusion-check) | hrs=65535 vitals=0 troph=0 battles=0 winRate=0
+  15 -> NONE(fusion-check) | hrs=65535 vitals=0 troph=0 battles=0 winRate=0
+  16 -> NONE(fusion-check) | hrs=65535 vitals=0 troph=0 battles=0 winRate=0
+
+### 02._Impmon_23_91o8.bin
+Roster (idx: stage/attr/type):
+   0: stage=0 attr=0 type=2 unlock=65535
+   1: stage=1 attr=0 type=2 unlock=65535
+   2: stage=2 attr=1 type=2 unlock=65535
+   3: stage=3 attr=2 type=2 unlock=65535
+   4: stage=4 attr=4 type=2 unlock=65535
+   5: stage=5 attr=1 type=2 unlock=65535
+   6: stage=5 attr=1 type=1 unlock=65535
+   7: stage=5 attr=1 type=1 unlock=65535
+   8: stage=65535 attr=65535 type=65535 unlock=65535
+   9: stage=65535 attr=65535 type=65535 unlock=65535
+  10: stage=65535 attr=65535 type=65535 unlock=65535
+  11: stage=65535 attr=65535 type=65535 unlock=65535
+  12: stage=65535 attr=65535 type=65535 unlock=65535
+  13: stage=65535 attr=65535 type=65535 unlock=65535
+  14: stage=65535 attr=65535 type=65535 unlock=65535
+  15: stage=65535 attr=65535 type=65535 unlock=65535
+  16: stage=65535 attr=65535 type=65535 unlock=65535
+Evolutions (from -> to | hrs vitals troph battles winRate):
+   0 ->    1 | hrs=1 vitals=0 troph=0 battles=0 winRate=0
+   1 ->    2 | hrs=3 vitals=0 troph=0 battles=0 winRate=0
+   2 ->    3 | hrs=16 vitals=1300 troph=10 battles=8 winRate=0
+   3 ->    4 | hrs=24 vitals=3000 troph=12 battles=15 winRate=70
+   4 ->    7 | hrs=24 vitals=7000 troph=20 battles=25 winRate=70
+   4 ->    6 | hrs=24 vitals=5000 troph=20 battles=20 winRate=70
+   4 ->    5 | hrs=24 vitals=4500 troph=15 battles=15 winRate=70
+   5 -> NONE(fusion-check) | hrs=65535 vitals=0 troph=0 battles=0 winRate=0
+   6 -> NONE(fusion-check) | hrs=65535 vitals=0 troph=0 battles=0 winRate=0
+   7 -> NONE(fusion-check) | hrs=65535 vitals=0 troph=0 battles=0 winRate=0
+
+### 02._Shadow_Howl_13_8lqm.bin
+Roster (idx: stage/attr/type):
+   0: stage=0 attr=0 type=2 unlock=65535
+   1: stage=1 attr=0 type=2 unlock=65535
+   2: stage=2 attr=1 type=1 unlock=65535
+   3: stage=3 attr=1 type=1 unlock=65535
+   4: stage=4 attr=1 type=1 unlock=65535
+   5: stage=5 attr=1 type=1 unlock=65535
+   6: stage=5 attr=3 type=2 unlock=65535
+   7: stage=65535 attr=65535 type=65535 unlock=65535
+   8: stage=65535 attr=65535 type=65535 unlock=65535
+   9: stage=65535 attr=65535 type=65535 unlock=65535
+  10: stage=65535 attr=65535 type=65535 unlock=65535
+  11: stage=65535 attr=65535 type=65535 unlock=65535
+  12: stage=65535 attr=65535 type=65535 unlock=65535
+  13: stage=65535 attr=65535 type=65535 unlock=65535
+  14: stage=65535 attr=65535 type=65535 unlock=65535
+  15: stage=65535 attr=65535 type=65535 unlock=65535
+  16: stage=65535 attr=65535 type=65535 unlock=65535
+Evolutions (from -> to | hrs vitals troph battles winRate):
+   0 ->    1 | hrs=1 vitals=0 troph=0 battles=0 winRate=0
+   1 ->    2 | hrs=3 vitals=0 troph=0 battles=0 winRate=0
+   2 ->    3 | hrs=16 vitals=1200 troph=5 battles=8 winRate=0
+   3 ->    4 | hrs=24 vitals=3000 troph=12 battles=15 winRate=70
+   4 ->    5 | hrs=24 vitals=5000 troph=20 battles=20 winRate=70
+   5 -> NONE(fusion-check) | hrs=3 vitals=0 troph=0 battles=0 winRate=0
+   6 -> NONE(fusion-check) | hrs=65535 vitals=0 troph=0 battles=0 winRate=0
+
+### 02._Volcanic_Beat_19_xuo7.bin
+Roster (idx: stage/attr/type):
+   0: stage=0 attr=0 type=2 unlock=65535
+   1: stage=1 attr=0 type=2 unlock=65535
+   2: stage=2 attr=1 type=2 unlock=65535
+   3: stage=3 attr=3 type=1 unlock=65535
+   4: stage=3 attr=2 type=3 unlock=65535
+   5: stage=3 attr=2 type=0 unlock=65535
+   6: stage=3 attr=1 type=2 unlock=65535
+   7: stage=4 attr=3 type=0 unlock=65535
+   8: stage=4 attr=3 type=1 unlock=65535
+   9: stage=4 attr=2 type=3 unlock=65535
+  10: stage=4 attr=2 type=1 unlock=65535
+  11: stage=4 attr=1 type=2 unlock=65535
+  12: stage=4 attr=1 type=1 unlock=65535
+  13: stage=5 attr=3 type=1 unlock=65535
+  14: stage=5 attr=2 type=3 unlock=65535
+  15: stage=5 attr=1 type=2 unlock=65535
+  16: stage=5 attr=1 type=0 unlock=1
+Evolutions (from -> to | hrs vitals troph battles winRate):
+   0 ->    1 | hrs=1 vitals=0 troph=0 battles=0 winRate=0
+   1 ->    2 | hrs=3 vitals=0 troph=0 battles=0 winRate=0
+   2 ->    3 | hrs=16 vitals=1300 troph=10 battles=8 winRate=0
+   2 ->    5 | hrs=16 vitals=900 troph=8 battles=5 winRate=0
+   2 ->    6 | hrs=16 vitals=600 troph=5 battles=3 winRate=0
+   2 ->    4 | hrs=16 vitals=0 troph=0 battles=0 winRate=0
+   3 ->    7 | hrs=24 vitals=3000 troph=12 battles=15 winRate=70
+   3 ->   10 | hrs=24 vitals=2500 troph=10 battles=10 winRate=50
+   3 ->   11 | hrs=24 vitals=2000 troph=8 battles=10 winRate=50
+   4 ->    8 | hrs=24 vitals=3000 troph=12 battles=15 winRate=70
+   4 ->    9 | hrs=24 vitals=2500 troph=10 battles=10 winRate=50
+   4 ->   12 | hrs=24 vitals=2000 troph=8 battles=10 winRate=50
+   5 ->    7 | hrs=24 vitals=3000 troph=12 battles=15 winRate=70
+   5 ->    9 | hrs=24 vitals=2500 troph=10 battles=10 winRate=50
+   5 ->   12 | hrs=24 vitals=2000 troph=8 battles=10 winRate=50
+   6 ->    8 | hrs=24 vitals=3000 troph=12 battles=15 winRate=70
+   6 ->   10 | hrs=24 vitals=2500 troph=10 battles=10 winRate=50
+   6 ->   11 | hrs=24 vitals=2000 troph=8 battles=10 winRate=50
+   7 ->   15 | hrs=24 vitals=4500 troph=15 battles=15 winRate=70
+   7 ->   14 | hrs=24 vitals=4500 troph=10 battles=15 winRate=50
+   8 ->   16 | hrs=24 vitals=7000 troph=20 battles=25 winRate=70
+   8 ->   13 | hrs=24 vitals=5000 troph=20 battles=20 winRate=70
+   9 ->   16 | hrs=24 vitals=7000 troph=20 battles=25 winRate=70
+   9 ->   13 | hrs=24 vitals=5000 troph=20 battles=20 winRate=70
+  10 ->   16 | hrs=24 vitals=7000 troph=20 battles=25 winRate=70
+  10 ->   15 | hrs=24 vitals=4500 troph=15 battles=15 winRate=70
+  11 ->   15 | hrs=24 vitals=4500 troph=15 battles=15 winRate=70
+  11 ->   14 | hrs=24 vitals=4500 troph=10 battles=15 winRate=50
+  12 ->   13 | hrs=24 vitals=5000 troph=20 battles=20 winRate=70
+  12 ->   14 | hrs=24 vitals=4500 troph=10 battles=15 winRate=50
+  13 -> NONE(fusion-check) | hrs=65535 vitals=0 troph=0 battles=0 winRate=0
+  14 -> NONE(fusion-check) | hrs=65535 vitals=0 troph=0 battles=0 winRate=0
+  15 -> NONE(fusion-check) | hrs=65535 vitals=0 troph=0 battles=0 winRate=0
+  16 -> NONE(fusion-check) | hrs=65535 vitals=0 troph=0 battles=0 winRate=0
+
+### 03._Blizzard_Fang_18_9lsx.bin
+Roster (idx: stage/attr/type):
+   0: stage=0 attr=0 type=2 unlock=65535
+   1: stage=1 attr=0 type=2 unlock=65535
+   2: stage=2 attr=2 type=2 unlock=65535
+   3: stage=3 attr=3 type=1 unlock=65535
+   4: stage=3 attr=2 type=2 unlock=65535
+   5: stage=3 attr=1 type=0 unlock=65535
+   6: stage=3 attr=4 type=3 unlock=65535
+   7: stage=4 attr=3 type=1 unlock=65535
+   8: stage=4 attr=3 type=0 unlock=65535
+   9: stage=4 attr=2 type=2 unlock=65535
+  10: stage=4 attr=2 type=1 unlock=65535
+  11: stage=4 attr=1 type=2 unlock=65535
+  12: stage=4 attr=4 type=4 unlock=65535
+  13: stage=5 attr=3 type=1 unlock=65535
+  14: stage=5 attr=2 type=2 unlock=65535
+  15: stage=5 attr=1 type=0 unlock=65535
+  16: stage=5 attr=2 type=3 unlock=1
+Evolutions (from -> to | hrs vitals troph battles winRate):
+   0 ->    1 | hrs=1 vitals=0 troph=0 battles=0 winRate=0
+   1 ->    2 | hrs=3 vitals=0 troph=0 battles=0 winRate=0
+   2 ->    3 | hrs=16 vitals=1300 troph=10 battles=8 winRate=0
+   2 ->    4 | hrs=16 vitals=900 troph=8 battles=5 winRate=0
+   2 ->    5 | hrs=16 vitals=600 troph=5 battles=3 winRate=0
+   2 ->    6 | hrs=16 vitals=0 troph=0 battles=0 winRate=0
+   3 ->    7 | hrs=24 vitals=3000 troph=12 battles=15 winRate=70
+   3 ->   10 | hrs=24 vitals=2500 troph=10 battles=10 winRate=50
+   3 ->   12 | hrs=24 vitals=2000 troph=8 battles=10 winRate=50
+   4 ->    8 | hrs=24 vitals=3000 troph=12 battles=15 winRate=70
+   4 ->    9 | hrs=24 vitals=2500 troph=10 battles=10 winRate=50
+   4 ->   11 | hrs=24 vitals=2000 troph=8 battles=10 winRate=50
+   5 ->    8 | hrs=24 vitals=3000 troph=12 battles=15 winRate=70
+   5 ->    9 | hrs=24 vitals=2500 troph=10 battles=10 winRate=50
+   5 ->   11 | hrs=24 vitals=2000 troph=8 battles=10 winRate=50
+   6 ->    7 | hrs=24 vitals=3000 troph=12 battles=15 winRate=70
+   6 ->   10 | hrs=24 vitals=2500 troph=10 battles=10 winRate=50
+   6 ->   12 | hrs=24 vitals=2000 troph=8 battles=10 winRate=50
+   7 ->   16 | hrs=24 vitals=7000 troph=20 battles=25 winRate=70
+   7 ->   13 | hrs=24 vitals=4500 troph=10 battles=15 winRate=50
+   8 ->   15 | hrs=24 vitals=4500 troph=15 battles=15 winRate=70
+   8 ->   13 | hrs=24 vitals=4500 troph=10 battles=15 winRate=50
+   9 ->   16 | hrs=24 vitals=7000 troph=20 battles=25 winRate=70
+   9 ->   14 | hrs=24 vitals=5000 troph=20 battles=20 winRate=70
+  10 ->   14 | hrs=24 vitals=5000 troph=20 battles=20 winRate=70
+  10 ->   15 | hrs=24 vitals=4500 troph=15 battles=15 winRate=70
+  11 ->   16 | hrs=24 vitals=7000 troph=20 battles=25 winRate=70
+  11 ->   14 | hrs=24 vitals=4500 troph=10 battles=15 winRate=50
+  12 ->   15 | hrs=24 vitals=4500 troph=15 battles=15 winRate=70
+  12 ->   13 | hrs=24 vitals=4500 troph=10 battles=15 winRate=50
+  13 -> NONE(fusion-check) | hrs=65535 vitals=0 troph=0 battles=0 winRate=0
+  14 -> NONE(fusion-check) | hrs=65535 vitals=0 troph=0 battles=0 winRate=0
+  15 -> NONE(fusion-check) | hrs=65535 vitals=0 troph=0 battles=0 winRate=0
+  16 -> NONE(fusion-check) | hrs=65535 vitals=0 troph=0 battles=0 winRate=0
+
+### 03._Monodramon_24_6obc.bin
+Roster (idx: stage/attr/type):
+   0: stage=0 attr=0 type=2 unlock=65535
+   1: stage=1 attr=0 type=2 unlock=65535
+   2: stage=2 attr=3 type=2 unlock=65535
+   3: stage=3 attr=3 type=2 unlock=65535
+   4: stage=4 attr=3 type=2 unlock=65535
+   5: stage=5 attr=3 type=1 unlock=65535
+   6: stage=5 attr=3 type=2 unlock=65535
+   7: stage=5 attr=3 type=3 unlock=65535
+   8: stage=65535 attr=65535 type=65535 unlock=65535
+   9: stage=65535 attr=65535 type=65535 unlock=65535
+  10: stage=65535 attr=65535 type=65535 unlock=65535
+  11: stage=65535 attr=65535 type=65535 unlock=65535
+  12: stage=65535 attr=65535 type=65535 unlock=65535
+  13: stage=65535 attr=65535 type=65535 unlock=65535
+  14: stage=65535 attr=65535 type=65535 unlock=65535
+  15: stage=65535 attr=65535 type=65535 unlock=65535
+  16: stage=65535 attr=65535 type=65535 unlock=65535
+Evolutions (from -> to | hrs vitals troph battles winRate):
+   0 ->    1 | hrs=1 vitals=0 troph=0 battles=0 winRate=0
+   1 ->    2 | hrs=3 vitals=0 troph=0 battles=0 winRate=0
+   2 ->    3 | hrs=16 vitals=1300 troph=10 battles=8 winRate=0
+   3 ->    4 | hrs=24 vitals=3000 troph=12 battles=15 winRate=70
+   4 ->    7 | hrs=24 vitals=7000 troph=10 battles=10 winRate=70
+   4 ->    6 | hrs=24 vitals=4500 troph=10 battles=25 winRate=70
+   4 ->    5 | hrs=24 vitals=4500 troph=30 battles=10 winRate=50
+   5 -> NONE(fusion-check) | hrs=65535 vitals=0 troph=0 battles=0 winRate=0
+   6 -> NONE(fusion-check) | hrs=65535 vitals=0 troph=0 battles=0 winRate=0
+   7 -> NONE(fusion-check) | hrs=65535 vitals=0 troph=0 battles=0 winRate=0
+
+### 04._Infinite_Tide_20_2z73.bin
+Roster (idx: stage/attr/type):
+   0: stage=0 attr=0 type=2 unlock=65535
+   1: stage=1 attr=0 type=2 unlock=65535
+   2: stage=2 attr=2 type=2 unlock=65535
+   3: stage=3 attr=3 type=0 unlock=65535
+   4: stage=3 attr=2 type=1 unlock=65535
+   5: stage=3 attr=2 type=3 unlock=65535
+   6: stage=3 attr=1 type=4 unlock=65535
+   7: stage=4 attr=3 type=3 unlock=65535
+   8: stage=4 attr=3 type=1 unlock=65535
+   9: stage=4 attr=2 type=2 unlock=65535
+  10: stage=4 attr=2 type=1 unlock=65535
+  11: stage=4 attr=1 type=0 unlock=65535
+  12: stage=4 attr=1 type=4 unlock=65535
+  13: stage=5 attr=3 type=0 unlock=65535
+  14: stage=5 attr=2 type=1 unlock=65535
+  15: stage=5 attr=1 type=2 unlock=65535
+  16: stage=5 attr=2 type=1 unlock=1
+Evolutions (from -> to | hrs vitals troph battles winRate):
+   0 ->    1 | hrs=1 vitals=0 troph=0 battles=0 winRate=0
+   1 ->    2 | hrs=3 vitals=0 troph=0 battles=0 winRate=0
+   2 ->    3 | hrs=16 vitals=1300 troph=10 battles=8 winRate=0
+   2 ->    4 | hrs=16 vitals=900 troph=8 battles=5 winRate=0
+   2 ->    6 | hrs=16 vitals=600 troph=5 battles=3 winRate=0
+   2 ->    5 | hrs=16 vitals=0 troph=0 battles=0 winRate=0
+   3 ->    7 | hrs=24 vitals=3000 troph=12 battles=15 winRate=70
+   3 ->    9 | hrs=24 vitals=2500 troph=10 battles=10 winRate=50
+   3 ->   11 | hrs=24 vitals=2000 troph=8 battles=10 winRate=50
+   4 ->    8 | hrs=24 vitals=3000 troph=12 battles=15 winRate=70
+   4 ->   10 | hrs=24 vitals=2500 troph=10 battles=10 winRate=50
+   4 ->   11 | hrs=24 vitals=2000 troph=8 battles=10 winRate=50
+   5 ->    7 | hrs=24 vitals=3000 troph=12 battles=15 winRate=70
+   5 ->    9 | hrs=24 vitals=2500 troph=10 battles=10 winRate=50
+   5 ->   12 | hrs=24 vitals=2000 troph=8 battles=10 winRate=50
+   6 ->    8 | hrs=24 vitals=3000 troph=12 battles=15 winRate=70
+   6 ->   10 | hrs=24 vitals=2500 troph=10 battles=10 winRate=50
+   6 ->   12 | hrs=24 vitals=2000 troph=8 battles=10 winRate=50
+   7 ->   15 | hrs=24 vitals=4500 troph=15 battles=15 winRate=70
+   7 ->   13 | hrs=24 vitals=4500 troph=10 battles=15 winRate=50
+   8 ->   16 | hrs=24 vitals=7000 troph=20 battles=25 winRate=70
+   8 ->   15 | hrs=24 vitals=4500 troph=15 battles=15 winRate=70
+   9 ->   14 | hrs=24 vitals=5000 troph=20 battles=20 winRate=70
+   9 ->   13 | hrs=24 vitals=4500 troph=10 battles=15 winRate=50
+  10 ->   16 | hrs=24 vitals=7000 troph=20 battles=25 winRate=70
+  10 ->   14 | hrs=24 vitals=5000 troph=20 battles=20 winRate=70
+  11 ->   15 | hrs=24 vitals=4500 troph=15 battles=15 winRate=70
+  11 ->   13 | hrs=24 vitals=4500 troph=10 battles=15 winRate=50
+  12 ->   16 | hrs=24 vitals=7000 troph=20 battles=25 winRate=70
+  12 ->   14 | hrs=24 vitals=5000 troph=20 battles=20 winRate=70
+  13 -> NONE(fusion-check) | hrs=65535 vitals=0 troph=0 battles=0 winRate=0
+  14 -> NONE(fusion-check) | hrs=65535 vitals=0 troph=0 battles=0 winRate=0
+  15 -> NONE(fusion-check) | hrs=65535 vitals=0 troph=0 battles=0 winRate=0
+  16 -> NONE(fusion-check) | hrs=65535 vitals=0 troph=0 battles=0 winRate=0
+
+### 04._Renamon_25_7z4h.bin
+Roster (idx: stage/attr/type):
+   0: stage=0 attr=0 type=2 unlock=65535
+   1: stage=1 attr=0 type=2 unlock=65535
+   2: stage=2 attr=2 type=1 unlock=65535
+   3: stage=3 attr=2 type=1 unlock=65535
+   4: stage=4 attr=2 type=1 unlock=65535
+   5: stage=5 attr=2 type=1 unlock=65535
+   6: stage=5 attr=2 type=3 unlock=65535
+   7: stage=5 attr=2 type=2 unlock=65535
+   8: stage=65535 attr=65535 type=65535 unlock=65535
+   9: stage=65535 attr=65535 type=65535 unlock=65535
+  10: stage=65535 attr=65535 type=65535 unlock=65535
+  11: stage=65535 attr=65535 type=65535 unlock=65535
+  12: stage=65535 attr=65535 type=65535 unlock=65535
+  13: stage=65535 attr=65535 type=65535 unlock=65535
+  14: stage=65535 attr=65535 type=65535 unlock=65535
+  15: stage=65535 attr=65535 type=65535 unlock=65535
+  16: stage=65535 attr=65535 type=65535 unlock=65535
+Evolutions (from -> to | hrs vitals troph battles winRate):
+   0 ->    1 | hrs=1 vitals=0 troph=0 battles=0 winRate=0
+   1 ->    2 | hrs=3 vitals=0 troph=0 battles=0 winRate=0
+   2 ->    3 | hrs=16 vitals=1300 troph=10 battles=8 winRate=0
+   3 ->    4 | hrs=24 vitals=3000 troph=12 battles=15 winRate=70
+   4 ->    7 | hrs=24 vitals=7000 troph=20 battles=25 winRate=70
+   4 ->    5 | hrs=24 vitals=5000 troph=20 battles=20 winRate=70
+   4 ->    6 | hrs=24 vitals=4500 troph=10 battles=15 winRate=50
+   5 -> NONE(fusion-check) | hrs=65535 vitals=0 troph=0 battles=0 winRate=0
+   6 -> NONE(fusion-check) | hrs=65535 vitals=0 troph=0 battles=0 winRate=0
+   7 -> NONE(fusion-check) | hrs=65535 vitals=0 troph=0 battles=0 winRate=0
+
+### 05._Titan_of_Dust_21_2ymv.bin
+Roster (idx: stage/attr/type):
+   0: stage=0 attr=0 type=2 unlock=65535
+   1: stage=1 attr=0 type=2 unlock=65535
+   2: stage=2 attr=1 type=3 unlock=65535
+   3: stage=3 attr=3 type=2 unlock=65535
+   4: stage=3 attr=2 type=1 unlock=65535
+   5: stage=3 attr=1 type=4 unlock=65535
+   6: stage=3 attr=4 type=3 unlock=65535
+   7: stage=4 attr=3 type=3 unlock=65535
+   8: stage=4 attr=3 type=1 unlock=65535
+   9: stage=4 attr=2 type=0 unlock=65535
+  10: stage=4 attr=2 type=2 unlock=65535
+  11: stage=4 attr=1 type=3 unlock=65535
+  12: stage=4 attr=1 type=4 unlock=65535
+  13: stage=5 attr=3 type=1 unlock=65535
+  14: stage=5 attr=2 type=0 unlock=65535
+  15: stage=5 attr=1 type=2 unlock=65535
+  16: stage=5 attr=1 type=3 unlock=1
+Evolutions (from -> to | hrs vitals troph battles winRate):
+   0 ->    1 | hrs=1 vitals=0 troph=0 battles=0 winRate=0
+   1 ->    2 | hrs=3 vitals=0 troph=0 battles=0 winRate=0
+   2 ->    3 | hrs=16 vitals=1300 troph=10 battles=8 winRate=0
+   2 ->    4 | hrs=16 vitals=900 troph=8 battles=5 winRate=0
+   2 ->    6 | hrs=16 vitals=600 troph=5 battles=3 winRate=0
+   2 ->    5 | hrs=16 vitals=0 troph=0 battles=0 winRate=0
+   3 ->    7 | hrs=24 vitals=3000 troph=12 battles=15 winRate=70
+   3 ->   10 | hrs=24 vitals=2500 troph=10 battles=10 winRate=50
+   3 ->   12 | hrs=24 vitals=2000 troph=8 battles=10 winRate=50
+   4 ->    8 | hrs=24 vitals=3000 troph=12 battles=15 winRate=70
+   4 ->    9 | hrs=24 vitals=2500 troph=10 battles=10 winRate=50
+   4 ->   11 | hrs=24 vitals=2000 troph=8 battles=10 winRate=50
+   5 ->    7 | hrs=24 vitals=3000 troph=12 battles=15 winRate=70
+   5 ->    9 | hrs=24 vitals=2500 troph=10 battles=10 winRate=50
+   5 ->   11 | hrs=24 vitals=2000 troph=8 battles=10 winRate=50
+   6 ->    8 | hrs=24 vitals=3000 troph=12 battles=15 winRate=70
+   6 ->   10 | hrs=24 vitals=2500 troph=10 battles=10 winRate=50
+   6 ->   12 | hrs=24 vitals=2000 troph=8 battles=10 winRate=50
+   7 ->   14 | hrs=24 vitals=5000 troph=20 battles=20 winRate=70
+   7 ->   13 | hrs=24 vitals=4500 troph=10 battles=15 winRate=50
+   8 ->   16 | hrs=24 vitals=7000 troph=20 battles=25 winRate=70
+   8 ->   13 | hrs=24 vitals=4500 troph=10 battles=15 winRate=50
+   9 ->   14 | hrs=24 vitals=5000 troph=20 battles=20 winRate=70
+   9 ->   15 | hrs=24 vitals=4500 troph=15 battles=15 winRate=70
+  10 ->   16 | hrs=24 vitals=7000 troph=20 battles=25 winRate=70
+  10 ->   13 | hrs=24 vitals=4500 troph=10 battles=15 winRate=50
+  11 ->   14 | hrs=24 vitals=5000 troph=20 battles=20 winRate=70
+  11 ->   15 | hrs=24 vitals=4500 troph=15 battles=15 winRate=70
+  12 ->   16 | hrs=24 vitals=7000 troph=20 battles=25 winRate=70
+  12 ->   15 | hrs=24 vitals=4500 troph=15 battles=15 winRate=70
+  13 -> NONE(fusion-check) | hrs=65535 vitals=0 troph=0 battles=0 winRate=0
+  14 -> NONE(fusion-check) | hrs=65535 vitals=0 troph=0 battles=0 winRate=0
+  15 -> NONE(fusion-check) | hrs=65535 vitals=0 troph=0 battles=0 winRate=0
+  16 -> NONE(fusion-check) | hrs=65535 vitals=0 troph=0 battles=0 winRate=0
+
+### 07._Nu_Metal_Empire_27_pcea.bin
+Roster (idx: stage/attr/type):
+   0: stage=0 attr=0 type=2 unlock=65535
+   1: stage=1 attr=0 type=2 unlock=65535
+   2: stage=2 attr=1 type=2 unlock=65535
+   3: stage=3 attr=3 type=1 unlock=65535
+   4: stage=3 attr=3 type=2 unlock=65535
+   5: stage=3 attr=2 type=3 unlock=65535
+   6: stage=3 attr=1 type=4 unlock=65535
+   7: stage=4 attr=3 type=1 unlock=65535
+   8: stage=4 attr=3 type=2 unlock=65535
+   9: stage=4 attr=2 type=1 unlock=65535
+  10: stage=4 attr=2 type=2 unlock=65535
+  11: stage=4 attr=1 type=0 unlock=65535
+  12: stage=4 attr=1 type=0 unlock=65535
+  13: stage=5 attr=3 type=1 unlock=65535
+  14: stage=5 attr=2 type=2 unlock=65535
+  15: stage=5 attr=1 type=0 unlock=65535
+  16: stage=5 attr=1 type=2 unlock=1
+Evolutions (from -> to | hrs vitals troph battles winRate):
+   0 ->    1 | hrs=1 vitals=0 troph=0 battles=0 winRate=0
+   1 ->    2 | hrs=3 vitals=0 troph=0 battles=0 winRate=0
+   2 ->    3 | hrs=16 vitals=1300 troph=10 battles=8 winRate=0
+   2 ->    4 | hrs=16 vitals=900 troph=8 battles=5 winRate=0
+   2 ->    5 | hrs=16 vitals=600 troph=5 battles=3 winRate=0
+   2 ->    6 | hrs=16 vitals=0 troph=0 battles=0 winRate=0
+   3 ->    7 | hrs=24 vitals=3000 troph=12 battles=15 winRate=70
+   3 ->    9 | hrs=24 vitals=2500 troph=10 battles=10 winRate=50
+   3 ->   11 | hrs=24 vitals=2000 troph=8 battles=10 winRate=50
+   4 ->    8 | hrs=24 vitals=3000 troph=12 battles=15 winRate=70
+   4 ->   10 | hrs=24 vitals=2500 troph=10 battles=10 winRate=50
+   4 ->   12 | hrs=24 vitals=2000 troph=8 battles=10 winRate=50
+   5 ->    8 | hrs=24 vitals=3000 troph=12 battles=15 winRate=70
+   5 ->   10 | hrs=24 vitals=2500 troph=10 battles=10 winRate=50
+   5 ->   12 | hrs=24 vitals=2000 troph=8 battles=10 winRate=50
+   6 ->    7 | hrs=24 vitals=3000 troph=12 battles=15 winRate=70
+   6 ->    9 | hrs=24 vitals=2500 troph=10 battles=10 winRate=50
+   6 ->   11 | hrs=24 vitals=2000 troph=8 battles=10 winRate=50
+   7 ->   14 | hrs=24 vitals=4500 troph=15 battles=15 winRate=70
+   7 ->   13 | hrs=24 vitals=4500 troph=10 battles=15 winRate=50
+   8 ->   16 | hrs=24 vitals=7000 troph=20 battles=25 winRate=70
+   8 ->   14 | hrs=24 vitals=4500 troph=15 battles=15 winRate=70
+   9 ->   16 | hrs=24 vitals=7000 troph=20 battles=25 winRate=70
+   9 ->   13 | hrs=24 vitals=4500 troph=10 battles=15 winRate=50
+  10 ->   15 | hrs=24 vitals=5000 troph=20 battles=20 winRate=70
+  10 ->   14 | hrs=24 vitals=4500 troph=15 battles=15 winRate=70
+  11 ->   15 | hrs=24 vitals=5000 troph=20 battles=20 winRate=70
+  11 ->   13 | hrs=24 vitals=4500 troph=10 battles=15 winRate=50
+  12 ->   16 | hrs=24 vitals=7000 troph=20 battles=25 winRate=70
+  12 ->   15 | hrs=24 vitals=5000 troph=20 battles=20 winRate=70
+  13 -> NONE(fusion-check) | hrs=65535 vitals=0 troph=0 battles=0 winRate=0
+  14 -> NONE(fusion-check) | hrs=65535 vitals=0 troph=0 battles=0 winRate=0
+  15 -> NONE(fusion-check) | hrs=65535 vitals=0 troph=0 battles=0 winRate=0
+  16 -> NONE(fusion-check) | hrs=65535 vitals=0 troph=0 battles=0 winRate=0
+
+### 08._Dynasty_of_The_Evil_28_avzx.bin
+Roster (idx: stage/attr/type):
+   0: stage=0 attr=0 type=2 unlock=65535
+   1: stage=1 attr=0 type=2 unlock=65535
+   2: stage=2 attr=2 type=2 unlock=65535
+   3: stage=3 attr=3 type=1 unlock=65535
+   4: stage=3 attr=2 type=2 unlock=65535
+   5: stage=3 attr=1 type=3 unlock=65535
+   6: stage=3 attr=1 type=4 unlock=65535
+   7: stage=4 attr=4 type=2 unlock=65535
+   8: stage=4 attr=3 type=1 unlock=65535
+   9: stage=4 attr=2 type=3 unlock=65535
+  10: stage=4 attr=1 type=1 unlock=65535
+  11: stage=4 attr=1 type=0 unlock=65535
+  12: stage=4 attr=1 type=4 unlock=65535
+  13: stage=5 attr=2 type=3 unlock=65535
+  14: stage=5 attr=1 type=0 unlock=65535
+  15: stage=5 attr=1 type=2 unlock=65535
+  16: stage=5 attr=1 type=1 unlock=1
+Evolutions (from -> to | hrs vitals troph battles winRate):
+   0 ->    1 | hrs=1 vitals=0 troph=0 battles=0 winRate=0
+   1 ->    2 | hrs=3 vitals=0 troph=0 battles=0 winRate=0
+   2 ->    3 | hrs=16 vitals=1300 troph=10 battles=8 winRate=0
+   2 ->    4 | hrs=16 vitals=900 troph=8 battles=5 winRate=0
+   2 ->    5 | hrs=16 vitals=600 troph=5 battles=3 winRate=0
+   2 ->    6 | hrs=16 vitals=0 troph=0 battles=0 winRate=0
+   3 ->    8 | hrs=24 vitals=3000 troph=12 battles=15 winRate=70
+   3 ->   10 | hrs=24 vitals=2500 troph=10 battles=10 winRate=50
+   3 ->   12 | hrs=24 vitals=2000 troph=8 battles=10 winRate=50
+   4 ->    7 | hrs=24 vitals=3000 troph=12 battles=15 winRate=70
+   4 ->    9 | hrs=24 vitals=2500 troph=10 battles=10 winRate=50
+   4 ->   11 | hrs=24 vitals=2000 troph=8 battles=10 winRate=50
+   5 ->    7 | hrs=24 vitals=3000 troph=12 battles=15 winRate=70
+   5 ->   10 | hrs=24 vitals=2500 troph=10 battles=10 winRate=50
+   5 ->   11 | hrs=24 vitals=2000 troph=8 battles=10 winRate=50
+   6 ->    8 | hrs=24 vitals=3000 troph=12 battles=15 winRate=70
+   6 ->    9 | hrs=24 vitals=2500 troph=10 battles=10 winRate=50
+   6 ->   12 | hrs=24 vitals=2000 troph=8 battles=10 winRate=50
+   7 ->   15 | hrs=24 vitals=4500 troph=15 battles=15 winRate=70
+   7 ->   13 | hrs=24 vitals=4500 troph=10 battles=15 winRate=50
+   8 ->   16 | hrs=24 vitals=7000 troph=20 battles=25 winRate=70
+   8 ->   15 | hrs=24 vitals=4500 troph=15 battles=15 winRate=70
+   9 ->   14 | hrs=24 vitals=5000 troph=20 battles=20 winRate=70
+   9 ->   13 | hrs=24 vitals=4500 troph=10 battles=15 winRate=50
+  10 ->   16 | hrs=24 vitals=7000 troph=20 battles=25 winRate=70
+  10 ->   14 | hrs=24 vitals=5000 troph=20 battles=20 winRate=70
+  11 ->   14 | hrs=24 vitals=5000 troph=20 battles=20 winRate=70
+  11 ->   15 | hrs=24 vitals=4500 troph=15 battles=15 winRate=70
+  12 ->   16 | hrs=24 vitals=7000 troph=20 battles=25 winRate=70
+  12 ->   13 | hrs=24 vitals=4500 troph=10 battles=15 winRate=50
+  13 -> NONE(fusion-check) | hrs=65535 vitals=0 troph=0 battles=0 winRate=0
+  14 -> NONE(fusion-check) | hrs=65535 vitals=0 troph=0 battles=0 winRate=0
+  15 -> NONE(fusion-check) | hrs=65535 vitals=0 troph=0 battles=0 winRate=0
+  16 -> NONE(fusion-check) | hrs=65535 vitals=0 troph=0 battles=0 winRate=0
+
+### 09._Mad_Black_Roar_10_x4vv.bin
+Roster (idx: stage/attr/type):
+   0: stage=0 attr=0 type=2 unlock=65535
+   1: stage=1 attr=0 type=2 unlock=65535
+   2: stage=2 attr=1 type=1 unlock=65535
+   3: stage=3 attr=3 type=1 unlock=65535
+   4: stage=3 attr=2 type=3 unlock=65535
+   5: stage=3 attr=1 type=1 unlock=65535
+   6: stage=3 attr=1 type=2 unlock=65535
+   7: stage=4 attr=3 type=1 unlock=65535
+   8: stage=4 attr=3 type=2 unlock=65535
+   9: stage=4 attr=2 type=3 unlock=65535
+  10: stage=4 attr=2 type=1 unlock=65535
+  11: stage=4 attr=1 type=1 unlock=65535
+  12: stage=4 attr=1 type=3 unlock=65535
+  13: stage=5 attr=3 type=1 unlock=65535
+  14: stage=5 attr=1 type=1 unlock=65535
+  15: stage=5 attr=1 type=0 unlock=65535
+  16: stage=5 attr=3 type=2 unlock=1
+Evolutions (from -> to | hrs vitals troph battles winRate):
+   0 ->    1 | hrs=1 vitals=0 troph=0 battles=0 winRate=0
+   1 ->    2 | hrs=3 vitals=0 troph=0 battles=0 winRate=0
+   2 ->    3 | hrs=16 vitals=1300 troph=10 battles=8 winRate=0
+   2 ->    5 | hrs=16 vitals=900 troph=8 battles=5 winRate=0
+   2 ->    6 | hrs=16 vitals=600 troph=5 battles=3 winRate=0
+   2 ->    4 | hrs=16 vitals=0 troph=0 battles=0 winRate=0
+   3 ->    7 | hrs=24 vitals=3000 troph=12 battles=15 winRate=70
+   3 ->   11 | hrs=24 vitals=2500 troph=10 battles=10 winRate=50
+   3 ->   12 | hrs=24 vitals=2000 troph=8 battles=10 winRate=50
+   4 ->    8 | hrs=24 vitals=3000 troph=12 battles=15 winRate=70
+   4 ->    9 | hrs=24 vitals=2500 troph=10 battles=10 winRate=50
+   4 ->   10 | hrs=24 vitals=2000 troph=8 battles=10 winRate=50
+   5 ->    7 | hrs=24 vitals=3000 troph=12 battles=15 winRate=70
+   5 ->   11 | hrs=24 vitals=2500 troph=10 battles=10 winRate=50
+   5 ->   12 | hrs=24 vitals=2000 troph=8 battles=10 winRate=50
+   6 ->    8 | hrs=24 vitals=3000 troph=12 battles=15 winRate=70
+   6 ->    9 | hrs=24 vitals=2500 troph=10 battles=10 winRate=50
+   6 ->   10 | hrs=24 vitals=2000 troph=8 battles=10 winRate=50
+   7 ->   16 | hrs=24 vitals=7000 troph=20 battles=25 winRate=70
+   7 ->   13 | hrs=24 vitals=4500 troph=10 battles=15 winRate=50
+   8 ->   14 | hrs=24 vitals=4500 troph=15 battles=15 winRate=70
+   8 ->   13 | hrs=24 vitals=4500 troph=10 battles=15 winRate=50
+   9 ->   15 | hrs=24 vitals=5000 troph=20 battles=20 winRate=70
+   9 ->   13 | hrs=24 vitals=4500 troph=10 battles=15 winRate=50
+  10 ->   16 | hrs=24 vitals=7000 troph=20 battles=25 winRate=70
+  10 ->   15 | hrs=24 vitals=5000 troph=20 battles=20 winRate=70
+  11 ->   16 | hrs=24 vitals=7000 troph=20 battles=25 winRate=70
+  11 ->   14 | hrs=24 vitals=4500 troph=15 battles=15 winRate=70
+  12 ->   15 | hrs=24 vitals=5000 troph=20 battles=20 winRate=70
+  12 ->   14 | hrs=24 vitals=4500 troph=15 battles=15 winRate=70
+  13 -> NONE(fusion-check) | hrs=65535 vitals=0 troph=0 battles=0 winRate=0
+  14 -> NONE(fusion-check) | hrs=3 vitals=0 troph=0 battles=0 winRate=0
+  15 -> NONE(fusion-check) | hrs=65535 vitals=0 troph=0 battles=0 winRate=0
+  16 -> NONE(fusion-check) | hrs=65535 vitals=0 troph=0 battles=0 winRate=0
+
+### 10._True_Shadow_Howl_11_hbmg.bin
+Roster (idx: stage/attr/type):
+   0: stage=0 attr=0 type=2 unlock=65535
+   1: stage=1 attr=0 type=2 unlock=65535
+   2: stage=2 attr=1 type=1 unlock=65535
+   3: stage=3 attr=3 type=1 unlock=65535
+   4: stage=3 attr=2 type=4 unlock=65535
+   5: stage=3 attr=1 type=2 unlock=65535
+   6: stage=3 attr=1 type=1 unlock=65535
+   7: stage=4 attr=3 type=1 unlock=65535
+   8: stage=4 attr=3 type=0 unlock=65535
+   9: stage=4 attr=4 type=2 unlock=65535
+  10: stage=4 attr=2 type=3 unlock=65535
+  11: stage=4 attr=1 type=1 unlock=65535
+  12: stage=4 attr=1 type=2 unlock=65535
+  13: stage=5 attr=2 type=2 unlock=65535
+  14: stage=5 attr=1 type=1 unlock=65535
+  15: stage=5 attr=1 type=0 unlock=65535
+  16: stage=5 attr=3 type=2 unlock=1
+Evolutions (from -> to | hrs vitals troph battles winRate):
+   0 ->    1 | hrs=1 vitals=0 troph=0 battles=0 winRate=0
+   1 ->    2 | hrs=3 vitals=0 troph=0 battles=0 winRate=0
+   2 ->    3 | hrs=16 vitals=1300 troph=10 battles=8 winRate=0
+   2 ->    6 | hrs=16 vitals=900 troph=8 battles=5 winRate=0
+   2 ->    5 | hrs=16 vitals=600 troph=5 battles=3 winRate=0
+   2 ->    4 | hrs=16 vitals=0 troph=0 battles=0 winRate=0
+   3 ->    7 | hrs=24 vitals=3000 troph=12 battles=15 winRate=70
+   3 ->   10 | hrs=24 vitals=2500 troph=10 battles=10 winRate=50
+   3 ->   11 | hrs=24 vitals=2000 troph=8 battles=10 winRate=50
+   4 ->    8 | hrs=24 vitals=3000 troph=12 battles=15 winRate=70
+   4 ->    9 | hrs=24 vitals=2500 troph=10 battles=10 winRate=50
+   4 ->   12 | hrs=24 vitals=2000 troph=8 battles=10 winRate=50
+   5 ->    8 | hrs=24 vitals=3000 troph=12 battles=15 winRate=70
+   5 ->    9 | hrs=24 vitals=2500 troph=10 battles=10 winRate=50
+   5 ->   12 | hrs=24 vitals=2000 troph=8 battles=10 winRate=50
+   6 ->    7 | hrs=24 vitals=3000 troph=12 battles=15 winRate=70
+   6 ->   10 | hrs=24 vitals=2500 troph=10 battles=10 winRate=50
+   6 ->   11 | hrs=24 vitals=2000 troph=8 battles=10 winRate=50
+   7 ->   16 | hrs=24 vitals=7000 troph=20 battles=25 winRate=70
+   7 ->   13 | hrs=24 vitals=4500 troph=10 battles=15 winRate=50
+   8 ->   15 | hrs=24 vitals=5000 troph=20 battles=20 winRate=70
+   8 ->   14 | hrs=24 vitals=4500 troph=15 battles=15 winRate=70
+   9 ->   14 | hrs=24 vitals=4500 troph=15 battles=15 winRate=70
+   9 ->   13 | hrs=24 vitals=4500 troph=10 battles=15 winRate=50
+  10 ->   15 | hrs=24 vitals=5000 troph=20 battles=20 winRate=70
+  10 ->   13 | hrs=24 vitals=4500 troph=10 battles=15 winRate=50
+  11 ->   16 | hrs=24 vitals=7000 troph=20 battles=25 winRate=70
+  11 ->   14 | hrs=24 vitals=4500 troph=15 battles=15 winRate=70
+  12 ->   16 | hrs=24 vitals=7000 troph=20 battles=25 winRate=70
+  12 ->   15 | hrs=24 vitals=5000 troph=20 battles=20 winRate=70
+  13 -> NONE(fusion-check) | hrs=65535 vitals=0 troph=0 battles=0 winRate=0
+  14 -> NONE(fusion-check) | hrs=3 vitals=0 troph=0 battles=0 winRate=0
+  15 -> NONE(fusion-check) | hrs=65535 vitals=0 troph=0 battles=0 winRate=0
+  16 -> NONE(fusion-check) | hrs=65535 vitals=0 troph=0 battles=0 winRate=0
+
+### 11._Gammamon_30_u6xb.bin
+Roster (idx: stage/attr/type):
+   0: stage=0 attr=0 type=2 unlock=65535
+   1: stage=1 attr=0 type=2 unlock=65535
+   2: stage=2 attr=1 type=2 unlock=65535
+   3: stage=3 attr=3 type=0 unlock=65535
+   4: stage=3 attr=2 type=1 unlock=65535
+   5: stage=3 attr=2 type=3 unlock=65535
+   6: stage=3 attr=1 type=4 unlock=65535
+   7: stage=4 attr=3 type=0 unlock=65535
+   8: stage=4 attr=2 type=4 unlock=65535
+   9: stage=4 attr=2 type=1 unlock=65535
+  10: stage=4 attr=1 type=2 unlock=65535
+  11: stage=5 attr=3 type=0 unlock=65535
+  12: stage=5 attr=2 type=3 unlock=65535
+  13: stage=5 attr=1 type=1 unlock=65535
+Evolutions (from -> to | hrs vitals troph battles winRate):
+   0 ->    1 | hrs=1 vitals=0 troph=0 battles=0 winRate=0
+   1 ->    2 | hrs=3 vitals=0 troph=0 battles=0 winRate=0
+   2 ->    3 | hrs=16 vitals=1100 troph=10 battles=8 winRate=0
+   2 ->    4 | hrs=16 vitals=900 troph=8 battles=5 winRate=0
+   2 ->    5 | hrs=16 vitals=600 troph=5 battles=3 winRate=0
+   2 ->    6 | hrs=16 vitals=0 troph=0 battles=0 winRate=0
+   3 ->    7 | hrs=24 vitals=3000 troph=12 battles=15 winRate=70
+   3 ->    8 | hrs=24 vitals=2500 troph=10 battles=10 winRate=50
+   3 ->    9 | hrs=24 vitals=2000 troph=8 battles=10 winRate=50
+   4 ->    7 | hrs=24 vitals=3000 troph=12 battles=15 winRate=70
+   4 ->    8 | hrs=24 vitals=2000 troph=8 battles=10 winRate=50
+   5 ->    7 | hrs=24 vitals=3000 troph=12 battles=15 winRate=70
+   5 ->   10 | hrs=24 vitals=2000 troph=8 battles=10 winRate=50
+   6 ->    7 | hrs=24 vitals=3000 troph=12 battles=15 winRate=70
+   6 ->    9 | hrs=24 vitals=2000 troph=8 battles=10 winRate=50
+   7 ->   13 | hrs=24 vitals=7000 troph=20 battles=25 winRate=70
+   7 ->   11 | hrs=24 vitals=5000 troph=15 battles=15 winRate=70
+   7 ->   12 | hrs=24 vitals=4500 troph=15 battles=15 winRate=60
+   8 ->   13 | hrs=24 vitals=7000 troph=20 battles=25 winRate=70
+   8 ->   12 | hrs=24 vitals=4500 troph=15 battles=15 winRate=60
+   9 ->   13 | hrs=24 vitals=7000 troph=20 battles=25 winRate=70
+   9 ->   12 | hrs=24 vitals=5000 troph=15 battles=15 winRate=60
+  10 ->   13 | hrs=24 vitals=7000 troph=20 battles=25 winRate=70
+  10 ->   11 | hrs=24 vitals=5000 troph=15 battles=15 winRate=70
+  11 -> NONE(fusion-check) | hrs=65535 vitals=0 troph=0 battles=0 winRate=0
+  12 -> NONE(fusion-check) | hrs=65535 vitals=0 troph=0 battles=0 winRate=0
+  13 -> NONE(fusion-check) | hrs=65535 vitals=0 troph=0 battles=0 winRate=0
+
+### 12._Medarot_29_nxc2.bin
+Roster (idx: stage/attr/type):
+   0: stage=0 attr=0 type=2 unlock=65535
+   1: stage=1 attr=0 type=2 unlock=65535
+   2: stage=2 attr=4 type=2 unlock=65535
+   3: stage=3 attr=3 type=1 unlock=65535
+   4: stage=3 attr=3 type=1 unlock=65535
+   5: stage=3 attr=4 type=0 unlock=65535
+   6: stage=3 attr=4 type=3 unlock=65535
+   7: stage=4 attr=4 type=1 unlock=65535
+   8: stage=4 attr=4 type=2 unlock=65535
+   9: stage=4 attr=4 type=0 unlock=65535
+  10: stage=4 attr=4 type=3 unlock=65535
+  11: stage=5 attr=4 type=2 unlock=65535
+  12: stage=5 attr=3 type=0 unlock=65535
+  13: stage=65535 attr=65535 type=65535 unlock=65535
+  14: stage=65535 attr=65535 type=65535 unlock=65535
+  15: stage=65535 attr=65535 type=65535 unlock=65535
+  16: stage=65535 attr=65535 type=65535 unlock=65535
+Evolutions (from -> to | hrs vitals troph battles winRate):
+   0 ->    1 | hrs=1 vitals=0 troph=0 battles=0 winRate=0
+   1 ->    2 | hrs=3 vitals=0 troph=0 battles=0 winRate=0
+   2 ->    3 | hrs=16 vitals=1300 troph=10 battles=8 winRate=0
+   2 ->    4 | hrs=16 vitals=900 troph=8 battles=5 winRate=0
+   2 ->    5 | hrs=16 vitals=600 troph=5 battles=3 winRate=0
+   2 ->    6 | hrs=16 vitals=0 troph=0 battles=0 winRate=0
+   3 ->    7 | hrs=24 vitals=3000 troph=12 battles=15 winRate=70
+   3 ->    9 | hrs=24 vitals=2500 troph=10 battles=10 winRate=50
+   3 ->   10 | hrs=24 vitals=2000 troph=8 battles=10 winRate=50
+   4 ->    8 | hrs=24 vitals=3000 troph=12 battles=15 winRate=70
+   4 ->    9 | hrs=24 vitals=2500 troph=10 battles=10 winRate=50
+   4 ->   10 | hrs=24 vitals=2000 troph=8 battles=10 winRate=50
+   5 ->    9 | hrs=24 vitals=2500 troph=10 battles=10 winRate=50
+   5 ->   10 | hrs=24 vitals=2000 troph=8 battles=10 winRate=50
+   6 ->    9 | hrs=24 vitals=2500 troph=10 battles=10 winRate=50
+   6 ->   10 | hrs=24 vitals=2000 troph=8 battles=10 winRate=50
+   7 ->   12 | hrs=24 vitals=7000 troph=20 battles=25 winRate=70
+   8 ->   12 | hrs=24 vitals=7000 troph=20 battles=25 winRate=70
+   9 ->   12 | hrs=24 vitals=5000 troph=20 battles=20 winRate=70
+  10 ->   12 | hrs=24 vitals=5000 troph=20 battles=20 winRate=70
+  11 -> NONE(fusion-check) | hrs=24 vitals=0 troph=0 battles=0 winRate=0
+  12 -> NONE(fusion-check) | hrs=24 vitals=0 troph=0 battles=0 winRate=0
+
+### AGNIMON_42_1ajx.bin
+Roster (idx: stage/attr/type):
+   0: stage=0 attr=0 type=2 unlock=65535
+   1: stage=1 attr=0 type=2 unlock=65535
+   2: stage=2 attr=4 type=1 unlock=65535
+   3: stage=2 attr=2 type=3 unlock=65535
+   4: stage=3 attr=4 type=1 unlock=65535
+   5: stage=3 attr=2 type=3 unlock=65535
+   6: stage=3 attr=2 type=3 unlock=65535
+   7: stage=3 attr=4 type=0 unlock=65535
+   8: stage=4 attr=4 type=1 unlock=65535
+   9: stage=4 attr=4 type=2 unlock=65535
+  10: stage=4 attr=2 type=0 unlock=65535
+  11: stage=4 attr=4 type=2 unlock=65535
+  12: stage=4 attr=1 type=3 unlock=65535
+  13: stage=5 attr=4 type=1 unlock=65535
+  14: stage=5 attr=3 type=2 unlock=65535
+  15: stage=5 attr=1 type=0 unlock=65535
+  16: stage=5 attr=3 type=0 unlock=65535
+Evolutions (from -> to | hrs vitals troph battles winRate):
+   0 ->    1 | hrs=1 vitals=0 troph=0 battles=0 winRate=0
+   1 ->    2 | hrs=3 vitals=1200 troph=0 battles=0 winRate=0
+   1 ->    3 | hrs=3 vitals=0 troph=0 battles=0 winRate=0
+   2 ->    4 | hrs=16 vitals=1300 troph=10 battles=8 winRate=0
+   2 ->    5 | hrs=16 vitals=0 troph=0 battles=0 winRate=0
+   3 ->    7 | hrs=16 vitals=1300 troph=10 battles=8 winRate=0
+   3 ->    6 | hrs=16 vitals=0 troph=0 battles=0 winRate=0
+   4 ->    8 | hrs=24 vitals=3000 troph=12 battles=15 winRate=70
+   4 ->    9 | hrs=24 vitals=2500 troph=10 battles=10 winRate=50
+   5 ->    9 | hrs=24 vitals=2500 troph=10 battles=10 winRate=50
+   5 ->   12 | hrs=24 vitals=2000 troph=8 battles=10 winRate=50
+   6 ->   10 | hrs=24 vitals=2500 troph=10 battles=10 winRate=50
+   6 ->   12 | hrs=24 vitals=2000 troph=8 battles=10 winRate=50
+   7 ->   11 | hrs=24 vitals=3000 troph=12 battles=15 winRate=70
+   7 ->   10 | hrs=24 vitals=2500 troph=10 battles=10 winRate=50
+   8 ->   13 | hrs=24 vitals=7000 troph=20 battles=25 winRate=70
+   8 ->   14 | hrs=24 vitals=4500 troph=10 battles=15 winRate=50
+   9 ->   13 | hrs=24 vitals=7000 troph=20 battles=25 winRate=70
+   9 ->   14 | hrs=24 vitals=4500 troph=10 battles=15 winRate=50
+  10 ->   13 | hrs=24 vitals=7000 troph=20 battles=25 winRate=70
+  10 ->   15 | hrs=24 vitals=5000 troph=20 battles=20 winRate=70
+  11 ->   15 | hrs=24 vitals=5000 troph=20 battles=20 winRate=70
+  11 ->   14 | hrs=24 vitals=4500 troph=10 battles=15 winRate=50
+  12 ->   15 | hrs=24 vitals=5000 troph=20 battles=20 winRate=70
+  12 ->   14 | hrs=24 vitals=4500 troph=10 battles=15 winRate=50
+  13 -> NONE(fusion-check) | hrs=3 vitals=0 troph=0 battles=0 winRate=0
+  14 -> NONE(fusion-check) | hrs=65535 vitals=0 troph=0 battles=0 winRate=0
+  15 -> NONE(fusion-check) | hrs=65535 vitals=0 troph=0 battles=0 winRate=0
+  16 -> NONE(fusion-check) | hrs=65535 vitals=0 troph=0 battles=0 winRate=0
+
+### BLITZMON_43_r0xj.bin
+Roster (idx: stage/attr/type):
+   0: stage=0 attr=0 type=2 unlock=65535
+   1: stage=1 attr=0 type=2 unlock=65535
+   2: stage=2 attr=1 type=1 unlock=65535
+   3: stage=2 attr=2 type=3 unlock=65535
+   4: stage=3 attr=4 type=1 unlock=65535
+   5: stage=3 attr=2 type=2 unlock=65535
+   6: stage=3 attr=4 type=3 unlock=65535
+   7: stage=3 attr=1 type=1 unlock=65535
+   8: stage=4 attr=4 type=1 unlock=65535
+   9: stage=4 attr=4 type=2 unlock=65535
+  10: stage=4 attr=4 type=3 unlock=65535
+  11: stage=4 attr=1 type=1 unlock=65535
+  12: stage=4 attr=1 type=3 unlock=65535
+  13: stage=5 attr=3 type=1 unlock=65535
+  14: stage=5 attr=1 type=0 unlock=65535
+  15: stage=5 attr=1 type=3 unlock=65535
+  16: stage=5 attr=1 type=2 unlock=1
+Evolutions (from -> to | hrs vitals troph battles winRate):
+   0 ->    1 | hrs=1 vitals=0 troph=0 battles=0 winRate=0
+   1 ->    2 | hrs=3 vitals=1200 troph=0 battles=0 winRate=0
+   1 ->    3 | hrs=3 vitals=0 troph=0 battles=0 winRate=0
+   2 ->    4 | hrs=16 vitals=1300 troph=10 battles=8 winRate=0
+   2 ->    5 | hrs=16 vitals=0 troph=0 battles=0 winRate=0
+   3 ->    6 | hrs=16 vitals=1300 troph=10 battles=8 winRate=0
+   3 ->    7 | hrs=16 vitals=0 troph=0 battles=0 winRate=0
+   4 ->    8 | hrs=24 vitals=3000 troph=12 battles=15 winRate=70
+   4 ->    9 | hrs=24 vitals=2500 troph=10 battles=10 winRate=50
+   5 ->    9 | hrs=24 vitals=2500 troph=10 battles=10 winRate=50
+   5 ->   11 | hrs=24 vitals=2000 troph=8 battles=10 winRate=50
+   6 ->   10 | hrs=24 vitals=3000 troph=12 battles=15 winRate=70
+   6 ->   12 | hrs=24 vitals=2500 troph=10 battles=10 winRate=50
+   7 ->   12 | hrs=24 vitals=2500 troph=10 battles=10 winRate=50
+   7 ->   11 | hrs=24 vitals=2000 troph=8 battles=10 winRate=50
+   8 ->   13 | hrs=24 vitals=7000 troph=20 battles=25 winRate=70
+   8 ->   14 | hrs=24 vitals=4500 troph=10 battles=15 winRate=50
+   9 ->   13 | hrs=24 vitals=7000 troph=20 battles=25 winRate=70
+   9 ->   14 | hrs=24 vitals=4500 troph=10 battles=15 winRate=50
+  10 ->   16 | hrs=24 vitals=7000 troph=20 battles=25 winRate=70
+  10 ->   15 | hrs=24 vitals=5000 troph=20 battles=20 winRate=70
+  11 ->   13 | hrs=24 vitals=7000 troph=20 battles=25 winRate=70
+  11 ->   14 | hrs=24 vitals=4500 troph=10 battles=15 winRate=50
+  12 ->   16 | hrs=24 vitals=7000 troph=20 battles=25 winRate=70
+  12 ->   15 | hrs=24 vitals=5000 troph=20 battles=20 winRate=70
+  13 -> NONE(fusion-check) | hrs=65535 vitals=0 troph=0 battles=0 winRate=0
+  14 -> NONE(fusion-check) | hrs=65535 vitals=0 troph=0 battles=0 winRate=0
+  15 -> NONE(fusion-check) | hrs=65535 vitals=0 troph=0 battles=0 winRate=0
+  16 -> NONE(fusion-check) | hrs=65535 vitals=0 troph=0 battles=0 winRate=0
+
+### CHACKMON_44_sa2q.bin
+Roster (idx: stage/attr/type):
+   0: stage=0 attr=0 type=2 unlock=65535
+   1: stage=1 attr=0 type=2 unlock=65535
+   2: stage=2 attr=3 type=1 unlock=65535
+   3: stage=2 attr=1 type=2 unlock=65535
+   4: stage=3 attr=4 type=3 unlock=65535
+   5: stage=3 attr=3 type=1 unlock=65535
+   6: stage=3 attr=2 type=3 unlock=65535
+   7: stage=3 attr=3 type=2 unlock=65535
+   8: stage=4 attr=4 type=4 unlock=65535
+   9: stage=4 attr=4 type=1 unlock=65535
+  10: stage=4 attr=3 type=0 unlock=65535
+  11: stage=4 attr=1 type=0 unlock=65535
+  12: stage=4 attr=1 type=1 unlock=65535
+  13: stage=5 attr=3 type=2 unlock=65535
+  14: stage=5 attr=1 type=0 unlock=65535
+  15: stage=5 attr=2 type=3 unlock=65535
+  16: stage=5 attr=2 type=0 unlock=1
+Evolutions (from -> to | hrs vitals troph battles winRate):
+   0 ->    1 | hrs=1 vitals=0 troph=0 battles=0 winRate=0
+   1 ->    2 | hrs=3 vitals=1200 troph=0 battles=0 winRate=0
+   1 ->    3 | hrs=3 vitals=0 troph=0 battles=0 winRate=0
+   2 ->    4 | hrs=16 vitals=1300 troph=10 battles=8 winRate=0
+   2 ->    5 | hrs=16 vitals=0 troph=0 battles=0 winRate=0
+   3 ->    7 | hrs=16 vitals=1300 troph=10 battles=8 winRate=0
+   3 ->    6 | hrs=16 vitals=0 troph=0 battles=0 winRate=0
+   4 ->    8 | hrs=24 vitals=3000 troph=12 battles=15 winRate=70
+   4 ->    9 | hrs=24 vitals=2500 troph=10 battles=10 winRate=50
+   5 ->   12 | hrs=24 vitals=3000 troph=12 battles=15 winRate=70
+   5 ->   10 | hrs=24 vitals=2500 troph=10 battles=10 winRate=50
+   6 ->   10 | hrs=24 vitals=2500 troph=10 battles=10 winRate=50
+   6 ->   11 | hrs=24 vitals=2000 troph=8 battles=10 winRate=50
+   7 ->    9 | hrs=24 vitals=2500 troph=10 battles=10 winRate=50
+   7 ->   11 | hrs=24 vitals=2000 troph=8 battles=10 winRate=50
+   8 ->   15 | hrs=24 vitals=5500 troph=20 battles=20 winRate=70
+   8 ->   13 | hrs=24 vitals=4500 troph=10 battles=15 winRate=50
+   9 ->   14 | hrs=24 vitals=5500 troph=20 battles=20 winRate=70
+   9 ->   13 | hrs=24 vitals=4500 troph=10 battles=15 winRate=50
+  10 ->   15 | hrs=24 vitals=5500 troph=20 battles=20 winRate=70
+  10 ->   13 | hrs=24 vitals=4500 troph=10 battles=15 winRate=50
+  11 ->   16 | hrs=24 vitals=7000 troph=20 battles=25 winRate=70
+  11 ->   14 | hrs=24 vitals=5500 troph=20 battles=20 winRate=70
+  12 ->   16 | hrs=24 vitals=7000 troph=20 battles=25 winRate=70
+  12 ->   13 | hrs=24 vitals=4500 troph=10 battles=15 winRate=50
+  13 -> NONE(fusion-check) | hrs=65535 vitals=0 troph=0 battles=0 winRate=0
+  14 -> NONE(fusion-check) | hrs=65535 vitals=0 troph=0 battles=0 winRate=0
+  15 -> NONE(fusion-check) | hrs=65535 vitals=0 troph=0 battles=0 winRate=0
+  16 -> NONE(fusion-check) | hrs=65535 vitals=0 troph=0 battles=0 winRate=0
+
+### DIM_Renamon_35_5mmd.bin
+Roster (idx: stage/attr/type):
+   0: stage=0 attr=0 type=2 unlock=65535
+   1: stage=1 attr=0 type=2 unlock=65535
+   2: stage=2 attr=2 type=1 unlock=65535
+   3: stage=3 attr=2 type=1 unlock=65535
+   4: stage=3 attr=2 type=3 unlock=65535
+   5: stage=3 attr=1 type=0 unlock=65535
+   6: stage=3 attr=4 type=2 unlock=65535
+   7: stage=4 attr=3 type=3 unlock=65535
+   8: stage=4 attr=3 type=1 unlock=65535
+   9: stage=4 attr=2 type=1 unlock=65535
+  10: stage=4 attr=2 type=3 unlock=65535
+  11: stage=4 attr=2 type=2 unlock=65535
+  12: stage=4 attr=1 type=3 unlock=65535
+  13: stage=5 attr=2 type=1 unlock=65535
+  14: stage=5 attr=1 type=4 unlock=65535
+  15: stage=5 attr=2 type=3 unlock=65535
+  16: stage=5 attr=2 type=2 unlock=1
+Evolutions (from -> to | hrs vitals troph battles winRate):
+   0 ->    1 | hrs=1 vitals=0 troph=0 battles=0 winRate=0
+   1 ->    2 | hrs=3 vitals=0 troph=0 battles=0 winRate=0
+   2 ->    3 | hrs=16 vitals=1300 troph=10 battles=8 winRate=0
+   2 ->    4 | hrs=16 vitals=900 troph=8 battles=5 winRate=0
+   2 ->    5 | hrs=16 vitals=600 troph=5 battles=3 winRate=0
+   2 ->    6 | hrs=16 vitals=0 troph=0 battles=0 winRate=0
+   3 ->    7 | hrs=24 vitals=3000 troph=12 battles=15 winRate=70
+   3 ->    9 | hrs=24 vitals=2500 troph=10 battles=10 winRate=50
+   3 ->   11 | hrs=24 vitals=2000 troph=8 battles=10 winRate=50
+   4 ->    8 | hrs=24 vitals=3000 troph=12 battles=15 winRate=70
+   4 ->   10 | hrs=24 vitals=2500 troph=10 battles=10 winRate=50
+   4 ->   12 | hrs=24 vitals=2000 troph=8 battles=10 winRate=50
+   5 ->    8 | hrs=24 vitals=3000 troph=12 battles=15 winRate=70
+   5 ->   10 | hrs=24 vitals=2500 troph=10 battles=10 winRate=50
+   5 ->   12 | hrs=24 vitals=2000 troph=8 battles=10 winRate=50
+   6 ->    7 | hrs=24 vitals=3000 troph=12 battles=15 winRate=70
+   6 ->    9 | hrs=24 vitals=2500 troph=10 battles=10 winRate=50
+   6 ->   11 | hrs=24 vitals=2000 troph=8 battles=10 winRate=50
+   7 ->   16 | hrs=24 vitals=7000 troph=20 battles=25 winRate=70
+   7 ->   13 | hrs=24 vitals=4500 troph=10 battles=15 winRate=50
+   8 ->   15 | hrs=24 vitals=5000 troph=20 battles=20 winRate=70
+   8 ->   14 | hrs=24 vitals=4500 troph=15 battles=15 winRate=70
+   9 ->   16 | hrs=24 vitals=7000 troph=20 battles=25 winRate=70
+   9 ->   13 | hrs=24 vitals=4500 troph=10 battles=15 winRate=50
+  10 ->   15 | hrs=24 vitals=5000 troph=20 battles=20 winRate=70
+  10 ->   13 | hrs=24 vitals=4500 troph=10 battles=15 winRate=50
+  11 ->   16 | hrs=24 vitals=7000 troph=20 battles=25 winRate=70
+  11 ->   14 | hrs=24 vitals=4500 troph=15 battles=15 winRate=70
+  12 ->   15 | hrs=24 vitals=5000 troph=20 battles=20 winRate=70
+  12 ->   14 | hrs=24 vitals=4500 troph=15 battles=15 winRate=70
+  13 -> NONE(fusion-check) | hrs=65535 vitals=0 troph=0 battles=0 winRate=0
+  14 -> NONE(fusion-check) | hrs=65535 vitals=0 troph=0 battles=0 winRate=0
+  15 -> NONE(fusion-check) | hrs=65535 vitals=0 troph=0 battles=0 winRate=0
+  16 -> NONE(fusion-check) | hrs=65535 vitals=0 troph=0 battles=0 winRate=0
+
+### DIM_Ryudamon_41_7x5x.bin
+Roster (idx: stage/attr/type):
+   0: stage=0 attr=0 type=2 unlock=65535
+   1: stage=1 attr=0 type=2 unlock=65535
+   2: stage=2 attr=3 type=1 unlock=65535
+   3: stage=2 attr=3 type=2 unlock=65535
+   4: stage=3 attr=3 type=1 unlock=65535
+   5: stage=3 attr=3 type=2 unlock=65535
+   6: stage=3 attr=1 type=3 unlock=65535
+   7: stage=3 attr=1 type=0 unlock=65535
+   8: stage=4 attr=3 type=1 unlock=65535
+   9: stage=4 attr=3 type=2 unlock=65535
+  10: stage=4 attr=3 type=0 unlock=65535
+  11: stage=4 attr=1 type=2 unlock=65535
+  12: stage=4 attr=1 type=3 unlock=65535
+  13: stage=5 attr=3 type=1 unlock=65535
+  14: stage=5 attr=3 type=2 unlock=65535
+  15: stage=5 attr=1 type=3 unlock=65535
+  16: stage=5 attr=1 type=1 unlock=65535
+Evolutions (from -> to | hrs vitals troph battles winRate):
+   0 ->    1 | hrs=1 vitals=0 troph=0 battles=0 winRate=0
+   1 ->    2 | hrs=3 vitals=1200 troph=0 battles=0 winRate=0
+   1 ->    3 | hrs=3 vitals=0 troph=0 battles=0 winRate=0
+   2 ->    4 | hrs=16 vitals=1300 troph=10 battles=8 winRate=0
+   2 ->    6 | hrs=16 vitals=900 troph=8 battles=5 winRate=0
+   2 ->    7 | hrs=16 vitals=0 troph=0 battles=0 winRate=0
+   3 ->    5 | hrs=16 vitals=1300 troph=10 battles=8 winRate=0
+   3 ->    6 | hrs=16 vitals=900 troph=8 battles=5 winRate=0
+   3 ->    7 | hrs=16 vitals=0 troph=0 battles=0 winRate=0
+   4 ->    8 | hrs=24 vitals=3000 troph=12 battles=15 winRate=70
+   4 ->   10 | hrs=24 vitals=2500 troph=10 battles=10 winRate=50
+   4 ->   12 | hrs=24 vitals=2000 troph=8 battles=10 winRate=50
+   5 ->    9 | hrs=24 vitals=3000 troph=12 battles=15 winRate=70
+   5 ->   11 | hrs=24 vitals=2500 troph=10 battles=10 winRate=50
+   5 ->   12 | hrs=24 vitals=2000 troph=8 battles=10 winRate=50
+   6 ->    8 | hrs=24 vitals=3000 troph=12 battles=15 winRate=70
+   6 ->   10 | hrs=24 vitals=2500 troph=10 battles=10 winRate=50
+   6 ->   12 | hrs=24 vitals=2000 troph=8 battles=10 winRate=50
+   7 ->    9 | hrs=24 vitals=3000 troph=12 battles=15 winRate=70
+   7 ->   11 | hrs=24 vitals=2500 troph=10 battles=10 winRate=50
+   7 ->   12 | hrs=24 vitals=2000 troph=8 battles=10 winRate=50
+   8 ->   13 | hrs=24 vitals=5000 troph=20 battles=20 winRate=70
+   8 ->   15 | hrs=24 vitals=4500 troph=10 battles=15 winRate=50
+   9 ->   14 | hrs=24 vitals=5000 troph=20 battles=20 winRate=70
+   9 ->   15 | hrs=24 vitals=4500 troph=10 battles=15 winRate=50
+  10 ->   13 | hrs=24 vitals=5000 troph=20 battles=20 winRate=70
+  10 ->   15 | hrs=24 vitals=4500 troph=10 battles=15 winRate=50
+  11 ->   14 | hrs=24 vitals=5000 troph=20 battles=20 winRate=70
+  11 ->   15 | hrs=24 vitals=4500 troph=10 battles=15 winRate=50
+  12 ->   14 | hrs=24 vitals=5000 troph=20 battles=20 winRate=70
+  12 ->   15 | hrs=24 vitals=4500 troph=10 battles=15 winRate=50
+  13 -> NONE(fusion-check) | hrs=3 vitals=0 troph=0 battles=0 winRate=0
+  14 -> NONE(fusion-check) | hrs=65535 vitals=0 troph=0 battles=0 winRate=0
+  15 -> NONE(fusion-check) | hrs=65535 vitals=0 troph=0 battles=0 winRate=0
+
+### DIM_Terriermon_36_bmvp.bin
+Roster (idx: stage/attr/type):
+   0: stage=0 attr=0 type=2 unlock=65535
+   1: stage=1 attr=0 type=2 unlock=65535
+   2: stage=2 attr=3 type=2 unlock=65535
+   3: stage=3 attr=3 type=2 unlock=65535
+   4: stage=3 attr=2 type=1 unlock=65535
+   5: stage=3 attr=4 type=3 unlock=65535
+   6: stage=3 attr=1 type=4 unlock=65535
+   7: stage=4 attr=3 type=2 unlock=65535
+   8: stage=4 attr=2 type=1 unlock=65535
+   9: stage=4 attr=2 type=2 unlock=65535
+  10: stage=4 attr=2 type=3 unlock=65535
+  11: stage=4 attr=1 type=0 unlock=65535
+  12: stage=4 attr=1 type=3 unlock=65535
+  13: stage=5 attr=3 type=2 unlock=65535
+  14: stage=5 attr=3 type=1 unlock=65535
+  15: stage=5 attr=3 type=1 unlock=65535
+  16: stage=5 attr=3 type=0 unlock=1
+Evolutions (from -> to | hrs vitals troph battles winRate):
+   0 ->    1 | hrs=1 vitals=0 troph=0 battles=0 winRate=0
+   1 ->    2 | hrs=3 vitals=0 troph=0 battles=0 winRate=0
+   2 ->    3 | hrs=16 vitals=1300 troph=10 battles=8 winRate=0
+   2 ->    4 | hrs=16 vitals=900 troph=8 battles=5 winRate=0
+   2 ->    6 | hrs=16 vitals=600 troph=5 battles=3 winRate=0
+   2 ->    5 | hrs=16 vitals=0 troph=0 battles=0 winRate=0
+   3 ->    7 | hrs=24 vitals=3000 troph=12 battles=15 winRate=70
+   3 ->   10 | hrs=24 vitals=2500 troph=10 battles=10 winRate=50
+   3 ->   12 | hrs=24 vitals=2000 troph=8 battles=10 winRate=50
+   4 ->    7 | hrs=24 vitals=3000 troph=12 battles=15 winRate=70
+   4 ->    9 | hrs=24 vitals=2500 troph=10 battles=10 winRate=50
+   4 ->   11 | hrs=24 vitals=2000 troph=8 battles=10 winRate=50
+   5 ->    8 | hrs=24 vitals=3000 troph=12 battles=15 winRate=70
+   5 ->    9 | hrs=24 vitals=2500 troph=10 battles=10 winRate=50
+   5 ->   11 | hrs=24 vitals=2000 troph=8 battles=10 winRate=50
+   6 ->    8 | hrs=24 vitals=3000 troph=12 battles=15 winRate=70
+   6 ->   10 | hrs=24 vitals=2500 troph=10 battles=10 winRate=50
+   6 ->   12 | hrs=24 vitals=2000 troph=8 battles=10 winRate=50
+   7 ->   16 | hrs=24 vitals=7000 troph=20 battles=25 winRate=70
+   7 ->   13 | hrs=24 vitals=4500 troph=10 battles=15 winRate=50
+   8 ->   14 | hrs=24 vitals=5000 troph=20 battles=20 winRate=70
+   8 ->   15 | hrs=24 vitals=4500 troph=15 battles=15 winRate=70
+   9 ->   16 | hrs=24 vitals=7000 troph=20 battles=25 winRate=70
+   9 ->   13 | hrs=24 vitals=4500 troph=10 battles=15 winRate=50
+  10 ->   14 | hrs=24 vitals=5000 troph=20 battles=20 winRate=70
+  10 ->   15 | hrs=24 vitals=4500 troph=15 battles=15 winRate=70
+  11 ->   16 | hrs=24 vitals=7000 troph=20 battles=25 winRate=70
+  11 ->   13 | hrs=24 vitals=4500 troph=10 battles=15 winRate=50
+  12 ->   14 | hrs=24 vitals=5000 troph=20 battles=20 winRate=70
+  12 ->   15 | hrs=24 vitals=4500 troph=15 battles=15 winRate=70
+  13 -> NONE(fusion-check) | hrs=65535 vitals=0 troph=0 battles=0 winRate=0
+  14 -> NONE(fusion-check) | hrs=65535 vitals=0 troph=0 battles=0 winRate=0
+  15 -> NONE(fusion-check) | hrs=65535 vitals=0 troph=0 battles=0 winRate=0
+  16 -> NONE(fusion-check) | hrs=65535 vitals=0 troph=0 battles=0 winRate=0
+
+### FAIRIMON_45_p37y.bin
+Roster (idx: stage/attr/type):
+   0: stage=0 attr=0 type=2 unlock=65535
+   1: stage=1 attr=0 type=2 unlock=65535
+   2: stage=2 attr=1 type=2 unlock=65535
+   3: stage=2 attr=2 type=3 unlock=65535
+   4: stage=3 attr=4 type=2 unlock=65535
+   5: stage=3 attr=2 type=1 unlock=65535
+   6: stage=3 attr=4 type=3 unlock=65535
+   7: stage=3 attr=1 type=4 unlock=65535
+   8: stage=4 attr=4 type=2 unlock=65535
+   9: stage=4 attr=4 type=2 unlock=65535
+  10: stage=4 attr=4 type=3 unlock=65535
+  11: stage=4 attr=4 type=0 unlock=65535
+  12: stage=4 attr=2 type=1 unlock=65535
+  13: stage=5 attr=3 type=2 unlock=65535
+  14: stage=5 attr=2 type=1 unlock=65535
+  15: stage=5 attr=2 type=3 unlock=65535
+  16: stage=5 attr=1 type=0 unlock=1
+Evolutions (from -> to | hrs vitals troph battles winRate):
+   0 ->    1 | hrs=1 vitals=0 troph=0 battles=0 winRate=0
+   1 ->    2 | hrs=3 vitals=1200 troph=0 battles=0 winRate=0
+   1 ->    3 | hrs=3 vitals=0 troph=0 battles=0 winRate=0
+   2 ->    4 | hrs=16 vitals=1300 troph=10 battles=8 winRate=0
+   2 ->    7 | hrs=16 vitals=0 troph=0 battles=0 winRate=0
+   3 ->    6 | hrs=16 vitals=1300 troph=10 battles=8 winRate=0
+   3 ->    5 | hrs=16 vitals=0 troph=0 battles=0 winRate=0
+   4 ->    8 | hrs=24 vitals=3000 troph=12 battles=15 winRate=70
+   4 ->    9 | hrs=24 vitals=2500 troph=10 battles=10 winRate=50
+   5 ->    9 | hrs=24 vitals=2500 troph=10 battles=10 winRate=50
+   5 ->   11 | hrs=24 vitals=2000 troph=8 battles=10 winRate=50
+   6 ->   10 | hrs=24 vitals=3000 troph=12 battles=15 winRate=70
+   6 ->   12 | hrs=24 vitals=2500 troph=10 battles=10 winRate=50
+   7 ->   12 | hrs=24 vitals=2500 troph=10 battles=10 winRate=50
+   7 ->   11 | hrs=24 vitals=2000 troph=8 battles=10 winRate=50
+   8 ->   13 | hrs=24 vitals=5500 troph=20 battles=20 winRate=70
+   8 ->   14 | hrs=24 vitals=4500 troph=10 battles=15 winRate=50
+   9 ->   16 | hrs=24 vitals=7000 troph=20 battles=25 winRate=70
+   9 ->   13 | hrs=24 vitals=5500 troph=20 battles=20 winRate=70
+  10 ->   15 | hrs=24 vitals=5500 troph=20 battles=20 winRate=70
+  10 ->   14 | hrs=24 vitals=4500 troph=10 battles=15 winRate=50
+  11 ->   13 | hrs=24 vitals=5500 troph=20 battles=20 winRate=70
+  11 ->   14 | hrs=24 vitals=4500 troph=10 battles=15 winRate=50
+  12 ->   16 | hrs=24 vitals=7000 troph=20 battles=25 winRate=70
+  12 ->   15 | hrs=24 vitals=5500 troph=20 battles=20 winRate=70
+  13 -> NONE(fusion-check) | hrs=65535 vitals=0 troph=0 battles=0 winRate=0
+  14 -> NONE(fusion-check) | hrs=65535 vitals=0 troph=0 battles=0 winRate=0
+  15 -> NONE(fusion-check) | hrs=65535 vitals=0 troph=0 battles=0 winRate=0
+  16 -> NONE(fusion-check) | hrs=65535 vitals=0 troph=0 battles=0 winRate=0
+
+### FAIRIMON_48_c3ve.bin
+Roster (idx: stage/attr/type):
+   0: stage=0 attr=0 type=2 unlock=65535
+   1: stage=1 attr=0 type=2 unlock=65535
+   2: stage=2 attr=1 type=2 unlock=65535
+   3: stage=2 attr=2 type=3 unlock=65535
+   4: stage=3 attr=4 type=2 unlock=65535
+   5: stage=3 attr=2 type=1 unlock=65535
+   6: stage=3 attr=4 type=3 unlock=65535
+   7: stage=3 attr=1 type=4 unlock=65535
+   8: stage=4 attr=4 type=2 unlock=65535
+   9: stage=4 attr=4 type=2 unlock=65535
+  10: stage=4 attr=4 type=3 unlock=65535
+  11: stage=4 attr=4 type=0 unlock=65535
+  12: stage=4 attr=2 type=1 unlock=65535
+  13: stage=5 attr=3 type=2 unlock=65535
+  14: stage=5 attr=2 type=1 unlock=65535
+  15: stage=5 attr=2 type=3 unlock=65535
+  16: stage=5 attr=1 type=0 unlock=1
+Evolutions (from -> to | hrs vitals troph battles winRate):
+   0 ->    1 | hrs=1 vitals=0 troph=0 battles=0 winRate=0
+   1 ->    2 | hrs=3 vitals=1200 troph=0 battles=0 winRate=0
+   1 ->    3 | hrs=3 vitals=0 troph=0 battles=0 winRate=0
+   2 ->    4 | hrs=16 vitals=1300 troph=10 battles=8 winRate=0
+   2 ->    7 | hrs=16 vitals=0 troph=0 battles=0 winRate=0
+   3 ->    6 | hrs=16 vitals=1300 troph=10 battles=8 winRate=0
+   3 ->    5 | hrs=16 vitals=0 troph=0 battles=0 winRate=0
+   4 ->    8 | hrs=24 vitals=3000 troph=12 battles=15 winRate=70
+   4 ->    9 | hrs=24 vitals=2500 troph=10 battles=10 winRate=50
+   5 ->    9 | hrs=24 vitals=2500 troph=10 battles=10 winRate=50
+   5 ->   11 | hrs=24 vitals=2000 troph=8 battles=10 winRate=50
+   6 ->   10 | hrs=24 vitals=3000 troph=12 battles=15 winRate=70
+   6 ->   12 | hrs=24 vitals=2500 troph=10 battles=10 winRate=50
+   7 ->   12 | hrs=24 vitals=2500 troph=10 battles=10 winRate=50
+   7 ->   11 | hrs=24 vitals=2000 troph=8 battles=10 winRate=50
+   8 ->   13 | hrs=24 vitals=5500 troph=20 battles=20 winRate=70
+   8 ->   14 | hrs=24 vitals=4500 troph=10 battles=15 winRate=50
+   9 ->   16 | hrs=24 vitals=7000 troph=20 battles=25 winRate=70
+   9 ->   13 | hrs=24 vitals=5500 troph=20 battles=20 winRate=70
+  10 ->   15 | hrs=24 vitals=5500 troph=20 battles=20 winRate=70
+  10 ->   14 | hrs=24 vitals=4500 troph=10 battles=15 winRate=50
+  11 ->   13 | hrs=24 vitals=5500 troph=20 battles=20 winRate=70
+  11 ->   14 | hrs=24 vitals=4500 troph=10 battles=15 winRate=50
+  12 ->   16 | hrs=24 vitals=7000 troph=20 battles=25 winRate=70
+  12 ->   15 | hrs=24 vitals=5500 troph=20 battles=20 winRate=70
+  13 -> NONE(fusion-check) | hrs=65535 vitals=0 troph=0 battles=0 winRate=0
+  14 -> NONE(fusion-check) | hrs=65535 vitals=0 troph=0 battles=0 winRate=0
+  15 -> NONE(fusion-check) | hrs=65535 vitals=0 troph=0 battles=0 winRate=0
+  16 -> NONE(fusion-check) | hrs=65535 vitals=0 troph=0 battles=0 winRate=0
+
+### Guilmon_EX2_33_nq52.bin
+Roster (idx: stage/attr/type):
+   0: stage=0 attr=0 type=2 unlock=65535
+   1: stage=1 attr=0 type=2 unlock=65535
+   2: stage=2 attr=1 type=3 unlock=65535
+   3: stage=3 attr=3 type=2 unlock=65535
+   4: stage=3 attr=2 type=3 unlock=65535
+   5: stage=3 attr=1 type=1 unlock=65535
+   6: stage=3 attr=1 type=4 unlock=65535
+   7: stage=4 attr=3 type=0 unlock=65535
+   8: stage=4 attr=2 type=1 unlock=65535
+   9: stage=4 attr=2 type=2 unlock=65535
+  10: stage=4 attr=2 type=3 unlock=65535
+  11: stage=4 attr=1 type=1 unlock=65535
+  12: stage=4 attr=1 type=2 unlock=65535
+  13: stage=5 attr=1 type=1 unlock=65535
+  14: stage=5 attr=1 type=0 unlock=65535
+  15: stage=5 attr=1 type=2 unlock=65535
+  16: stage=5 attr=1 type=1 unlock=1
+Evolutions (from -> to | hrs vitals troph battles winRate):
+   0 ->    1 | hrs=1 vitals=0 troph=0 battles=0 winRate=0
+   1 ->    2 | hrs=3 vitals=0 troph=0 battles=0 winRate=0
+   2 ->    5 | hrs=16 vitals=1300 troph=10 battles=8 winRate=0
+   2 ->    4 | hrs=16 vitals=900 troph=8 battles=5 winRate=0
+   2 ->    3 | hrs=16 vitals=600 troph=5 battles=3 winRate=0
+   2 ->    6 | hrs=16 vitals=0 troph=0 battles=0 winRate=0
+   3 ->    7 | hrs=24 vitals=3000 troph=12 battles=15 winRate=70
+   3 ->    8 | hrs=24 vitals=2500 troph=10 battles=10 winRate=50
+   3 ->    9 | hrs=24 vitals=2000 troph=8 battles=10 winRate=50
+   4 ->   11 | hrs=24 vitals=3000 troph=12 battles=15 winRate=70
+   4 ->   10 | hrs=24 vitals=2500 troph=10 battles=10 winRate=50
+   4 ->    9 | hrs=24 vitals=2000 troph=8 battles=10 winRate=50
+   5 ->   11 | hrs=24 vitals=3000 troph=12 battles=15 winRate=70
+   5 ->   10 | hrs=24 vitals=2500 troph=10 battles=10 winRate=50
+   5 ->   12 | hrs=24 vitals=2000 troph=8 battles=10 winRate=50
+   6 ->    7 | hrs=24 vitals=3000 troph=12 battles=15 winRate=70
+   6 ->    8 | hrs=24 vitals=2500 troph=10 battles=10 winRate=50
+   6 ->   12 | hrs=24 vitals=2000 troph=8 battles=10 winRate=50
+   7 ->   15 | hrs=24 vitals=4500 troph=15 battles=15 winRate=70
+   7 ->   13 | hrs=24 vitals=4500 troph=10 battles=15 winRate=50
+   8 ->   15 | hrs=24 vitals=4500 troph=15 battles=15 winRate=70
+   8 ->   13 | hrs=24 vitals=4500 troph=10 battles=15 winRate=50
+   9 ->   14 | hrs=24 vitals=5000 troph=20 battles=20 winRate=70
+   9 ->   13 | hrs=24 vitals=4500 troph=10 battles=15 winRate=50
+  10 ->   16 | hrs=24 vitals=7000 troph=20 battles=25 winRate=70
+  10 ->   14 | hrs=24 vitals=5000 troph=20 battles=20 winRate=70
+  11 ->   16 | hrs=24 vitals=7000 troph=20 battles=25 winRate=70
+  11 ->   15 | hrs=24 vitals=4500 troph=15 battles=15 winRate=70
+  11 ->   13 | hrs=24 vitals=4500 troph=10 battles=15 winRate=50
+  12 ->   16 | hrs=24 vitals=7000 troph=20 battles=25 winRate=70
+  12 ->   14 | hrs=24 vitals=5000 troph=20 battles=20 winRate=70
+  13 -> NONE(fusion-check) | hrs=65535 vitals=0 troph=0 battles=0 winRate=0
+  14 -> NONE(fusion-check) | hrs=65535 vitals=0 troph=0 battles=0 winRate=0
+  15 -> NONE(fusion-check) | hrs=65535 vitals=0 troph=0 battles=0 winRate=0
+
+### Hermit_in_the_jungle_26_8457.bin
+Roster (idx: stage/attr/type):
+   0: stage=0 attr=0 type=2 unlock=65535
+   1: stage=1 attr=0 type=2 unlock=65535
+   2: stage=2 attr=2 type=2 unlock=65535
+   3: stage=3 attr=3 type=1 unlock=65535
+   4: stage=3 attr=2 type=2 unlock=65535
+   5: stage=3 attr=1 type=3 unlock=65535
+   6: stage=3 attr=1 type=4 unlock=65535
+   7: stage=4 attr=3 type=1 unlock=65535
+   8: stage=4 attr=3 type=2 unlock=65535
+   9: stage=4 attr=2 type=2 unlock=65535
+  10: stage=4 attr=2 type=3 unlock=65535
+  11: stage=4 attr=1 type=0 unlock=65535
+  12: stage=4 attr=1 type=1 unlock=65535
+  13: stage=5 attr=3 type=1 unlock=65535
+  14: stage=5 attr=2 type=2 unlock=65535
+  15: stage=5 attr=1 type=0 unlock=65535
+  16: stage=5 attr=1 type=3 unlock=1
+Evolutions (from -> to | hrs vitals troph battles winRate):
+   0 ->    1 | hrs=1 vitals=0 troph=0 battles=0 winRate=0
+   1 ->    2 | hrs=3 vitals=0 troph=0 battles=0 winRate=0
+   2 ->    3 | hrs=16 vitals=1300 troph=10 battles=8 winRate=0
+   2 ->    4 | hrs=16 vitals=900 troph=8 battles=5 winRate=0
+   2 ->    5 | hrs=16 vitals=600 troph=5 battles=3 winRate=0
+   2 ->    6 | hrs=16 vitals=0 troph=0 battles=0 winRate=0
+   3 ->    8 | hrs=24 vitals=3000 troph=12 battles=15 winRate=70
+   3 ->   10 | hrs=24 vitals=2500 troph=10 battles=10 winRate=50
+   3 ->   12 | hrs=24 vitals=2000 troph=8 battles=10 winRate=50
+   4 ->    8 | hrs=24 vitals=3000 troph=12 battles=15 winRate=70
+   4 ->    9 | hrs=24 vitals=2500 troph=10 battles=10 winRate=50
+   4 ->   11 | hrs=24 vitals=2000 troph=8 battles=10 winRate=50
+   5 ->    7 | hrs=24 vitals=3000 troph=12 battles=15 winRate=70
+   5 ->    9 | hrs=24 vitals=2500 troph=10 battles=10 winRate=50
+   5 ->   11 | hrs=24 vitals=2000 troph=8 battles=10 winRate=50
+   6 ->    7 | hrs=24 vitals=3000 troph=12 battles=15 winRate=70
+   6 ->   10 | hrs=24 vitals=2500 troph=10 battles=10 winRate=50
+   6 ->   12 | hrs=24 vitals=2000 troph=8 battles=10 winRate=50
+   7 ->   13 | hrs=24 vitals=5000 troph=20 battles=20 winRate=70
+   7 ->   15 | hrs=24 vitals=4500 troph=15 battles=15 winRate=70
+   8 ->   13 | hrs=24 vitals=5000 troph=20 battles=20 winRate=70
+   8 ->   14 | hrs=24 vitals=4500 troph=10 battles=15 winRate=50
+   9 ->   13 | hrs=24 vitals=5000 troph=20 battles=20 winRate=70
+   9 ->   14 | hrs=24 vitals=4500 troph=10 battles=15 winRate=50
+  10 ->   16 | hrs=24 vitals=7000 troph=20 battles=25 winRate=70
+  10 ->   15 | hrs=24 vitals=4500 troph=15 battles=15 winRate=70
+  11 ->   16 | hrs=24 vitals=7000 troph=20 battles=25 winRate=70
+  11 ->   15 | hrs=24 vitals=4500 troph=15 battles=15 winRate=70
+  12 ->   16 | hrs=24 vitals=7000 troph=20 battles=25 winRate=70
+  12 ->   14 | hrs=24 vitals=4500 troph=10 battles=15 winRate=50
+  13 -> NONE(fusion-check) | hrs=65535 vitals=0 troph=0 battles=0 winRate=0
+  14 -> NONE(fusion-check) | hrs=65535 vitals=0 troph=0 battles=0 winRate=0
+  15 -> NONE(fusion-check) | hrs=65535 vitals=0 troph=0 battles=0 winRate=0
+  16 -> NONE(fusion-check) | hrs=65535 vitals=0 troph=0 battles=0 winRate=0
+
+### Jellymon_32_jxz3.bin
+Roster (idx: stage/attr/type):
+   0: stage=0 attr=0 type=2 unlock=65535
+   1: stage=1 attr=0 type=2 unlock=65535
+   2: stage=2 attr=2 type=1 unlock=65535
+   3: stage=3 attr=3 type=2 unlock=65535
+   4: stage=3 attr=2 type=1 unlock=65535
+   5: stage=3 attr=1 type=4 unlock=65535
+   6: stage=3 attr=4 type=3 unlock=65535
+   7: stage=4 attr=3 type=0 unlock=65535
+   8: stage=4 attr=2 type=1 unlock=65535
+   9: stage=4 attr=2 type=2 unlock=65535
+  10: stage=4 attr=1 type=3 unlock=65535
+  11: stage=5 attr=3 type=1 unlock=65535
+  12: stage=5 attr=2 type=0 unlock=65535
+  13: stage=5 attr=1 type=2 unlock=65535
+Evolutions (from -> to | hrs vitals troph battles winRate):
+   0 ->    1 | hrs=1 vitals=0 troph=0 battles=0 winRate=0
+   1 ->    2 | hrs=3 vitals=0 troph=0 battles=0 winRate=0
+   2 ->    3 | hrs=16 vitals=1100 troph=10 battles=8 winRate=0
+   2 ->    4 | hrs=16 vitals=900 troph=8 battles=5 winRate=0
+   2 ->    5 | hrs=16 vitals=600 troph=5 battles=3 winRate=0
+   2 ->    6 | hrs=16 vitals=0 troph=0 battles=0 winRate=0
+   3 ->    8 | hrs=24 vitals=3000 troph=12 battles=15 winRate=70
+   3 ->    7 | hrs=24 vitals=2500 troph=8 battles=10 winRate=50
+   4 ->    8 | hrs=24 vitals=3000 troph=12 battles=15 winRate=70
+   4 ->    7 | hrs=24 vitals=2500 troph=10 battles=10 winRate=50
+   4 ->   10 | hrs=24 vitals=2000 troph=8 battles=10 winRate=50
+   5 ->    9 | hrs=24 vitals=3000 troph=12 battles=15 winRate=70
+   5 ->   10 | hrs=24 vitals=2000 troph=8 battles=10 winRate=50
+   6 ->    8 | hrs=24 vitals=3000 troph=12 battles=15 winRate=70
+   6 ->    9 | hrs=24 vitals=2000 troph=8 battles=10 winRate=50
+   7 ->   11 | hrs=24 vitals=7000 troph=20 battles=25 winRate=70
+   7 ->   13 | hrs=24 vitals=4500 troph=15 battles=15 winRate=60
+   8 ->   11 | hrs=24 vitals=7000 troph=20 battles=25 winRate=70
+   8 ->   12 | hrs=24 vitals=5000 troph=15 battles=15 winRate=60
+   8 ->   13 | hrs=24 vitals=4500 troph=15 battles=15 winRate=60
+   9 ->   12 | hrs=24 vitals=7000 troph=20 battles=25 winRate=70
+   9 ->   13 | hrs=24 vitals=5000 troph=15 battles=15 winRate=60
+  10 ->   11 | hrs=24 vitals=7000 troph=20 battles=25 winRate=70
+  10 ->   12 | hrs=24 vitals=5000 troph=15 battles=15 winRate=60
+  11 -> NONE(fusion-check) | hrs=65535 vitals=0 troph=0 battles=0 winRate=0
+  12 -> NONE(fusion-check) | hrs=65535 vitals=0 troph=0 battles=0 winRate=0
+  13 -> NONE(fusion-check) | hrs=65535 vitals=0 troph=0 battles=0 winRate=0
+
+### LOUWEMON_46_zl16.bin
+Roster (idx: stage/attr/type):
+   0: stage=0 attr=0 type=2 unlock=65535
+   1: stage=1 attr=0 type=2 unlock=65535
+   2: stage=2 attr=3 type=1 unlock=65535
+   3: stage=2 attr=1 type=3 unlock=65535
+   4: stage=3 attr=4 type=2 unlock=65535
+   5: stage=3 attr=3 type=1 unlock=65535
+   6: stage=3 attr=4 type=0 unlock=65535
+   7: stage=3 attr=1 type=3 unlock=65535
+   8: stage=4 attr=4 type=2 unlock=65535
+   9: stage=4 attr=4 type=2 unlock=65535
+  10: stage=4 attr=3 type=1 unlock=65535
+  11: stage=4 attr=4 type=1 unlock=65535
+  12: stage=4 attr=1 type=3 unlock=65535
+  13: stage=4 attr=1 type=0 unlock=1
+  14: stage=5 attr=2 type=1 unlock=65535
+  15: stage=5 attr=2 type=3 unlock=65535
+  16: stage=5 attr=1 type=3 unlock=65535
+Evolutions (from -> to | hrs vitals troph battles winRate):
+   0 ->    1 | hrs=1 vitals=0 troph=0 battles=0 winRate=0
+   1 ->    2 | hrs=3 vitals=1200 troph=0 battles=0 winRate=0
+   1 ->    3 | hrs=3 vitals=0 troph=0 battles=0 winRate=0
+   2 ->    4 | hrs=16 vitals=1300 troph=10 battles=8 winRate=0
+   2 ->    5 | hrs=16 vitals=0 troph=0 battles=0 winRate=0
+   3 ->    6 | hrs=16 vitals=1300 troph=10 battles=8 winRate=0
+   3 ->    7 | hrs=16 vitals=0 troph=0 battles=0 winRate=0
+   4 ->    8 | hrs=24 vitals=3000 troph=12 battles=15 winRate=70
+   4 ->    9 | hrs=24 vitals=2500 troph=10 battles=10 winRate=50
+   5 ->    9 | hrs=24 vitals=2500 troph=10 battles=10 winRate=50
+   5 ->   10 | hrs=24 vitals=2000 troph=8 battles=10 winRate=50
+   6 ->   13 | hrs=24 vitals=4500 troph=20 battles=25 winRate=70
+   6 ->   11 | hrs=24 vitals=3000 troph=12 battles=15 winRate=70
+   6 ->   12 | hrs=24 vitals=2500 troph=10 battles=10 winRate=50
+   7 ->   13 | hrs=24 vitals=4500 troph=20 battles=25 winRate=70
+   7 ->   12 | hrs=24 vitals=2500 troph=10 battles=10 winRate=50
+   7 ->   10 | hrs=24 vitals=2000 troph=8 battles=10 winRate=50
+   8 ->   16 | hrs=24 vitals=7000 troph=20 battles=25 winRate=70
+   8 ->   15 | hrs=24 vitals=5000 troph=20 battles=20 winRate=70
+   9 ->   16 | hrs=24 vitals=7000 troph=20 battles=25 winRate=70
+   9 ->   14 | hrs=24 vitals=4500 troph=10 battles=15 winRate=50
+  10 ->   16 | hrs=24 vitals=7000 troph=20 battles=25 winRate=70
+  10 ->   15 | hrs=24 vitals=5000 troph=20 battles=20 winRate=70
+  11 ->   15 | hrs=24 vitals=5000 troph=20 battles=20 winRate=70
+  11 ->   14 | hrs=24 vitals=4500 troph=10 battles=15 winRate=50
+  12 ->   15 | hrs=24 vitals=5000 troph=20 battles=20 winRate=70
+  12 ->   14 | hrs=24 vitals=4500 troph=10 battles=15 winRate=50
+  13 -> NONE(fusion-check) | hrs=65535 vitals=0 troph=0 battles=0 winRate=0
+  14 -> NONE(fusion-check) | hrs=65535 vitals=0 troph=0 battles=0 winRate=0
+  15 -> NONE(fusion-check) | hrs=65535 vitals=0 troph=0 battles=0 winRate=0
+  16 -> NONE(fusion-check) | hrs=65535 vitals=0 troph=0 battles=0 winRate=0
+
+### WOLFMON_47_713s.bin
+Roster (idx: stage/attr/type):
+   0: stage=0 attr=0 type=2 unlock=65535
+   1: stage=1 attr=0 type=2 unlock=65535
+   2: stage=2 attr=4 type=1 unlock=65535
+   3: stage=2 attr=1 type=3 unlock=65535
+   4: stage=3 attr=4 type=1 unlock=65535
+   5: stage=3 attr=3 type=2 unlock=65535
+   6: stage=3 attr=4 type=2 unlock=65535
+   7: stage=3 attr=2 type=3 unlock=65535
+   8: stage=4 attr=4 type=1 unlock=65535
+   9: stage=4 attr=4 type=2 unlock=65535
+  10: stage=4 attr=4 type=2 unlock=65535
+  11: stage=4 attr=2 type=2 unlock=65535
+  12: stage=4 attr=1 type=1 unlock=65535
+  13: stage=5 attr=4 type=1 unlock=65535
+  14: stage=5 attr=2 type=2 unlock=65535
+  15: stage=5 attr=2 type=0 unlock=65535
+  16: stage=5 attr=3 type=0 unlock=65535
+Evolutions (from -> to | hrs vitals troph battles winRate):
+   0 ->    1 | hrs=1 vitals=0 troph=0 battles=0 winRate=0
+   1 ->    2 | hrs=3 vitals=1200 troph=0 battles=0 winRate=0
+   1 ->    3 | hrs=3 vitals=0 troph=0 battles=0 winRate=0
+   2 ->    4 | hrs=16 vitals=1300 troph=10 battles=8 winRate=0
+   2 ->    5 | hrs=16 vitals=0 troph=0 battles=0 winRate=0
+   3 ->    6 | hrs=16 vitals=1300 troph=10 battles=8 winRate=0
+   3 ->    7 | hrs=16 vitals=0 troph=0 battles=0 winRate=0
+   4 ->    8 | hrs=24 vitals=3000 troph=12 battles=15 winRate=70
+   4 ->    9 | hrs=24 vitals=2500 troph=10 battles=10 winRate=50
+   5 ->    9 | hrs=24 vitals=2500 troph=10 battles=10 winRate=50
+   5 ->   12 | hrs=24 vitals=2000 troph=8 battles=10 winRate=50
+   6 ->   10 | hrs=24 vitals=3000 troph=12 battles=15 winRate=70
+   6 ->   11 | hrs=24 vitals=2500 troph=10 battles=10 winRate=70
+   7 ->   11 | hrs=24 vitals=2500 troph=10 battles=10 winRate=70
+   7 ->   12 | hrs=24 vitals=2000 troph=8 battles=10 winRate=50
+   8 ->   13 | hrs=24 vitals=7000 troph=20 battles=25 winRate=70
+   8 ->   14 | hrs=24 vitals=4500 troph=10 battles=15 winRate=50
+   9 ->   13 | hrs=24 vitals=7000 troph=20 battles=25 winRate=70
+   9 ->   14 | hrs=24 vitals=4500 troph=10 battles=15 winRate=50
+  10 ->   13 | hrs=24 vitals=7000 troph=20 battles=25 winRate=70
+  10 ->   15 | hrs=24 vitals=5000 troph=20 battles=20 winRate=70
+  11 ->   15 | hrs=24 vitals=5000 troph=20 battles=20 winRate=70
+  11 ->   14 | hrs=24 vitals=4500 troph=10 battles=15 winRate=50
+  12 ->   15 | hrs=24 vitals=5000 troph=20 battles=20 winRate=70
+  12 ->   14 | hrs=24 vitals=4500 troph=10 battles=15 winRate=50
+  13 -> NONE(fusion-check) | hrs=3 vitals=0 troph=0 battles=0 winRate=0
+  14 -> NONE(fusion-check) | hrs=65535 vitals=0 troph=0 battles=0 winRate=0
+  15 -> NONE(fusion-check) | hrs=65535 vitals=0 troph=0 battles=0 winRate=0
+  16 -> NONE(fusion-check) | hrs=65535 vitals=0 troph=0 battles=0 winRate=0
+
+### Wolf_Howl_39_gbj7.bin
+Roster (idx: stage/attr/type):
+   0: stage=0 attr=0 type=2 unlock=65535
+   1: stage=1 attr=0 type=2 unlock=65535
+   2: stage=2 attr=2 type=1 unlock=65535
+   3: stage=2 attr=1 type=1 unlock=65535
+   4: stage=3 attr=3 type=1 unlock=65535
+   5: stage=3 attr=2 type=4 unlock=65535
+   6: stage=3 attr=1 type=2 unlock=65535
+   7: stage=3 attr=1 type=1 unlock=65535
+   8: stage=4 attr=3 type=1 unlock=65535
+   9: stage=4 attr=2 type=3 unlock=65535
+  10: stage=4 attr=1 type=2 unlock=65535
+  11: stage=4 attr=1 type=1 unlock=65535
+  12: stage=5 attr=2 type=1 unlock=65535
+  13: stage=5 attr=2 type=2 unlock=65535
+  14: stage=5 attr=1 type=1 unlock=65535
+  15: stage=5 attr=3 type=2 unlock=65535
+  16: stage=5 attr=3 type=2 unlock=1
+Evolutions (from -> to | hrs vitals troph battles winRate):
+   0 ->    1 | hrs=1 vitals=0 troph=0 battles=0 winRate=0
+   1 ->    2 | hrs=3 vitals=1200 troph=0 battles=0 winRate=0
+   1 ->    3 | hrs=3 vitals=0 troph=0 battles=0 winRate=0
+   2 ->    4 | hrs=16 vitals=1300 troph=10 battles=8 winRate=0
+   2 ->    6 | hrs=16 vitals=900 troph=8 battles=5 winRate=0
+   2 ->    5 | hrs=16 vitals=0 troph=0 battles=0 winRate=0
+   3 ->    7 | hrs=16 vitals=1300 troph=10 battles=8 winRate=0
+   3 ->    6 | hrs=16 vitals=900 troph=8 battles=5 winRate=0
+   3 ->    5 | hrs=16 vitals=0 troph=0 battles=0 winRate=0
+   4 ->    8 | hrs=24 vitals=3000 troph=12 battles=15 winRate=70
+   4 ->   10 | hrs=24 vitals=2500 troph=10 battles=10 winRate=50
+   4 ->    9 | hrs=24 vitals=2000 troph=8 battles=10 winRate=50
+   5 ->   11 | hrs=24 vitals=3000 troph=12 battles=15 winRate=70
+   5 ->   10 | hrs=24 vitals=2500 troph=10 battles=10 winRate=50
+   5 ->    9 | hrs=24 vitals=2000 troph=8 battles=10 winRate=50
+   6 ->    8 | hrs=24 vitals=3000 troph=12 battles=15 winRate=70
+   6 ->   10 | hrs=24 vitals=2500 troph=10 battles=10 winRate=50
+   6 ->    9 | hrs=24 vitals=2000 troph=8 battles=10 winRate=50
+   7 ->   11 | hrs=24 vitals=3000 troph=12 battles=15 winRate=70
+   7 ->   10 | hrs=24 vitals=2500 troph=10 battles=10 winRate=50
+   7 ->    9 | hrs=24 vitals=2000 troph=8 battles=10 winRate=50
+   8 ->   13 | hrs=24 vitals=5000 troph=20 battles=20 winRate=70
+   8 ->   12 | hrs=24 vitals=4500 troph=10 battles=15 winRate=50
+   9 ->   13 | hrs=24 vitals=5000 troph=20 battles=20 winRate=70
+   9 ->   12 | hrs=24 vitals=4500 troph=10 battles=15 winRate=50
+  10 ->   13 | hrs=24 vitals=5000 troph=20 battles=20 winRate=70
+  10 ->   14 | hrs=24 vitals=4500 troph=15 battles=15 winRate=70
+  11 ->   14 | hrs=24 vitals=4500 troph=15 battles=15 winRate=70
+  11 ->   12 | hrs=24 vitals=4500 troph=10 battles=15 winRate=50
+  12 ->   15 | hrs=24 vitals=8500 troph=30 battles=30 winRate=70
+  13 -> NONE(fusion-check) | hrs=65535 vitals=0 troph=0 battles=0 winRate=0
+  14 ->   16 | hrs=24 vitals=8500 troph=30 battles=30 winRate=70
+  15 -> NONE(fusion-check) | hrs=65535 vitals=0 troph=0 battles=0 winRate=0
+  16 -> NONE(fusion-check) | hrs=65535 vitals=0 troph=0 battles=0 winRate=0
+
+### angoramon_31_uts0.bin
+Roster (idx: stage/attr/type):
+   0: stage=0 attr=0 type=2 unlock=65535
+   1: stage=1 attr=0 type=2 unlock=65535
+   2: stage=2 attr=3 type=2 unlock=65535
+   3: stage=3 attr=3 type=2 unlock=65535
+   4: stage=3 attr=3 type=0 unlock=65535
+   5: stage=3 attr=2 type=1 unlock=65535
+   6: stage=3 attr=1 type=3 unlock=65535
+   7: stage=4 attr=3 type=2 unlock=65535
+   8: stage=4 attr=3 type=1 unlock=65535
+   9: stage=4 attr=2 type=1 unlock=65535
+  10: stage=4 attr=1 type=4 unlock=65535
+  11: stage=5 attr=3 type=0 unlock=65535
+  12: stage=5 attr=2 type=1 unlock=65535
+  13: stage=5 attr=2 type=2 unlock=65535
+Evolutions (from -> to | hrs vitals troph battles winRate):
+   0 ->    1 | hrs=1 vitals=0 troph=0 battles=0 winRate=0
+   1 ->    2 | hrs=3 vitals=0 troph=0 battles=0 winRate=0
+   2 ->    3 | hrs=16 vitals=1100 troph=10 battles=8 winRate=0
+   2 ->    4 | hrs=16 vitals=900 troph=8 battles=5 winRate=0
+   2 ->    5 | hrs=16 vitals=600 troph=5 battles=3 winRate=0
+   2 ->    6 | hrs=16 vitals=0 troph=0 battles=0 winRate=0
+   3 ->    7 | hrs=24 vitals=3000 troph=12 battles=15 winRate=70
+   3 ->    8 | hrs=24 vitals=2500 troph=10 battles=10 winRate=50
+   3 ->    9 | hrs=24 vitals=2000 troph=8 battles=10 winRate=50
+   4 ->    7 | hrs=24 vitals=3000 troph=12 battles=15 winRate=70
+   4 ->    8 | hrs=24 vitals=2000 troph=8 battles=10 winRate=50
+   5 ->    7 | hrs=24 vitals=3000 troph=12 battles=15 winRate=70
+   5 ->   10 | hrs=24 vitals=2000 troph=8 battles=10 winRate=50
+   6 ->    7 | hrs=24 vitals=3000 troph=12 battles=15 winRate=70
+   6 ->    9 | hrs=24 vitals=2000 troph=8 battles=10 winRate=50
+   7 ->   11 | hrs=24 vitals=7000 troph=20 battles=25 winRate=70
+   7 ->   13 | hrs=24 vitals=5000 troph=15 battles=15 winRate=70
+   7 ->   12 | hrs=24 vitals=4500 troph=15 battles=15 winRate=60
+   8 ->   12 | hrs=24 vitals=7000 troph=20 battles=25 winRate=70
+   8 ->   13 | hrs=24 vitals=4500 troph=15 battles=15 winRate=60
+   9 ->   11 | hrs=24 vitals=7000 troph=20 battles=25 winRate=70
+   9 ->   13 | hrs=24 vitals=5000 troph=15 battles=15 winRate=60
+  10 ->   11 | hrs=24 vitals=7000 troph=20 battles=25 winRate=70
+  10 ->   12 | hrs=24 vitals=5000 troph=15 battles=15 winRate=60
+  11 -> NONE(fusion-check) | hrs=65535 vitals=0 troph=0 battles=0 winRate=0
+  12 -> NONE(fusion-check) | hrs=65535 vitals=0 troph=0 battles=0 winRate=0
+  13 -> NONE(fusion-check) | hrs=65535 vitals=0 troph=0 battles=0 winRate=0
+
+### espimon_40_cstx.bin
+Roster (idx: stage/attr/type):
+   0: stage=0 attr=0 type=2 unlock=65535
+   1: stage=1 attr=0 type=2 unlock=65535
+   2: stage=2 attr=2 type=3 unlock=65535
+   3: stage=2 attr=1 type=1 unlock=65535
+   4: stage=3 attr=2 type=3 unlock=65535
+   5: stage=3 attr=1 type=1 unlock=65535
+   6: stage=3 attr=3 type=2 unlock=65535
+   7: stage=3 attr=1 type=2 unlock=65535
+   8: stage=4 attr=2 type=3 unlock=65535
+   9: stage=4 attr=2 type=4 unlock=65535
+  10: stage=4 attr=2 type=2 unlock=65535
+  11: stage=4 attr=1 type=4 unlock=65535
+  12: stage=4 attr=1 type=0 unlock=65535
+  13: stage=5 attr=2 type=3 unlock=65535
+  14: stage=5 attr=2 type=1 unlock=65535
+  15: stage=5 attr=2 type=4 unlock=65535
+  16: stage=5 attr=1 type=1 unlock=65535
+Evolutions (from -> to | hrs vitals troph battles winRate):
+   0 ->    1 | hrs=1 vitals=0 troph=0 battles=0 winRate=0
+   1 ->    2 | hrs=3 vitals=1200 troph=0 battles=0 winRate=0
+   1 ->    3 | hrs=3 vitals=0 troph=0 battles=0 winRate=0
+   2 ->    4 | hrs=16 vitals=1300 troph=10 battles=8 winRate=0
+   2 ->    6 | hrs=16 vitals=900 troph=8 battles=5 winRate=0
+   2 ->    7 | hrs=16 vitals=0 troph=0 battles=0 winRate=0
+   3 ->    5 | hrs=16 vitals=1300 troph=10 battles=8 winRate=0
+   3 ->    6 | hrs=16 vitals=900 troph=8 battles=5 winRate=0
+   3 ->    7 | hrs=16 vitals=0 troph=0 battles=0 winRate=0
+   4 ->    8 | hrs=24 vitals=3000 troph=12 battles=15 winRate=70
+   4 ->   11 | hrs=24 vitals=2500 troph=10 battles=10 winRate=50
+   4 ->   12 | hrs=24 vitals=2000 troph=8 battles=10 winRate=50
+   5 ->    9 | hrs=24 vitals=3000 troph=12 battles=15 winRate=70
+   5 ->   10 | hrs=24 vitals=2500 troph=10 battles=10 winRate=50
+   5 ->   12 | hrs=24 vitals=2000 troph=8 battles=10 winRate=50
+   6 ->    8 | hrs=24 vitals=3000 troph=12 battles=15 winRate=70
+   6 ->   11 | hrs=24 vitals=2500 troph=10 battles=10 winRate=50
+   6 ->   12 | hrs=24 vitals=2000 troph=8 battles=10 winRate=50
+   7 ->    9 | hrs=24 vitals=3000 troph=12 battles=15 winRate=70
+   7 ->   10 | hrs=24 vitals=2500 troph=10 battles=10 winRate=50
+   7 ->   12 | hrs=24 vitals=2000 troph=8 battles=10 winRate=50
+   8 ->   13 | hrs=24 vitals=5000 troph=20 battles=20 winRate=70
+   8 ->   15 | hrs=24 vitals=4500 troph=10 battles=15 winRate=50
+   9 ->   14 | hrs=24 vitals=5000 troph=20 battles=20 winRate=70
+   9 ->   15 | hrs=24 vitals=4500 troph=10 battles=15 winRate=50
+  10 ->   13 | hrs=24 vitals=5000 troph=20 battles=20 winRate=70
+  10 ->   15 | hrs=24 vitals=4500 troph=10 battles=15 winRate=50
+  11 ->   14 | hrs=24 vitals=5000 troph=20 battles=20 winRate=70
+  11 ->   15 | hrs=24 vitals=4500 troph=10 battles=15 winRate=50
+  12 ->   14 | hrs=24 vitals=5000 troph=20 battles=20 winRate=70
+  12 ->   15 | hrs=24 vitals=4500 troph=10 battles=15 winRate=50
+  13 -> NONE(fusion-check) | hrs=3 vitals=0 troph=0 battles=0 winRate=0
+  14 -> NONE(fusion-check) | hrs=65535 vitals=0 troph=0 battles=0 winRate=0
+  15 -> NONE(fusion-check) | hrs=65535 vitals=0 troph=0 battles=0 winRate=0
+
+### primeval-warriors_37_0ndn.bin
+Roster (idx: stage/attr/type):
+   0: stage=0 attr=0 type=2 unlock=65535
+   1: stage=1 attr=0 type=2 unlock=65535
+   2: stage=2 attr=4 type=3 unlock=65535
+   3: stage=3 attr=4 type=2 unlock=65535
+   4: stage=3 attr=4 type=1 unlock=65535
+   5: stage=3 attr=4 type=3 unlock=65535
+   6: stage=3 attr=1 type=4 unlock=65535
+   7: stage=4 attr=3 type=2 unlock=65535
+   8: stage=4 attr=4 type=2 unlock=65535
+   9: stage=4 attr=4 type=4 unlock=65535
+  10: stage=4 attr=4 type=0 unlock=65535
+  11: stage=4 attr=4 type=2 unlock=65535
+  12: stage=4 attr=4 type=2 unlock=65535
+  13: stage=5 attr=4 type=2 unlock=65535
+  14: stage=5 attr=4 type=1 unlock=65535
+  15: stage=5 attr=4 type=3 unlock=65535
+  16: stage=5 attr=3 type=0 unlock=1
+Evolutions (from -> to | hrs vitals troph battles winRate):
+   0 ->    1 | hrs=1 vitals=0 troph=0 battles=0 winRate=0
+   1 ->    2 | hrs=3 vitals=0 troph=0 battles=0 winRate=0
+   2 ->    3 | hrs=16 vitals=1300 troph=10 battles=8 winRate=0
+   2 ->    4 | hrs=16 vitals=900 troph=8 battles=5 winRate=0
+   2 ->    5 | hrs=16 vitals=600 troph=5 battles=3 winRate=0
+   2 ->    6 | hrs=16 vitals=0 troph=0 battles=0 winRate=0
+   3 ->    8 | hrs=24 vitals=3000 troph=12 battles=15 winRate=70
+   3 ->    7 | hrs=24 vitals=2500 troph=10 battles=10 winRate=50
+   3 ->   12 | hrs=24 vitals=2000 troph=8 battles=10 winRate=50
+   4 ->   10 | hrs=24 vitals=3000 troph=12 battles=15 winRate=70
+   4 ->    9 | hrs=24 vitals=2500 troph=10 battles=10 winRate=50
+   4 ->   11 | hrs=24 vitals=2000 troph=8 battles=10 winRate=50
+   5 ->    8 | hrs=24 vitals=3000 troph=12 battles=15 winRate=70
+   5 ->    7 | hrs=24 vitals=2500 troph=10 battles=10 winRate=50
+   5 ->   12 | hrs=24 vitals=2000 troph=8 battles=10 winRate=50
+   6 ->   10 | hrs=24 vitals=3000 troph=12 battles=15 winRate=70
+   6 ->    9 | hrs=24 vitals=2500 troph=10 battles=10 winRate=50
+   6 ->   11 | hrs=24 vitals=2000 troph=8 battles=10 winRate=50
+   7 ->   14 | hrs=24 vitals=4500 troph=15 battles=15 winRate=70
+   7 ->   13 | hrs=24 vitals=4500 troph=10 battles=15 winRate=50
+   8 ->   16 | hrs=24 vitals=7000 troph=20 battles=25 winRate=70
+   8 ->   15 | hrs=24 vitals=5000 troph=20 battles=20 winRate=70
+   9 ->   16 | hrs=24 vitals=7000 troph=20 battles=25 winRate=70
+   9 ->   15 | hrs=24 vitals=5000 troph=20 battles=20 winRate=70
+  10 ->   14 | hrs=24 vitals=4500 troph=15 battles=15 winRate=70
+  10 ->   13 | hrs=24 vitals=4500 troph=10 battles=15 winRate=50
+  11 ->   16 | hrs=24 vitals=7000 troph=20 battles=25 winRate=70
+  11 ->   15 | hrs=24 vitals=5000 troph=20 battles=20 winRate=70
+  12 ->   14 | hrs=24 vitals=4500 troph=15 battles=15 winRate=70
+  12 ->   13 | hrs=24 vitals=4500 troph=10 battles=15 winRate=50
+  13 -> NONE(fusion-check) | hrs=65535 vitals=0 troph=0 battles=0 winRate=0
+  14 -> NONE(fusion-check) | hrs=65535 vitals=0 troph=0 battles=0 winRate=0
+  15 -> NONE(fusion-check) | hrs=65535 vitals=0 troph=0 battles=0 winRate=0
+  16 -> NONE(fusion-check) | hrs=65535 vitals=0 troph=0 battles=0 winRate=0
+
+### zero1_4_0xx6.bin
+Roster (idx: stage/attr/type):
+   0: stage=0 attr=0 type=2 unlock=65535
+   1: stage=1 attr=0 type=2 unlock=65535
+   2: stage=2 attr=3 type=1 unlock=65535
+   3: stage=3 attr=3 type=0 unlock=65535
+   4: stage=3 attr=2 type=3 unlock=65535
+   5: stage=3 attr=1 type=1 unlock=65535
+   6: stage=3 attr=1 type=4 unlock=65535
+   7: stage=4 attr=3 type=0 unlock=65535
+   8: stage=4 attr=3 type=1 unlock=65535
+   9: stage=4 attr=2 type=2 unlock=65535
+  10: stage=4 attr=2 type=1 unlock=65535
+  11: stage=4 attr=1 type=3 unlock=65535
+  12: stage=4 attr=1 type=2 unlock=65535
+  13: stage=5 attr=3 type=1 unlock=65535
+  14: stage=5 attr=2 type=3 unlock=65535
+  15: stage=5 attr=1 type=1 unlock=65535
+  16: stage=5 attr=1 type=0 unlock=1
+Evolutions (from -> to | hrs vitals troph battles winRate):
+   0 ->    1 | hrs=1 vitals=0 troph=0 battles=0 winRate=0
+   1 ->    2 | hrs=3 vitals=0 troph=0 battles=0 winRate=0
+   2 ->    3 | hrs=16 vitals=1200 troph=8 battles=8 winRate=0
+   2 ->    5 | hrs=16 vitals=800 troph=5 battles=3 winRate=0
+   2 ->   13 | hrs=2 vitals=500 troph=3 battles=0 winRate=0
+   2 ->    6 | hrs=16 vitals=0 troph=0 battles=0 winRate=0
+   3 ->    7 | hrs=24 vitals=3000 troph=12 battles=15 winRate=70
+   3 ->    9 | hrs=24 vitals=2500 troph=10 battles=10 winRate=50
+   3 ->   11 | hrs=24 vitals=2000 troph=6 battles=10 winRate=50
+   4 ->    8 | hrs=24 vitals=3000 troph=12 battles=15 winRate=70
+   4 ->   10 | hrs=24 vitals=2500 troph=10 battles=10 winRate=50
+   4 ->   12 | hrs=24 vitals=2000 troph=6 battles=10 winRate=50
+   5 ->    7 | hrs=24 vitals=3000 troph=12 battles=15 winRate=70
+   5 ->    9 | hrs=24 vitals=2500 troph=10 battles=10 winRate=50
+   5 ->   12 | hrs=24 vitals=2000 troph=6 battles=10 winRate=50
+   6 ->    8 | hrs=24 vitals=3000 troph=12 battles=15 winRate=70
+   6 ->   10 | hrs=24 vitals=2500 troph=10 battles=10 winRate=50
+   6 ->   11 | hrs=24 vitals=2000 troph=6 battles=10 winRate=50
+   7 ->   16 | hrs=24 vitals=7000 troph=20 battles=25 winRate=70
+   7 ->   13 | hrs=24 vitals=5000 troph=20 battles=20 winRate=70
+   8 ->   14 | hrs=24 vitals=4500 troph=15 battles=15 winRate=70
+   8 ->   15 | hrs=24 vitals=4500 troph=10 battles=15 winRate=50
+   9 ->   16 | hrs=24 vitals=7000 troph=20 battles=25 winRate=70
+   9 ->   14 | hrs=24 vitals=4500 troph=15 battles=15 winRate=70
+  10 ->   13 | hrs=24 vitals=5000 troph=20 battles=20 winRate=70
+  10 ->   15 | hrs=24 vitals=4500 troph=10 battles=15 winRate=50
+  11 ->   16 | hrs=24 vitals=7000 troph=20 battles=25 winRate=70
+  11 ->   14 | hrs=24 vitals=4500 troph=15 battles=15 winRate=70
+  12 ->   13 | hrs=24 vitals=5000 troph=20 battles=20 winRate=70
+  12 ->   15 | hrs=24 vitals=4500 troph=10 battles=15 winRate=50
+  13 -> NONE(fusion-check) | hrs=65535 vitals=0 troph=0 battles=0 winRate=0
+  14 -> NONE(fusion-check) | hrs=65535 vitals=0 troph=0 battles=0 winRate=0
+  15 -> NONE(fusion-check) | hrs=65535 vitals=0 troph=0 battles=0 winRate=0
+  16 -> NONE(fusion-check) | hrs=65535 vitals=0 troph=0 battles=0 winRate=0

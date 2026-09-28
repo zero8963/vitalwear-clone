@@ -58,7 +58,10 @@ object VBBraceletSpeciesMap {
      * Dinosaur Roar (Agumon/BlackAgumon) DIM species map.
      * Roster order + attributes (b13) parsed directly from the DIM file
      * (Dinosaur_Roar_38_2i5j.DIM, character stats at 0x30000, bitwise-NOT encoded).
-     * Attribute encoding: 0=None (Baby), 1=Virus, 2=Data, 3=Vaccine.
+     * Attribute encoding: 0=None (Baby), 1=Virus, 2=Data, 3=Vaccine, 4=Free/Variable
+     * (attr 4 confirmed real 2026-09-28: present in official DIMs — Frontier spirit
+     * Digimon, Ancient Warriors, Primeval Warriors, Medarot; per cfogrady/VB-DIM-Reader
+     * character-table layout. Exact bracelet display label needs device confirmation).
      * b15 NOT YET MAPPED — needs a real bracelet read from this DIM.
      */
     val DINOSAUR_ROAR: Map<String, SpeciesBytes> = mapOf(
@@ -109,7 +112,8 @@ object VBBraceletSpeciesMap {
      * Renamon DIM species map.
      * Roster order + attributes (b13) parsed directly from the DIM file
      * (DIM_Renamon_35_5mmd.bin, character stats at 0x30000, bitwise-NOT encoded).
-     * Attribute encoding: 0=None (Baby), 1=Virus, 2=Data, 3=Vaccine, 4=Unknown/Free?.
+     * Attribute encoding: 0=None (Baby), 1=Virus, 2=Data, 3=Vaccine, 4=Free/Variable
+     * (attr 4 confirmed in official DIMs 2026-09-28, see note on IMPULSE_CITY).
      * b15 NOT YET MAPPED — needs a real bracelet read from this DIM.
      *
      * DIM file slots (b9/stage/b13):
