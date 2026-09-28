@@ -25,6 +25,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.AlertDialog
@@ -459,6 +460,98 @@ fun LabUI() {
 }
 
 @Composable
+private fun EvolveFormDialog(
+    cardName: String,
+    onClose: () -> Unit,
+    onEvolve: (String) -> Unit
+) {
+    val speciesList = remember(cardName) {
+        val normalized = cardName.lowercase().replace(" ", "")
+        when {
+            "impulse" in normalized || "pulse" in normalized ->
+                com.example.vitalwearclonev1.communication.VBBraceletSpeciesMap.IMPULSE_CITY
+                    .entries.sortedBy { it.value.b9 }
+            else -> emptyList()
+        }
+    }
+    var selected by remember { mutableStateOf<String?>(null) }
+
+    Dialog(onDismissRequest = onClose) {
+        Card(backgroundColor = Color(0xFF1E3A5F), elevation = 8.dp) {
+            Column(modifier = Modifier.padding(16.dp).fillMaxWidth()) {
+                Text(
+                    "Send Evolved Form to Bracelet",
+                    color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold
+                )
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    "Pick the species your partner evolved into (in the app). " +
+                            "A new bracelet backup will be created with the correct species bytes. " +
+                            "Write it to the bracelet via Bracelet → Write to Bracelet.",
+                    color = Color(0xFF8A9BB5), fontSize = 12.sp
+                )
+                Spacer(Modifier.height(10.dp))
+                if (speciesList.isEmpty()) {
+                    Text(
+                        "No species mapped for card '$cardName' yet.",
+                        color = Color(0xFFFFB74D), fontSize = 13.sp
+                    )
+                } else {
+                    LazyColumn(modifier = Modifier.height(300.dp)) {
+                        items(speciesList.size) { i ->
+                            val (name, bytes) = speciesList[i]
+                            val isSelected = selected == name
+                            val stageLabel = when (bytes.stage) {
+                                0 -> "Baby I"; 1 -> "Baby II"; 2 -> "Child"
+                                3 -> "Adult"; 4 -> "Ultimate"; 5 -> "Mega"
+                                else -> "Stage ${bytes.stage}"
+                            }
+                            Row(
+                                modifier = Modifier.fillMaxWidth()
+                                    .clickable { selected = name }
+                                    .padding(8.dp)
+                                    .background(
+                                        if (isSelected) Color(0xFF2E7D32) else Color.Transparent,
+                                        shape = androidx.compose.foundation.shape.RoundedCornerShape(4.dp)
+                                    ),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        name,
+                                        color = Color.White, fontSize = 14.sp,
+                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                                    )
+                                    Text(
+                                        "$stageLabel · b9=${bytes.b9}",
+                                        color = Color(0xFF8A9BB5), fontSize = 11.sp
+                                    )
+                                }
+                                if (!bytes.confirmed) {
+                                    Text("⚠️", fontSize = 14.sp)
+                                }
+                            }
+                        }
+                    }
+                }
+                Spacer(Modifier.height(10.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End
+                ) {
+                    Button(onClick = onClose) { Text("Cancel") }
+                    Spacer(Modifier.width(8.dp))
+                    Button(
+                        onClick = { selected?.let { onEvolve(it) } },
+                        enabled = selected != null
+                    ) { Text("Create Backup") }
+                }
+            }
+        }
+    }
+}
+
+@Composable
 private fun RefreshPartnerDialog(
     backup: com.example.vitalwearclonev1.communication.VBBraceletBackups.Backup,
     currentStage: Int,
@@ -665,6 +758,7 @@ fun MonsterCard(monster: StoredMonster, index: Int, onRestore: () -> Unit, onAdv
     var showSyncDialog by remember { mutableStateOf(false) }
     var showLinkDialog by remember { mutableStateOf(false) }
     var showRefreshPicker by remember { mutableStateOf(false) }
+    var showEvolvePicker by remember { mutableStateOf(false) }
     var refreshBackup by remember { mutableStateOf<com.example.vitalwearclonev1.communication.VBBraceletBackups.Backup?>(null) }
     var nicknameText by remember { mutableStateOf(monster.nickname ?: "") }
 
@@ -899,6 +993,35 @@ fun MonsterCard(monster: StoredMonster, index: Int, onRestore: () -> Unit, onAdv
         )
     }
 
+    if (showEvolvePicker) {
+        EvolveFormDialog(
+            cardName = monster.name,
+            onClose = { showEvolvePicker = false },
+            onEvolve = { speciesName ->
+                showEvolvePicker = false
+                scope.launch {
+                    try {
+                        val result = withContext(Dispatchers.IO) {
+                            com.example.vitalwearclonev1.communication.VBBraceletEvolveBack
+                                .evolveToNewBackup(context, monster, speciesName)
+                        }
+                        val warn = if (result.preview.warnings.isNotEmpty())
+                            "\n⚠️ ${result.preview.warnings.joinToString("; ")}" else ""
+                        Toast.makeText(
+                            context,
+                            "Evolved backup saved: $speciesName$warn\n" +
+                                    "Write it via Bracelet → Write to Bracelet.",
+                            Toast.LENGTH_LONG
+                        ).show()
+                    } catch (e: Exception) {
+                        Timber.e(e, "evolve-back failed")
+                        Toast.makeText(context, "Failed: ${e.message}", Toast.LENGTH_LONG).show()
+                    }
+                }
+            }
+        )
+    }
+
     if (showMatchDialog) {
         val cards = remember { cardManager.listCards() }
         AlertDialog(
@@ -1090,6 +1213,13 @@ fun MonsterCard(monster: StoredMonster, index: Int, onRestore: () -> Unit, onAdv
                         colors = androidx.compose.material.ButtonDefaults.buttonColors(backgroundColor = Color(0xFF00897B))
                     ) {
                         Text(text = "Refresh", fontSize = 10.sp, color = Color.White)
+                    }
+                    Button(
+                        onClick = { showEvolvePicker = true },
+                        modifier = Modifier.padding(top = 4.dp),
+                        colors = androidx.compose.material.ButtonDefaults.buttonColors(backgroundColor = Color(0xFFE65100))
+                    ) {
+                        Text(text = "Send Evolved", fontSize = 10.sp, color = Color.White)
                     }
                 } else {
                     Button(
