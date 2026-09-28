@@ -47,9 +47,10 @@ object VBBraceletSpeciesMap {
         "Climbmon" to SpeciesBytes(b9 = 0x0B, stage = 4, b13 = 0x01, b15 = 0x10),
         // Pistmon: b13/b15 not yet mapped
         // Mega (Ultimate)
-        // Kazuchimon: b13=Vaccine(03) from card game data; b15 estimated (Mega stage).
-        // DEVICE-CONFIRM before trusting.
-        "Kazuchimon" to SpeciesBytes(b9 = 0x0D, stage = 5, b13 = 0x03, b15 = 0x11, confirmed = false),
+        // Kazuchimon: b13=Vaccine(03) from card game data; b15=0x11
+        // DEVICE-CONFIRMED 2026-09-28: user wrote app-evolved Kazuchimon to
+        // real Hero via Send Evolved — bracelet accepted and displayed correctly.
+        "Kazuchimon" to SpeciesBytes(b9 = 0x0D, stage = 5, b13 = 0x03, b15 = 0x11, confirmed = true),
         // Shivamon, Achillesmon, Shroudmon: not yet mapped
     )
 
