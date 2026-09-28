@@ -1,0 +1,636 @@
+
+=== 00._Ancient_Warriors_15_bwmz.bin ===
+  [ 0] stage=0 attr=0 unlock=65535
+  [ 1] stage=1 attr=0 unlock=65535
+  [ 2] stage=2 attr=4 unlock=65535
+  [ 3] stage=3 attr=3 unlock=65535
+  [ 4] stage=3 attr=4 unlock=65535
+  [ 5] stage=3 attr=4 unlock=65535
+  [ 6] stage=3 attr=4 unlock=65535
+  [ 7] stage=4 attr=3 unlock=65535
+  [ 8] stage=4 attr=4 unlock=65535
+  [ 9] stage=4 attr=4 unlock=65535
+  [10] stage=4 attr=4 unlock=65535
+  [11] stage=4 attr=3 unlock=65535
+  [12] stage=4 attr=2 unlock=65535
+  [13] stage=5 attr=3 unlock=65535
+  [14] stage=5 attr=4 unlock=65535
+  [15] stage=5 attr=4 unlock=65535
+  [16] stage=5 attr=4 unlock=1
+
+=== 01._Agumon_16_f02x.bin ===
+  [ 0] stage=0 attr=0 unlock=65535
+  [ 1] stage=1 attr=0 unlock=65535
+  [ 2] stage=2 attr=3 unlock=65535
+  [ 3] stage=3 attr=3 unlock=65535
+  [ 4] stage=3 attr=2 unlock=65535
+  [ 5] stage=3 attr=1 unlock=65535
+  [ 6] stage=3 attr=1 unlock=65535
+  [ 7] stage=4 attr=3 unlock=65535
+  [ 8] stage=4 attr=3 unlock=65535
+  [ 9] stage=4 attr=2 unlock=65535
+  [10] stage=4 attr=2 unlock=65535
+  [11] stage=4 attr=1 unlock=65535
+  [12] stage=4 attr=1 unlock=65535
+  [13] stage=5 attr=3 unlock=65535
+  [14] stage=5 attr=3 unlock=65535
+  [15] stage=5 attr=1 unlock=65535
+  [16] stage=5 attr=1 unlock=1
+
+=== 01._Black_Roar_12_etp3.bin ===
+  [ 0] stage=0 attr=0 unlock=65535
+  [ 1] stage=1 attr=0 unlock=65535
+  [ 2] stage=2 attr=1 unlock=65535
+  [ 3] stage=3 attr=1 unlock=65535
+  [ 4] stage=4 attr=1 unlock=65535
+  [ 5] stage=5 attr=1 unlock=65535
+  [ 6] stage=5 attr=3 unlock=65535
+
+=== 01._Guilmon_22_a6h1.bin ===
+  [ 0] stage=0 attr=0 unlock=65535
+  [ 1] stage=1 attr=0 unlock=65535
+  [ 2] stage=2 attr=1 unlock=65535
+  [ 3] stage=3 attr=1 unlock=65535
+  [ 4] stage=4 attr=1 unlock=65535
+  [ 5] stage=5 attr=2 unlock=65535
+  [ 6] stage=5 attr=1 unlock=65535
+  [ 7] stage=5 attr=1 unlock=65535
+
+=== 01._Impulse_City_14_amd3.bin ===
+  [ 0] stage=0 attr=0 unlock=65535
+  [ 1] stage=1 attr=0 unlock=65535
+  [ 2] stage=2 attr=3 unlock=65535
+  [ 3] stage=3 attr=3 unlock=65535
+  [ 4] stage=3 attr=2 unlock=65535
+  [ 5] stage=3 attr=1 unlock=65535
+  [ 6] stage=3 attr=1 unlock=65535
+  [ 7] stage=4 attr=3 unlock=65535
+  [ 8] stage=4 attr=3 unlock=65535
+  [ 9] stage=4 attr=2 unlock=65535
+  [10] stage=4 attr=2 unlock=65535
+  [11] stage=4 attr=1 unlock=65535
+  [12] stage=4 attr=1 unlock=65535
+  [13] stage=5 attr=3 unlock=65535
+  [14] stage=5 attr=2 unlock=65535
+  [15] stage=5 attr=1 unlock=65535
+  [16] stage=5 attr=1 unlock=1
+
+=== 02._Gabumon_17_dr73.bin ===
+  [ 0] stage=0 attr=0 unlock=65535
+  [ 1] stage=1 attr=0 unlock=65535
+  [ 2] stage=2 attr=2 unlock=65535
+  [ 3] stage=3 attr=3 unlock=65535
+  [ 4] stage=3 attr=2 unlock=65535
+  [ 5] stage=3 attr=1 unlock=65535
+  [ 6] stage=3 attr=1 unlock=65535
+  [ 7] stage=4 attr=3 unlock=65535
+  [ 8] stage=4 attr=3 unlock=65535
+  [ 9] stage=4 attr=2 unlock=65535
+  [10] stage=4 attr=2 unlock=65535
+  [11] stage=4 attr=1 unlock=65535
+  [12] stage=4 attr=1 unlock=65535
+  [13] stage=5 attr=2 unlock=65535
+  [14] stage=5 attr=3 unlock=65535
+  [15] stage=5 attr=2 unlock=65535
+  [16] stage=5 attr=1 unlock=1
+
+=== 02._Impmon_23_91o8.bin ===
+  [ 0] stage=0 attr=0 unlock=65535
+  [ 1] stage=1 attr=0 unlock=65535
+  [ 2] stage=2 attr=1 unlock=65535
+  [ 3] stage=3 attr=2 unlock=65535
+  [ 4] stage=4 attr=4 unlock=65535
+  [ 5] stage=5 attr=1 unlock=65535
+  [ 6] stage=5 attr=1 unlock=65535
+  [ 7] stage=5 attr=1 unlock=65535
+
+=== 02._Shadow_Howl_13_8lqm.bin ===
+  [ 0] stage=0 attr=0 unlock=65535
+  [ 1] stage=1 attr=0 unlock=65535
+  [ 2] stage=2 attr=1 unlock=65535
+  [ 3] stage=3 attr=1 unlock=65535
+  [ 4] stage=4 attr=1 unlock=65535
+  [ 5] stage=5 attr=1 unlock=65535
+  [ 6] stage=5 attr=3 unlock=65535
+
+=== 02._Volcanic_Beat_19_xuo7.bin ===
+  [ 0] stage=0 attr=0 unlock=65535
+  [ 1] stage=1 attr=0 unlock=65535
+  [ 2] stage=2 attr=1 unlock=65535
+  [ 3] stage=3 attr=3 unlock=65535
+  [ 4] stage=3 attr=2 unlock=65535
+  [ 5] stage=3 attr=2 unlock=65535
+  [ 6] stage=3 attr=1 unlock=65535
+  [ 7] stage=4 attr=3 unlock=65535
+  [ 8] stage=4 attr=3 unlock=65535
+  [ 9] stage=4 attr=2 unlock=65535
+  [10] stage=4 attr=2 unlock=65535
+  [11] stage=4 attr=1 unlock=65535
+  [12] stage=4 attr=1 unlock=65535
+  [13] stage=5 attr=3 unlock=65535
+  [14] stage=5 attr=2 unlock=65535
+  [15] stage=5 attr=1 unlock=65535
+  [16] stage=5 attr=1 unlock=1
+
+=== 03._Blizzard_Fang_18_9lsx.bin ===
+  [ 0] stage=0 attr=0 unlock=65535
+  [ 1] stage=1 attr=0 unlock=65535
+  [ 2] stage=2 attr=2 unlock=65535
+  [ 3] stage=3 attr=3 unlock=65535
+  [ 4] stage=3 attr=2 unlock=65535
+  [ 5] stage=3 attr=1 unlock=65535
+  [ 6] stage=3 attr=4 unlock=65535
+  [ 7] stage=4 attr=3 unlock=65535
+  [ 8] stage=4 attr=3 unlock=65535
+  [ 9] stage=4 attr=2 unlock=65535
+  [10] stage=4 attr=2 unlock=65535
+  [11] stage=4 attr=1 unlock=65535
+  [12] stage=4 attr=4 unlock=65535
+  [13] stage=5 attr=3 unlock=65535
+  [14] stage=5 attr=2 unlock=65535
+  [15] stage=5 attr=1 unlock=65535
+  [16] stage=5 attr=2 unlock=1
+
+=== 03._Monodramon_24_6obc.bin ===
+  [ 0] stage=0 attr=0 unlock=65535
+  [ 1] stage=1 attr=0 unlock=65535
+  [ 2] stage=2 attr=3 unlock=65535
+  [ 3] stage=3 attr=3 unlock=65535
+  [ 4] stage=4 attr=3 unlock=65535
+  [ 5] stage=5 attr=3 unlock=65535
+  [ 6] stage=5 attr=3 unlock=65535
+  [ 7] stage=5 attr=3 unlock=65535
+  [10] stage=65535 attr=65535 unlock=65535
+
+=== 04._Infinite_Tide_20_2z73.bin ===
+  [ 0] stage=0 attr=0 unlock=65535
+  [ 1] stage=1 attr=0 unlock=65535
+  [ 2] stage=2 attr=2 unlock=65535
+  [ 3] stage=3 attr=3 unlock=65535
+  [ 4] stage=3 attr=2 unlock=65535
+  [ 5] stage=3 attr=2 unlock=65535
+  [ 6] stage=3 attr=1 unlock=65535
+  [ 7] stage=4 attr=3 unlock=65535
+  [ 8] stage=4 attr=3 unlock=65535
+  [ 9] stage=4 attr=2 unlock=65535
+  [10] stage=4 attr=2 unlock=65535
+  [11] stage=4 attr=1 unlock=65535
+  [12] stage=4 attr=1 unlock=65535
+  [13] stage=5 attr=3 unlock=65535
+  [14] stage=5 attr=2 unlock=65535
+  [15] stage=5 attr=1 unlock=65535
+  [16] stage=5 attr=2 unlock=1
+
+=== 04._Renamon_25_7z4h.bin ===
+  [ 0] stage=0 attr=0 unlock=65535
+  [ 1] stage=1 attr=0 unlock=65535
+  [ 2] stage=2 attr=2 unlock=65535
+  [ 3] stage=3 attr=2 unlock=65535
+  [ 4] stage=4 attr=2 unlock=65535
+  [ 5] stage=5 attr=2 unlock=65535
+  [ 6] stage=5 attr=2 unlock=65535
+  [ 7] stage=5 attr=2 unlock=65535
+  [10] stage=65535 attr=65535 unlock=65535
+
+=== 05._Titan_of_Dust_21_2ymv.bin ===
+  [ 0] stage=0 attr=0 unlock=65535
+  [ 1] stage=1 attr=0 unlock=65535
+  [ 2] stage=2 attr=1 unlock=65535
+  [ 3] stage=3 attr=3 unlock=65535
+  [ 4] stage=3 attr=2 unlock=65535
+  [ 5] stage=3 attr=1 unlock=65535
+  [ 6] stage=3 attr=4 unlock=65535
+  [ 7] stage=4 attr=3 unlock=65535
+  [ 8] stage=4 attr=3 unlock=65535
+  [ 9] stage=4 attr=2 unlock=65535
+  [10] stage=4 attr=2 unlock=65535
+  [11] stage=4 attr=1 unlock=65535
+  [12] stage=4 attr=1 unlock=65535
+  [13] stage=5 attr=3 unlock=65535
+  [14] stage=5 attr=2 unlock=65535
+  [15] stage=5 attr=1 unlock=65535
+  [16] stage=5 attr=1 unlock=1
+
+=== 07._Nu_Metal_Empire_27_pcea.bin ===
+  [ 0] stage=0 attr=0 unlock=65535
+  [ 1] stage=1 attr=0 unlock=65535
+  [ 2] stage=2 attr=1 unlock=65535
+  [ 3] stage=3 attr=3 unlock=65535
+  [ 4] stage=3 attr=3 unlock=65535
+  [ 5] stage=3 attr=2 unlock=65535
+  [ 6] stage=3 attr=1 unlock=65535
+  [ 7] stage=4 attr=3 unlock=65535
+  [ 8] stage=4 attr=3 unlock=65535
+  [ 9] stage=4 attr=2 unlock=65535
+  [10] stage=4 attr=2 unlock=65535
+  [11] stage=4 attr=1 unlock=65535
+  [12] stage=4 attr=1 unlock=65535
+  [13] stage=5 attr=3 unlock=65535
+  [14] stage=5 attr=2 unlock=65535
+  [15] stage=5 attr=1 unlock=65535
+  [16] stage=5 attr=1 unlock=1
+
+=== 08._Dynasty_of_The_Evil_28_avzx.bin ===
+  [ 0] stage=0 attr=0 unlock=65535
+  [ 1] stage=1 attr=0 unlock=65535
+  [ 2] stage=2 attr=2 unlock=65535
+  [ 3] stage=3 attr=3 unlock=65535
+  [ 4] stage=3 attr=2 unlock=65535
+  [ 5] stage=3 attr=1 unlock=65535
+  [ 6] stage=3 attr=1 unlock=65535
+  [ 7] stage=4 attr=4 unlock=65535
+  [ 8] stage=4 attr=3 unlock=65535
+  [ 9] stage=4 attr=2 unlock=65535
+  [10] stage=4 attr=1 unlock=65535
+  [11] stage=4 attr=1 unlock=65535
+  [12] stage=4 attr=1 unlock=65535
+  [13] stage=5 attr=2 unlock=65535
+  [14] stage=5 attr=1 unlock=65535
+  [15] stage=5 attr=1 unlock=65535
+  [16] stage=5 attr=1 unlock=1
+
+=== 09._Mad_Black_Roar_10_x4vv.bin ===
+  [ 0] stage=0 attr=0 unlock=65535
+  [ 1] stage=1 attr=0 unlock=65535
+  [ 2] stage=2 attr=1 unlock=65535
+  [ 3] stage=3 attr=3 unlock=65535
+  [ 4] stage=3 attr=2 unlock=65535
+  [ 5] stage=3 attr=1 unlock=65535
+  [ 6] stage=3 attr=1 unlock=65535
+  [ 7] stage=4 attr=3 unlock=65535
+  [ 8] stage=4 attr=3 unlock=65535
+  [ 9] stage=4 attr=2 unlock=65535
+  [10] stage=4 attr=2 unlock=65535
+  [11] stage=4 attr=1 unlock=65535
+  [12] stage=4 attr=1 unlock=65535
+  [13] stage=5 attr=3 unlock=65535
+  [14] stage=5 attr=1 unlock=65535
+  [15] stage=5 attr=1 unlock=65535
+  [16] stage=5 attr=3 unlock=1
+
+=== 10._True_Shadow_Howl_11_hbmg.bin ===
+  [ 0] stage=0 attr=0 unlock=65535
+  [ 1] stage=1 attr=0 unlock=65535
+  [ 2] stage=2 attr=1 unlock=65535
+  [ 3] stage=3 attr=3 unlock=65535
+  [ 4] stage=3 attr=2 unlock=65535
+  [ 5] stage=3 attr=1 unlock=65535
+  [ 6] stage=3 attr=1 unlock=65535
+  [ 7] stage=4 attr=3 unlock=65535
+  [ 8] stage=4 attr=3 unlock=65535
+  [ 9] stage=4 attr=4 unlock=65535
+  [10] stage=4 attr=2 unlock=65535
+  [11] stage=4 attr=1 unlock=65535
+  [12] stage=4 attr=1 unlock=65535
+  [13] stage=5 attr=2 unlock=65535
+  [14] stage=5 attr=1 unlock=65535
+  [15] stage=5 attr=1 unlock=65535
+  [16] stage=5 attr=3 unlock=1
+
+=== 11._Gammamon_30_u6xb.bin ===
+  [ 0] stage=0 attr=0 unlock=65535
+  [ 1] stage=1 attr=0 unlock=65535
+  [ 2] stage=2 attr=1 unlock=65535
+  [ 3] stage=3 attr=3 unlock=65535
+  [ 4] stage=3 attr=2 unlock=65535
+  [ 5] stage=3 attr=2 unlock=65535
+  [ 6] stage=3 attr=1 unlock=65535
+  [ 7] stage=4 attr=3 unlock=65535
+  [ 8] stage=4 attr=2 unlock=65535
+  [ 9] stage=4 attr=2 unlock=65535
+  [10] stage=4 attr=1 unlock=65535
+  [11] stage=5 attr=3 unlock=65535
+  [12] stage=5 attr=2 unlock=65535
+  [13] stage=5 attr=1 unlock=65535
+
+=== 12._Medarot_29_nxc2.bin ===
+  [ 0] stage=0 attr=0 unlock=65535
+  [ 1] stage=1 attr=0 unlock=65535
+  [ 2] stage=2 attr=4 unlock=65535
+  [ 3] stage=3 attr=3 unlock=65535
+  [ 4] stage=3 attr=3 unlock=65535
+  [ 5] stage=3 attr=4 unlock=65535
+  [ 6] stage=3 attr=4 unlock=65535
+  [ 7] stage=4 attr=4 unlock=65535
+  [ 8] stage=4 attr=4 unlock=65535
+  [ 9] stage=4 attr=4 unlock=65535
+  [10] stage=4 attr=4 unlock=65535
+  [11] stage=5 attr=4 unlock=65535
+  [12] stage=5 attr=3 unlock=65535
+
+=== AGNIMON_42_1ajx.bin ===
+  [ 0] stage=0 attr=0 unlock=65535
+  [ 1] stage=1 attr=0 unlock=65535
+  [ 2] stage=2 attr=4 unlock=65535
+  [ 3] stage=2 attr=2 unlock=65535
+  [ 4] stage=3 attr=4 unlock=65535
+  [ 5] stage=3 attr=2 unlock=65535
+  [ 6] stage=3 attr=2 unlock=65535
+  [ 7] stage=3 attr=4 unlock=65535
+  [ 8] stage=4 attr=4 unlock=65535
+  [ 9] stage=4 attr=4 unlock=65535
+  [10] stage=4 attr=2 unlock=65535
+  [11] stage=4 attr=4 unlock=65535
+  [12] stage=4 attr=1 unlock=65535
+  [13] stage=5 attr=4 unlock=65535
+  [14] stage=5 attr=3 unlock=65535
+  [15] stage=5 attr=1 unlock=65535
+  [16] stage=5 attr=3 unlock=65535
+
+=== BLITZMON_43_r0xj.bin ===
+  [ 0] stage=0 attr=0 unlock=65535
+  [ 1] stage=1 attr=0 unlock=65535
+  [ 2] stage=2 attr=1 unlock=65535
+  [ 3] stage=2 attr=2 unlock=65535
+  [ 4] stage=3 attr=4 unlock=65535
+  [ 5] stage=3 attr=2 unlock=65535
+  [ 6] stage=3 attr=4 unlock=65535
+  [ 7] stage=3 attr=1 unlock=65535
+  [ 8] stage=4 attr=4 unlock=65535
+  [ 9] stage=4 attr=4 unlock=65535
+  [10] stage=4 attr=4 unlock=65535
+  [11] stage=4 attr=1 unlock=65535
+  [12] stage=4 attr=1 unlock=65535
+  [13] stage=5 attr=3 unlock=65535
+  [14] stage=5 attr=1 unlock=65535
+  [15] stage=5 attr=1 unlock=65535
+  [16] stage=5 attr=1 unlock=1
+
+=== CHACKMON_44_sa2q.bin ===
+  [ 0] stage=0 attr=0 unlock=65535
+  [ 1] stage=1 attr=0 unlock=65535
+  [ 2] stage=2 attr=3 unlock=65535
+  [ 3] stage=2 attr=1 unlock=65535
+  [ 4] stage=3 attr=4 unlock=65535
+  [ 5] stage=3 attr=3 unlock=65535
+  [ 6] stage=3 attr=2 unlock=65535
+  [ 7] stage=3 attr=3 unlock=65535
+  [ 8] stage=4 attr=4 unlock=65535
+  [ 9] stage=4 attr=4 unlock=65535
+  [10] stage=4 attr=3 unlock=65535
+  [11] stage=4 attr=1 unlock=65535
+  [12] stage=4 attr=1 unlock=65535
+  [13] stage=5 attr=3 unlock=65535
+  [14] stage=5 attr=1 unlock=65535
+  [15] stage=5 attr=2 unlock=65535
+  [16] stage=5 attr=2 unlock=1
+
+=== DIM_Renamon_35_5mmd.bin ===
+  [ 0] stage=0 attr=0 unlock=65535
+  [ 1] stage=1 attr=0 unlock=65535
+  [ 2] stage=2 attr=2 unlock=65535
+  [ 3] stage=3 attr=2 unlock=65535
+  [ 4] stage=3 attr=2 unlock=65535
+  [ 5] stage=3 attr=1 unlock=65535
+  [ 6] stage=3 attr=4 unlock=65535
+  [ 7] stage=4 attr=3 unlock=65535
+  [ 8] stage=4 attr=3 unlock=65535
+  [ 9] stage=4 attr=2 unlock=65535
+  [10] stage=4 attr=2 unlock=65535
+  [11] stage=4 attr=2 unlock=65535
+  [12] stage=4 attr=1 unlock=65535
+  [13] stage=5 attr=2 unlock=65535
+  [14] stage=5 attr=1 unlock=65535
+  [15] stage=5 attr=2 unlock=65535
+  [16] stage=5 attr=2 unlock=1
+
+=== DIM_Ryudamon_41_7x5x.bin ===
+  [ 0] stage=0 attr=0 unlock=65535
+  [ 1] stage=1 attr=0 unlock=65535
+  [ 2] stage=2 attr=3 unlock=65535
+  [ 3] stage=2 attr=3 unlock=65535
+  [ 4] stage=3 attr=3 unlock=65535
+  [ 5] stage=3 attr=3 unlock=65535
+  [ 6] stage=3 attr=1 unlock=65535
+  [ 7] stage=3 attr=1 unlock=65535
+  [ 8] stage=4 attr=3 unlock=65535
+  [ 9] stage=4 attr=3 unlock=65535
+  [10] stage=4 attr=3 unlock=65535
+  [11] stage=4 attr=1 unlock=65535
+  [12] stage=4 attr=1 unlock=65535
+  [13] stage=5 attr=3 unlock=65535
+  [14] stage=5 attr=3 unlock=65535
+  [15] stage=5 attr=1 unlock=65535
+  [16] stage=5 attr=1 unlock=65535
+
+=== DIM_Terriermon_36_bmvp.bin ===
+  [ 0] stage=0 attr=0 unlock=65535
+  [ 1] stage=1 attr=0 unlock=65535
+  [ 2] stage=2 attr=3 unlock=65535
+  [ 3] stage=3 attr=3 unlock=65535
+  [ 4] stage=3 attr=2 unlock=65535
+  [ 5] stage=3 attr=4 unlock=65535
+  [ 6] stage=3 attr=1 unlock=65535
+  [ 7] stage=4 attr=3 unlock=65535
+  [ 8] stage=4 attr=2 unlock=65535
+  [ 9] stage=4 attr=2 unlock=65535
+  [10] stage=4 attr=2 unlock=65535
+  [11] stage=4 attr=1 unlock=65535
+  [12] stage=4 attr=1 unlock=65535
+  [13] stage=5 attr=3 unlock=65535
+  [14] stage=5 attr=3 unlock=65535
+  [15] stage=5 attr=3 unlock=65535
+  [16] stage=5 attr=3 unlock=1
+
+=== FAIRIMON_45_p37y.bin ===
+  [ 0] stage=0 attr=0 unlock=65535
+  [ 1] stage=1 attr=0 unlock=65535
+  [ 2] stage=2 attr=1 unlock=65535
+  [ 3] stage=2 attr=2 unlock=65535
+  [ 4] stage=3 attr=4 unlock=65535
+  [ 5] stage=3 attr=2 unlock=65535
+  [ 6] stage=3 attr=4 unlock=65535
+  [ 7] stage=3 attr=1 unlock=65535
+  [ 8] stage=4 attr=4 unlock=65535
+  [ 9] stage=4 attr=4 unlock=65535
+  [10] stage=4 attr=4 unlock=65535
+  [11] stage=4 attr=4 unlock=65535
+  [12] stage=4 attr=2 unlock=65535
+  [13] stage=5 attr=3 unlock=65535
+  [14] stage=5 attr=2 unlock=65535
+  [15] stage=5 attr=2 unlock=65535
+  [16] stage=5 attr=1 unlock=1
+
+=== FAIRIMON_48_c3ve.bin ===
+  [ 0] stage=0 attr=0 unlock=65535
+  [ 1] stage=1 attr=0 unlock=65535
+  [ 2] stage=2 attr=1 unlock=65535
+  [ 3] stage=2 attr=2 unlock=65535
+  [ 4] stage=3 attr=4 unlock=65535
+  [ 5] stage=3 attr=2 unlock=65535
+  [ 6] stage=3 attr=4 unlock=65535
+  [ 7] stage=3 attr=1 unlock=65535
+  [ 8] stage=4 attr=4 unlock=65535
+  [ 9] stage=4 attr=4 unlock=65535
+  [10] stage=4 attr=4 unlock=65535
+  [11] stage=4 attr=4 unlock=65535
+  [12] stage=4 attr=2 unlock=65535
+  [13] stage=5 attr=3 unlock=65535
+  [14] stage=5 attr=2 unlock=65535
+  [15] stage=5 attr=2 unlock=65535
+  [16] stage=5 attr=1 unlock=1
+
+=== Guilmon_EX2_33_nq52.bin ===
+  [ 0] stage=0 attr=0 unlock=65535
+  [ 1] stage=1 attr=0 unlock=65535
+  [ 2] stage=2 attr=1 unlock=65535
+  [ 3] stage=3 attr=3 unlock=65535
+  [ 4] stage=3 attr=2 unlock=65535
+  [ 5] stage=3 attr=1 unlock=65535
+  [ 6] stage=3 attr=1 unlock=65535
+  [ 7] stage=4 attr=3 unlock=65535
+  [ 8] stage=4 attr=2 unlock=65535
+  [ 9] stage=4 attr=2 unlock=65535
+  [10] stage=4 attr=2 unlock=65535
+  [11] stage=4 attr=1 unlock=65535
+  [12] stage=4 attr=1 unlock=65535
+  [13] stage=5 attr=1 unlock=65535
+  [14] stage=5 attr=1 unlock=65535
+  [15] stage=5 attr=1 unlock=65535
+  [16] stage=5 attr=1 unlock=1
+
+=== Hermit_in_the_jungle_26_8457.bin ===
+  [ 0] stage=0 attr=0 unlock=65535
+  [ 1] stage=1 attr=0 unlock=65535
+  [ 2] stage=2 attr=2 unlock=65535
+  [ 3] stage=3 attr=3 unlock=65535
+  [ 4] stage=3 attr=2 unlock=65535
+  [ 5] stage=3 attr=1 unlock=65535
+  [ 6] stage=3 attr=1 unlock=65535
+  [ 7] stage=4 attr=3 unlock=65535
+  [ 8] stage=4 attr=3 unlock=65535
+  [ 9] stage=4 attr=2 unlock=65535
+  [10] stage=4 attr=2 unlock=65535
+  [11] stage=4 attr=1 unlock=65535
+  [12] stage=4 attr=1 unlock=65535
+  [13] stage=5 attr=3 unlock=65535
+  [14] stage=5 attr=2 unlock=65535
+  [15] stage=5 attr=1 unlock=65535
+  [16] stage=5 attr=1 unlock=1
+
+=== Jellymon_32_jxz3.bin ===
+  [ 0] stage=0 attr=0 unlock=65535
+  [ 1] stage=1 attr=0 unlock=65535
+  [ 2] stage=2 attr=2 unlock=65535
+  [ 3] stage=3 attr=3 unlock=65535
+  [ 4] stage=3 attr=2 unlock=65535
+  [ 5] stage=3 attr=1 unlock=65535
+  [ 6] stage=3 attr=4 unlock=65535
+  [ 7] stage=4 attr=3 unlock=65535
+  [ 8] stage=4 attr=2 unlock=65535
+  [ 9] stage=4 attr=2 unlock=65535
+  [10] stage=4 attr=1 unlock=65535
+  [11] stage=5 attr=3 unlock=65535
+  [12] stage=5 attr=2 unlock=65535
+  [13] stage=5 attr=1 unlock=65535
+
+=== LOUWEMON_46_zl16.bin ===
+  [ 0] stage=0 attr=0 unlock=65535
+  [ 1] stage=1 attr=0 unlock=65535
+  [ 2] stage=2 attr=3 unlock=65535
+  [ 3] stage=2 attr=1 unlock=65535
+  [ 4] stage=3 attr=4 unlock=65535
+  [ 5] stage=3 attr=3 unlock=65535
+  [ 6] stage=3 attr=4 unlock=65535
+  [ 7] stage=3 attr=1 unlock=65535
+  [ 8] stage=4 attr=4 unlock=65535
+  [ 9] stage=4 attr=4 unlock=65535
+  [10] stage=4 attr=3 unlock=65535
+  [11] stage=4 attr=4 unlock=65535
+  [12] stage=4 attr=1 unlock=65535
+  [13] stage=4 attr=1 unlock=1
+  [14] stage=5 attr=2 unlock=65535
+  [15] stage=5 attr=2 unlock=65535
+  [16] stage=5 attr=1 unlock=65535
+
+=== WOLFMON_47_713s.bin ===
+  [ 0] stage=0 attr=0 unlock=65535
+  [ 1] stage=1 attr=0 unlock=65535
+  [ 2] stage=2 attr=4 unlock=65535
+  [ 3] stage=2 attr=1 unlock=65535
+  [ 4] stage=3 attr=4 unlock=65535
+  [ 5] stage=3 attr=3 unlock=65535
+  [ 6] stage=3 attr=4 unlock=65535
+  [ 7] stage=3 attr=2 unlock=65535
+  [ 8] stage=4 attr=4 unlock=65535
+  [ 9] stage=4 attr=4 unlock=65535
+  [10] stage=4 attr=4 unlock=65535
+  [11] stage=4 attr=2 unlock=65535
+  [12] stage=4 attr=1 unlock=65535
+  [13] stage=5 attr=4 unlock=65535
+  [14] stage=5 attr=2 unlock=65535
+  [15] stage=5 attr=2 unlock=65535
+  [16] stage=5 attr=3 unlock=65535
+
+=== Wolf_Howl_39_gbj7.bin ===
+  [ 0] stage=0 attr=0 unlock=65535
+  [ 1] stage=1 attr=0 unlock=65535
+  [ 2] stage=2 attr=2 unlock=65535
+  [ 3] stage=2 attr=1 unlock=65535
+  [ 4] stage=3 attr=3 unlock=65535
+  [ 5] stage=3 attr=2 unlock=65535
+  [ 6] stage=3 attr=1 unlock=65535
+  [ 7] stage=3 attr=1 unlock=65535
+  [ 8] stage=4 attr=3 unlock=65535
+  [ 9] stage=4 attr=2 unlock=65535
+  [10] stage=4 attr=1 unlock=65535
+  [11] stage=4 attr=1 unlock=65535
+  [12] stage=5 attr=2 unlock=65535
+  [13] stage=5 attr=2 unlock=65535
+  [14] stage=5 attr=1 unlock=65535
+  [15] stage=5 attr=3 unlock=65535
+  [16] stage=5 attr=3 unlock=1
+
+=== angoramon_31_uts0.bin ===
+  [ 0] stage=0 attr=0 unlock=65535
+  [ 1] stage=1 attr=0 unlock=65535
+  [ 2] stage=2 attr=3 unlock=65535
+  [ 3] stage=3 attr=3 unlock=65535
+  [ 4] stage=3 attr=3 unlock=65535
+  [ 5] stage=3 attr=2 unlock=65535
+  [ 6] stage=3 attr=1 unlock=65535
+  [ 7] stage=4 attr=3 unlock=65535
+  [ 8] stage=4 attr=3 unlock=65535
+  [ 9] stage=4 attr=2 unlock=65535
+  [10] stage=4 attr=1 unlock=65535
+  [11] stage=5 attr=3 unlock=65535
+  [12] stage=5 attr=2 unlock=65535
+  [13] stage=5 attr=2 unlock=65535
+
+=== espimon_40_cstx.bin ===
+  [ 0] stage=0 attr=0 unlock=65535
+  [ 1] stage=1 attr=0 unlock=65535
+  [ 2] stage=2 attr=2 unlock=65535
+  [ 3] stage=2 attr=1 unlock=65535
+  [ 4] stage=3 attr=2 unlock=65535
+  [ 5] stage=3 attr=1 unlock=65535
+  [ 6] stage=3 attr=3 unlock=65535
+  [ 7] stage=3 attr=1 unlock=65535
+  [ 8] stage=4 attr=2 unlock=65535
+  [ 9] stage=4 attr=2 unlock=65535
+  [10] stage=4 attr=2 unlock=65535
+  [11] stage=4 attr=1 unlock=65535
+  [12] stage=4 attr=1 unlock=65535
+  [13] stage=5 attr=2 unlock=65535
+  [14] stage=5 attr=2 unlock=65535
+  [15] stage=5 attr=2 unlock=65535
+  [16] stage=5 attr=1 unlock=65535
+
+=== primeval-warriors_37_0ndn.bin ===
+  [ 0] stage=0 attr=0 unlock=65535
+  [ 1] stage=1 attr=0 unlock=65535
+  [ 2] stage=2 attr=4 unlock=65535
+  [ 3] stage=3 attr=4 unlock=65535
+  [ 4] stage=3 attr=4 unlock=65535
+  [ 5] stage=3 attr=4 unlock=65535
+  [ 6] stage=3 attr=1 unlock=65535
+  [ 7] stage=4 attr=3 unlock=65535
+  [ 8] stage=4 attr=4 unlock=65535
+  [ 9] stage=4 attr=4 unlock=65535
+  [10] stage=4 attr=4 unlock=65535
+  [11] stage=4 attr=4 unlock=65535
+  [12] stage=4 attr=4 unlock=65535
+  [13] stage=5 attr=4 unlock=65535
+  [14] stage=5 attr=4 unlock=65535
+  [15] stage=5 attr=4 unlock=65535
+  [16] stage=5 attr=3 unlock=1
