@@ -75,7 +75,10 @@ object VBBraceletSpeciesMap {
         // Rookie — BlackAgumon device-confirmed 2026-09-28 (Koromon evolution):
         // b9=0x03, stage 1->2, b13=0x01 (Virus), b15=0x1F->0x23. Bracelet shows
         // black sprite but names it "Agumon" in status (firmware quirk).
-        "Agumon" to SpeciesBytes(b9 = 0x02, stage = 2, b13 = 0x03, b15 = null, confirmed = false),
+        // Rookie — Agumon (orange) device-confirmed 2026-09-28 (Koromon
+        // evolution, 1200-vitals path): b9=0x01->0x02, stage 1->2, b13=0x00->0x03
+        // (Vaccine), b15=0x1F->0x24.
+        "Agumon" to SpeciesBytes(b9 = 0x02, stage = 2, b13 = 0x03, b15 = 0x24, confirmed = true),
         "BlackAgumon" to SpeciesBytes(b9 = 0x03, stage = 2, b13 = 0x01, b15 = 0x23, confirmed = true),
         // Champion — Greymon (Blue) device-confirmed 2026-09-28 (BlackAgumon
         // evolution, 0-vitals path): b9=0x05, stage 2->3, b13=0x02 (Data),
