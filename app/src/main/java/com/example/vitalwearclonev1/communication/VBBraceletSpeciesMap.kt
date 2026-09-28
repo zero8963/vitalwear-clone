@@ -65,8 +65,10 @@ object VBBraceletSpeciesMap {
      * b15 NOT YET MAPPED — needs a real bracelet read from this DIM.
      */
     val DINOSAUR_ROAR: Map<String, SpeciesBytes> = mapOf(
-        // Fresh
-        "Botamon" to SpeciesBytes(b9 = 0x00, stage = 0, b13 = 0x00, b15 = null, confirmed = false),
+        // Fresh — device-observed 2026-09-28 (2 stable reads): b15=0x00 (matches
+        // Baby-I pattern). ANOMALY: b9/b13 both read 0x1D (= DIM ID 29) instead of
+        // expected 0x00. Kept unconfirmed until b9/b13 settle or Koromon read clarifies.
+        "Botamon" to SpeciesBytes(b9 = 0x1D, stage = 0, b13 = 0x1D, b15 = 0x00, confirmed = false),
         // In-Training
         "Koromon" to SpeciesBytes(b9 = 0x01, stage = 1, b13 = 0x00, b15 = null, confirmed = false),
         // Rookie
