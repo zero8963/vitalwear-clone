@@ -80,12 +80,15 @@ object VBBraceletSpeciesMap {
         // (Vaccine), b15=0x1F->0x24.
         "Agumon" to SpeciesBytes(b9 = 0x02, stage = 2, b13 = 0x03, b15 = 0x24, confirmed = true),
         "BlackAgumon" to SpeciesBytes(b9 = 0x03, stage = 2, b13 = 0x01, b15 = 0x23, confirmed = true),
-        // Champion — Greymon (Blue) device-confirmed 2026-09-28 (BlackAgumon
-        // evolution, 0-vitals path): b9=0x05, stage 2->3, b13=0x02 (Data),
-        // b15=0x23->0x27. User thought it was Monochromon; bytes say Blue.
+        // Champion — Monochromon device-confirmed 2026-09-28 (BlackAgumon
+        // evolution, 0-vitals path; bracelet status names it MONOCHROMON):
+        // b9=0x05, stage 2->3, b13=0x01->0x02, b15=0x23->0x27.
+        // NOTE: idx 5 was mislabeled "Greymon (Blue)" — bracelet says Monochromon.
         "Greymon" to SpeciesBytes(b9 = 0x04, stage = 3, b13 = 0x03, b15 = null, confirmed = false),
-        "Greymon (Blue)" to SpeciesBytes(b9 = 0x05, stage = 3, b13 = 0x02, b15 = 0x27, confirmed = true),
-        "Monochromon" to SpeciesBytes(b9 = 0x06, stage = 3, b13 = 0x01, b15 = null, confirmed = false),
+        "Monochromon" to SpeciesBytes(b9 = 0x05, stage = 3, b13 = 0x02, b15 = 0x27, confirmed = true),
+        // idx 6: blue Greymon variant (tool names it "Greymon"; Virus attr).
+        // b15 unknown — needs device read.
+        "Greymon (Blue)" to SpeciesBytes(b9 = 0x06, stage = 3, b13 = 0x01, b15 = null, confirmed = false),
         "DarkTyrannomon" to SpeciesBytes(b9 = 0x07, stage = 3, b13 = 0x01, b15 = null, confirmed = false),
         // Ultimate
         "MetalGreymon (Vaccine)" to SpeciesBytes(b9 = 0x08, stage = 4, b13 = 0x03, b15 = null, confirmed = false),
