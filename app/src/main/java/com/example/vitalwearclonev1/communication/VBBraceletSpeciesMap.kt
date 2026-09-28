@@ -106,6 +106,10 @@ object VBBraceletSpeciesMap {
         // Mega — BlackWarGreymon device-confirmed 2026-09-28 (SkullGreymon
         // evolution): b9=0x0E, stage 4->5, b13 stays 0x01 (Virus), b15=0x2C->0x31.
         "BlackWarGreymon" to SpeciesBytes(b9 = 0x0E, stage = 5, b13 = 0x01, b15 = 0x31, confirmed = true),
+        // Mega — WarGreymon (orange) device-confirmed 2026-09-28 (Blue MetalGreymon
+        // evolution): b9=0x0B->0x0C, stage 4->5, b13=0x01->0x03, b15=0x2D->0x31.
+        // NOTE: shares b15=0x31 with BlackWarGreymon; b9 distinguishes them.
+        "WarGreymon" to SpeciesBytes(b9 = 0x0C, stage = 5, b13 = 0x03, b15 = 0x31, confirmed = true),
         // Mega — Omegamon forms (from DIM file indices 15-16; b15 needs device read)
         // idx 15 = Omegamon (white, from WarGreymon)
         // idx 16 = Omegamon Black / Zwart (secret, unlocked via DIM edit)
