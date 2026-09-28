@@ -474,6 +474,15 @@ private fun EvolveFormDialog(
             "dinosaur" in normalized ->
                 com.example.vitalwearclonev1.communication.VBBraceletSpeciesMap.DINOSAUR_ROAR
                     .entries.sortedBy { it.value.b9 }
+            "renamon" in normalized ->
+                com.example.vitalwearclonev1.communication.VBBraceletSpeciesMap.RENAMON
+                    .entries.sortedBy { it.value.b9 }
+            "terriermon" in normalized ->
+                com.example.vitalwearclonev1.communication.VBBraceletSpeciesMap.TERRIERMON
+                    .entries.sortedBy { it.value.b9 }
+            "ryudamon" in normalized ->
+                com.example.vitalwearclonev1.communication.VBBraceletSpeciesMap.RYUDAMON
+                    .entries.sortedBy { it.value.b9 }
             else -> emptyList()
         }
     }

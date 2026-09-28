@@ -98,7 +98,86 @@ object VBBraceletSpeciesMap {
         return when {
             "impulse" in normalized || "pulsecity" in normalized -> IMPULSE_CITY[speciesName]
             "dinosaur" in normalized || "dinosarroar" in normalized -> DINOSAUR_ROAR[speciesName]
+            "renamon" in normalized -> RENAMON[speciesName]
+            "terriermon" in normalized -> TERRIERMON[speciesName]
+            "ryudamon" in normalized -> RYUDAMON[speciesName]
             else -> null
         }
     }
+
+    /**
+     * Renamon DIM species map.
+     * Roster order + attributes (b13) parsed directly from the DIM file
+     * (DIM_Renamon_35_5mmd.bin, character stats at 0x30000, bitwise-NOT encoded).
+     * Attribute encoding: 0=None (Baby), 1=Virus, 2=Data, 3=Vaccine, 4=Unknown/Free?.
+     * b15 NOT YET MAPPED — needs a real bracelet read from this DIM.
+     *
+     * DIM file slots (b9/stage/b13):
+     *  00: Fresh/0, 01: Baby II/0, 02: Rookie/Data(2), 03: Champion/Data(2),
+     *  04: Champion/Data(2), 05: Champion/Virus(1), 06: Champion/attr4,
+     *  07: Ultimate/Vaccine(3), 08: Ultimate/Vaccine(3), 09: Ultimate/Data(2),
+     *  10: Ultimate/Data(2), 11: Ultimate/Data(2), 12: Ultimate/Virus(1),
+     *  13: Mega/Data(2), 14: Mega/Virus(1), 15: Mega/Data(2), 16: Mega/Data(2, unlock=1)
+     * Alternate path names (slots 04-16) need device confirmation.
+     */
+    val RENAMON: Map<String, SpeciesBytes> = mapOf(
+        // Fresh
+        "Relemon" to SpeciesBytes(b9 = 0x00, stage = 0, b13 = 0x00, b15 = null, confirmed = false),
+        // In-Training
+        "Viximon" to SpeciesBytes(b9 = 0x01, stage = 1, b13 = 0x00, b15 = null, confirmed = false),
+        // Rookie
+        "Renamon" to SpeciesBytes(b9 = 0x02, stage = 2, b13 = 0x02, b15 = null, confirmed = false),
+        // Champion (main line)
+        "Kyubimon" to SpeciesBytes(b9 = 0x03, stage = 3, b13 = 0x02, b15 = null, confirmed = false),
+        // Ultimate (main line: Taomon is one of slots 07-12, needs device ID)
+        // Mega (main line: Sakuyamon/Kuzuhamon/Sakuyamon Maid Mode are slots 13-16, needs device ID)
+    )
+
+    /**
+     * Terriermon DIM species map.
+     * Roster order + attributes (b13) parsed directly from the DIM file
+     * (DIM_Terriermon_36_bmvp.bin, character stats at 0x30000, bitwise-NOT encoded).
+     * b15 NOT YET MAPPED — needs a real bracelet read from this DIM.
+     *
+     * DIM file slots (b9/stage/b13):
+     *  00: Fresh/0, 01: Baby II/0, 02: Rookie/Vaccine(3), 03: Champion/Vaccine(3),
+     *  04: Champion/Data(2), 05: Champion/attr4, 06: Champion/Virus(1),
+     *  07: Ultimate/Vaccine(3), 08: Ultimate/Data(2), 09: Ultimate/Data(2),
+     *  10: Ultimate/Data(2), 11: Ultimate/Virus(1), 12: Ultimate/Virus(1),
+     *  13: Mega/Vaccine(3), 14: Mega/Vaccine(3), 15: Mega/Vaccine(3), 16: Mega/Vaccine(3, unlock=1)
+     * Alternate path names (slots 04-16) need device confirmation.
+     */
+    val TERRIERMON: Map<String, SpeciesBytes> = mapOf(
+        // Fresh (Gummymon is Baby II per card game data; Baby I name unconfirmed)
+        // In-Training
+        "Gummymon" to SpeciesBytes(b9 = 0x01, stage = 1, b13 = 0x00, b15 = null, confirmed = false),
+        // Rookie
+        "Terriermon" to SpeciesBytes(b9 = 0x02, stage = 2, b13 = 0x03, b15 = null, confirmed = false),
+        // Champion (main line)
+        "Gargomon" to SpeciesBytes(b9 = 0x03, stage = 3, b13 = 0x03, b15 = null, confirmed = false),
+        // Ultimate (main line: Rapidmon is one of slots 07-12, needs device ID)
+        // Mega (main line: MegaGargomon/SaintGargomon are slots 13-16, needs device ID)
+    )
+
+    /**
+     * Ryudamon DIM species map.
+     * Roster order + attributes (b13) parsed directly from the DIM file
+     * (DIM_Ryudamon_41_7x5x.bin, character stats at 0x30000, bitwise-NOT encoded).
+     * b15 NOT YET MAPPED — needs a real bracelet read from this DIM.
+     *
+     * DIM file slots (b9/stage/b13):
+     *  00: Fresh/0, 01: Baby II/0, 02: Rookie/Vaccine(3), 03: Rookie/Vaccine(3),
+     *  04: Champion/Vaccine(3), 05: Champion/Vaccine(3), 06: Champion/Virus(1), 07: Champion/Virus(1),
+     *  08: Ultimate/Vaccine(3), 09: Ultimate/Vaccine(3), 10: Ultimate/Vaccine(3),
+     *  11: Ultimate/Virus(1), 12: Ultimate/Virus(1),
+     *  13: Mega/Vaccine(3), 14: Mega/Vaccine(3), 15: Mega/Virus(1), 16: Mega/Virus(1)
+     * Alternate path names need device confirmation.
+     */
+    val RYUDAMON: Map<String, SpeciesBytes> = mapOf(
+        // Fresh (Fufumon per community data, unconfirmed)
+        // In-Training (Kyokyomon per community data, unconfirmed)
+        // Rookie (main line)
+        "Ryudamon" to SpeciesBytes(b9 = 0x02, stage = 2, b13 = 0x03, b15 = null, confirmed = false),
+        // Champion/Ultimate/Mega names need device confirmation
+    )
 }
