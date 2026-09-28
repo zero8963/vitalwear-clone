@@ -111,9 +111,11 @@ object VBBraceletSpeciesMap {
         // NOTE: shares b15=0x31 with BlackWarGreymon; b9 distinguishes them.
         "WarGreymon" to SpeciesBytes(b9 = 0x0C, stage = 5, b13 = 0x03, b15 = 0x31, confirmed = true),
         // Mega — Omegamon forms (from DIM file indices 15-16; b15 needs device read)
-        // idx 15 = Omegamon (white, from WarGreymon)
+        // idx 15 = Omegamon (white, from WarGreymon) device-confirmed 2026-09-28:
+        // b9=0x0C->0x0F, stage 5 (unchanged), b13=0x03 (Vaccine, unchanged),
+        // b15=0x31->0x34.
         // idx 16 = Omegamon Black / Zwart (secret, unlocked via DIM edit)
-        // "Omegamon" to SpeciesBytes(b9 = 0x0F, stage = 5, b13 = 0x03, b15 = null, confirmed = false),
+        "Omegamon" to SpeciesBytes(b9 = 0x0F, stage = 5, b13 = 0x03, b15 = 0x34, confirmed = true),
         // "Omegamon (Black)" to SpeciesBytes(b9 = 0x10, stage = 5, b13 = 0x03, b15 = null, confirmed = false),
     )
 
