@@ -411,7 +411,7 @@ fun LabUI() {
                             ).show()
                             val intent = Intent(
                                 context,
-                                com.example.vitalwearclonev1.communication.VBBraceletActivity::class.java
+                                com.example.vitalwearclonev1.communication.VBBraceletCharacterActivity::class.java
                             )
                             context.startActivity(intent)
                         }, onSetHome = {
