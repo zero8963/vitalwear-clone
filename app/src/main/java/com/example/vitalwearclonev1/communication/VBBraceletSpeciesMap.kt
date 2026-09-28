@@ -72,9 +72,11 @@ object VBBraceletSpeciesMap {
         // In-Training — device-confirmed 2026-09-28: b9 corrected to 0x01,
         // stage 0->1, b15 0x1D->0x1F on Botamon->Koromon evolution.
         "Koromon" to SpeciesBytes(b9 = 0x01, stage = 1, b13 = 0x00, b15 = 0x1F, confirmed = true),
-        // Rookie
+        // Rookie — device-observed 2026-09-28 (Koromon->??? evolution):
+        // b9=0x03, b13=0x01 (Virus), b15=0x23. Bytes say BlackAgumon; user said
+        // "agumon" — awaiting visual confirmation which variant the bracelet shows.
         "Agumon" to SpeciesBytes(b9 = 0x02, stage = 2, b13 = 0x03, b15 = null, confirmed = false),
-        "BlackAgumon" to SpeciesBytes(b9 = 0x03, stage = 2, b13 = 0x01, b15 = null, confirmed = false),
+        "BlackAgumon" to SpeciesBytes(b9 = 0x03, stage = 2, b13 = 0x01, b15 = 0x23, confirmed = false),
         // Champion
         "Greymon" to SpeciesBytes(b9 = 0x04, stage = 3, b13 = 0x03, b15 = null, confirmed = false),
         "Greymon (Blue)" to SpeciesBytes(b9 = 0x05, stage = 3, b13 = 0x02, b15 = null, confirmed = false),
