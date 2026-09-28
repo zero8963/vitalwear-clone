@@ -462,6 +462,7 @@ fun LabUI() {
 private fun RefreshPartnerDialog(
     backup: com.example.vitalwearclonev1.communication.VBBraceletBackups.Backup,
     currentStage: Int,
+    linkedCardName: String?,
     onClose: () -> Unit,
     onRefresh: (com.example.vitalwearclonev1.communication.VBBraceletAdopt.AdoptCandidate, Int) -> Unit
 ) {
@@ -478,6 +479,8 @@ private fun RefreshPartnerDialog(
             com.example.vitalwearclonev1.communication.VBBraceletAdopt.loadCandidates(context)
         }
         candidates = list
+        // Pre-select: 1) remembered choice for this backup, 2) the partner's
+        // already-linked DIM card (so the user just picks the evolved species).
         com.example.vitalwearclonev1.communication.VBBraceletAdopt
             .rememberedChoice(context, backup.id)?.let { (cardName, charId) ->
                 list.firstOrNull { it.cardName == cardName && it.charId == charId }?.let { pick ->
@@ -485,6 +488,13 @@ private fun RefreshPartnerDialog(
                     stage = pick.stage
                 }
             }
+        if (selected == null && linkedCardName != null) {
+            // Default to the linked card's first entry; user picks the evolved form.
+            list.firstOrNull { it.cardName == linkedCardName }?.let { pick ->
+                selected = pick
+                // Don't override stage — user sets it to the new form's stage.
+            }
+        }
         loading = false
     }
 
@@ -873,6 +883,7 @@ fun MonsterCard(monster: StoredMonster, index: Int, onRestore: () -> Unit, onAdv
         RefreshPartnerDialog(
             backup = rb,
             currentStage = monster.stage,
+            linkedCardName = monster.name,
             onClose = { refreshBackup = null },
             onRefresh = { candidate, stage ->
                 try {
