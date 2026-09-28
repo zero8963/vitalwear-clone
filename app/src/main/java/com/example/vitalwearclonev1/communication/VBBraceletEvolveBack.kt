@@ -129,32 +129,37 @@ object VBBraceletEvolveBack {
         val b13 = p.b13!!
         val b15 = p.b15!!
 
+        fun setByte(off: Int, value: Int) {
+            patched[off] = value.toByte()
+            VBBraceletData.recomputeBlockChecksum(patched, off)
+        }
+
         // Primary block (0x0040)
-        patched[0x49] = b9.toByte()
-        patched[0x4C] = stage.toByte()
-        patched[0x4D] = b13.toByte()
-        patched[0x4F] = b15.toByte()
+        setByte(0x49, b9)
+        setByte(0x4C, stage)
+        setByte(0x4D, b13)
+        setByte(0x4F, b15)
         // Mirror block (0x0050)
-        patched[0x59] = b9.toByte()
-        patched[0x5C] = stage.toByte()
-        patched[0x5D] = b13.toByte()
-        patched[0x5F] = b15.toByte()
+        setByte(0x59, b9)
+        setByte(0x5C, stage)
+        setByte(0x5D, b13)
+        setByte(0x5F, b15)
         changes.add("species b9=$b9 stage=$stage b13=$b13 b15=$b15")
 
         // Reset Next timer to 1440 (post-evolution standard).
         // Timer at 0x008D-0x008E (U16 BE), mirror at 0x009D.
-        patched[0x8D] = 0x05.toByte() // 1440 = 0x05A0
-        patched[0x8E] = 0xA0.toByte()
-        patched[0x9D] = 0x05.toByte()
-        patched[0x9E] = 0xA0.toByte()
+        setByte(0x8D, 0x05) // 1440 = 0x05A0
+        setByte(0x8E, 0xA0)
+        setByte(0x9D, 0x05)
+        setByte(0x9E, 0xA0)
         changes.add("timer reset to 1440")
 
         // Post-evolution: vitals → 0 (from device data 2026-09-27).
         // Vitals at 0x0084-0x0085 (U16 BE), mirror at 0x0094.
-        patched[0x84] = 0x00.toByte()
-        patched[0x85] = 0x00.toByte()
-        patched[0x94] = 0x00.toByte()
-        patched[0x95] = 0x00.toByte()
+        setByte(0x84, 0x00)
+        setByte(0x85, 0x00)
+        setByte(0x94, 0x00)
+        setByte(0x95, 0x00)
         changes.add("vitals reset to 0")
 
         // Verify checksums.
