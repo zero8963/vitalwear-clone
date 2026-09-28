@@ -94,7 +94,9 @@ object VBBraceletSpeciesMap {
         // Mega
         "WarGreymon" to SpeciesBytes(b9 = 0x0C, stage = 5, b13 = 0x03, b15 = null, confirmed = false),
         "VictoryGreymon" to SpeciesBytes(b9 = 0x0D, stage = 5, b13 = 0x03, b15 = null, confirmed = false),
-        "BlackWarGreymon" to SpeciesBytes(b9 = 0x0E, stage = 5, b13 = 0x01, b15 = null, confirmed = false),
+        // Mega — BlackWarGreymon device-confirmed 2026-09-28 (SkullGreymon
+        // evolution): b9=0x0E, stage 4->5, b13 stays 0x01 (Virus), b15=0x2C->0x31.
+        "BlackWarGreymon" to SpeciesBytes(b9 = 0x0E, stage = 5, b13 = 0x01, b15 = 0x31, confirmed = true),
         // Jogress (from DIM file indices 15-16; names need confirmation)
         // "Omegamon" to SpeciesBytes(b9 = 0x0F, stage = 5, b13 = 0x03, b15 = null, confirmed = false),
         // "Omegamon Zwart" to SpeciesBytes(b9 = 0x10, stage = 5, b13 = 0x03, b15 = null, confirmed = false),
