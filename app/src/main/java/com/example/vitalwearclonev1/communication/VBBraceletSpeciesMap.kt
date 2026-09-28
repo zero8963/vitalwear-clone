@@ -77,9 +77,11 @@ object VBBraceletSpeciesMap {
         // black sprite but names it "Agumon" in status (firmware quirk).
         "Agumon" to SpeciesBytes(b9 = 0x02, stage = 2, b13 = 0x03, b15 = null, confirmed = false),
         "BlackAgumon" to SpeciesBytes(b9 = 0x03, stage = 2, b13 = 0x01, b15 = 0x23, confirmed = true),
-        // Champion
+        // Champion — Greymon (Blue) device-confirmed 2026-09-28 (BlackAgumon
+        // evolution, 0-vitals path): b9=0x05, stage 2->3, b13=0x02 (Data),
+        // b15=0x23->0x27. User thought it was Monochromon; bytes say Blue.
         "Greymon" to SpeciesBytes(b9 = 0x04, stage = 3, b13 = 0x03, b15 = null, confirmed = false),
-        "Greymon (Blue)" to SpeciesBytes(b9 = 0x05, stage = 3, b13 = 0x02, b15 = null, confirmed = false),
+        "Greymon (Blue)" to SpeciesBytes(b9 = 0x05, stage = 3, b13 = 0x02, b15 = 0x27, confirmed = true),
         "Monochromon" to SpeciesBytes(b9 = 0x06, stage = 3, b13 = 0x01, b15 = null, confirmed = false),
         "DarkTyrannomon" to SpeciesBytes(b9 = 0x07, stage = 3, b13 = 0x01, b15 = null, confirmed = false),
         // Ultimate
