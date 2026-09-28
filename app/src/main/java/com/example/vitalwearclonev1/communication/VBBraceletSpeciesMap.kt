@@ -96,7 +96,10 @@ object VBBraceletSpeciesMap {
         // Ultimate — SkullGreymon device-confirmed 2026-09-28 (Greymon Blue
         // evolution): b9=0x0A, stage 3->4, b13=0x02->0x01 (Virus), b15=0x27->0x2C.
         "SkullGreymon" to SpeciesBytes(b9 = 0x0A, stage = 4, b13 = 0x01, b15 = 0x2C, confirmed = true),
-        "Vermilimon" to SpeciesBytes(b9 = 0x0B, stage = 4, b13 = 0x01, b15 = null, confirmed = false),
+        // Ultimate — Blue MetalGreymon device-confirmed 2026-09-28 (Monochromon
+        // evolution): b9=0x05->0x0B, stage 3->4, b13=0x02->0x01, b15=0x27->0x2D.
+        // NOTE: idx 11 was mislabeled "Vermilimon" — device shows blue MetalGreymon.
+        "MetalGreymon (Blue)" to SpeciesBytes(b9 = 0x0B, stage = 4, b13 = 0x01, b15 = 0x2D, confirmed = true),
         // Mega
         "WarGreymon" to SpeciesBytes(b9 = 0x0C, stage = 5, b13 = 0x03, b15 = null, confirmed = false),
         "VictoryGreymon" to SpeciesBytes(b9 = 0x0D, stage = 5, b13 = 0x03, b15 = null, confirmed = false),
