@@ -468,8 +468,11 @@ private fun EvolveFormDialog(
     val speciesList = remember(cardName) {
         val normalized = cardName.lowercase().replace(" ", "")
         when {
-            "impulse" in normalized || "pulse" in normalized ->
+            "impulse" in normalized || "pulsecity" in normalized ->
                 com.example.vitalwearclonev1.communication.VBBraceletSpeciesMap.IMPULSE_CITY
+                    .entries.sortedBy { it.value.b9 }
+            "dinosaur" in normalized ->
+                com.example.vitalwearclonev1.communication.VBBraceletSpeciesMap.DINOSAUR_ROAR
                     .entries.sortedBy { it.value.b9 }
             else -> emptyList()
         }

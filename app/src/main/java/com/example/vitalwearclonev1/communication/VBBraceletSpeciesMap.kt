@@ -55,6 +55,39 @@ object VBBraceletSpeciesMap {
     )
 
     /**
+     * Dinosaur Roar (Agumon/BlackAgumon) DIM species map.
+     * Roster order from the DIM card; b9 = roster index.
+     * b13/b15 NOT YET MAPPED — need a real bracelet read from this DIM.
+     * (User has the physical card; hatch any Digimon, read the bracelet,
+     * and the bytes can be extracted from the backup.)
+     */
+    val DINOSAUR_ROAR: Map<String, SpeciesBytes> = mapOf(
+        // Fresh
+        "Botamon" to SpeciesBytes(b9 = 0x00, stage = 0, b13 = null, b15 = null, confirmed = false),
+        // In-Training
+        "Koromon" to SpeciesBytes(b9 = 0x01, stage = 1, b13 = null, b15 = null, confirmed = false),
+        // Rookie
+        "Agumon" to SpeciesBytes(b9 = 0x02, stage = 2, b13 = null, b15 = null, confirmed = false),
+        "BlackAgumon" to SpeciesBytes(b9 = 0x03, stage = 2, b13 = null, b15 = null, confirmed = false),
+        // Champion
+        "Greymon" to SpeciesBytes(b9 = 0x04, stage = 3, b13 = null, b15 = null, confirmed = false),
+        "Greymon (Blue)" to SpeciesBytes(b9 = 0x05, stage = 3, b13 = null, b15 = null, confirmed = false),
+        "Monochromon" to SpeciesBytes(b9 = 0x06, stage = 3, b13 = null, b15 = null, confirmed = false),
+        "DarkTyrannomon" to SpeciesBytes(b9 = 0x07, stage = 3, b13 = null, b15 = null, confirmed = false),
+        // Ultimate
+        "MetalGreymon (Vaccine)" to SpeciesBytes(b9 = 0x08, stage = 4, b13 = null, b15 = null, confirmed = false),
+        "MetalGreymon (Virus)" to SpeciesBytes(b9 = 0x09, stage = 4, b13 = null, b15 = null, confirmed = false),
+        "SkullGreymon" to SpeciesBytes(b9 = 0x0A, stage = 4, b13 = null, b15 = null, confirmed = false),
+        "Vermilimon" to SpeciesBytes(b9 = 0x0B, stage = 4, b13 = null, b15 = null, confirmed = false),
+        // Mega
+        "WarGreymon" to SpeciesBytes(b9 = 0x0C, stage = 5, b13 = null, b15 = null, confirmed = false),
+        "VictoryGreymon" to SpeciesBytes(b9 = 0x0D, stage = 5, b13 = null, b15 = null, confirmed = false),
+        "BlackWarGreymon" to SpeciesBytes(b9 = 0x0E, stage = 5, b13 = null, b15 = null, confirmed = false),
+        // Jogress (special — may not follow the standard pattern)
+        // "Omegamon" to ..., "Omegamon Zwart" to ... (skip for now)
+    )
+
+    /**
      * Lookup species bytes by DIM card name and species name.
      * Returns null if the species isn't mapped.
      */
@@ -62,7 +95,8 @@ object VBBraceletSpeciesMap {
         // Normalize card name: "Impulse City", "Pulse City", "Pulsecity" all match.
         val normalized = cardName.lowercase().replace(" ", "")
         return when {
-            "impulse" in normalized || "pulse" in normalized -> IMPULSE_CITY[speciesName]
+            "impulse" in normalized || "pulsecity" in normalized -> IMPULSE_CITY[speciesName]
+            "dinosaur" in normalized || "dinosarroar" in normalized -> DINOSAUR_ROAR[speciesName]
             else -> null
         }
     }
