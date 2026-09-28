@@ -56,35 +56,36 @@ object VBBraceletSpeciesMap {
 
     /**
      * Dinosaur Roar (Agumon/BlackAgumon) DIM species map.
-     * Roster order from the DIM card; b9 = roster index.
-     * b13/b15 NOT YET MAPPED — need a real bracelet read from this DIM.
-     * (User has the physical card; hatch any Digimon, read the bracelet,
-     * and the bytes can be extracted from the backup.)
+     * Roster order + attributes (b13) parsed directly from the DIM file
+     * (Dinosaur_Roar_38_2i5j.DIM, character stats at 0x30000, bitwise-NOT encoded).
+     * Attribute encoding: 0=None (Baby), 1=Virus, 2=Data, 3=Vaccine.
+     * b15 NOT YET MAPPED — needs a real bracelet read from this DIM.
      */
     val DINOSAUR_ROAR: Map<String, SpeciesBytes> = mapOf(
         // Fresh
-        "Botamon" to SpeciesBytes(b9 = 0x00, stage = 0, b13 = null, b15 = null, confirmed = false),
+        "Botamon" to SpeciesBytes(b9 = 0x00, stage = 0, b13 = 0x00, b15 = null, confirmed = false),
         // In-Training
-        "Koromon" to SpeciesBytes(b9 = 0x01, stage = 1, b13 = null, b15 = null, confirmed = false),
+        "Koromon" to SpeciesBytes(b9 = 0x01, stage = 1, b13 = 0x00, b15 = null, confirmed = false),
         // Rookie
-        "Agumon" to SpeciesBytes(b9 = 0x02, stage = 2, b13 = null, b15 = null, confirmed = false),
-        "BlackAgumon" to SpeciesBytes(b9 = 0x03, stage = 2, b13 = null, b15 = null, confirmed = false),
+        "Agumon" to SpeciesBytes(b9 = 0x02, stage = 2, b13 = 0x03, b15 = null, confirmed = false),
+        "BlackAgumon" to SpeciesBytes(b9 = 0x03, stage = 2, b13 = 0x01, b15 = null, confirmed = false),
         // Champion
-        "Greymon" to SpeciesBytes(b9 = 0x04, stage = 3, b13 = null, b15 = null, confirmed = false),
-        "Greymon (Blue)" to SpeciesBytes(b9 = 0x05, stage = 3, b13 = null, b15 = null, confirmed = false),
-        "Monochromon" to SpeciesBytes(b9 = 0x06, stage = 3, b13 = null, b15 = null, confirmed = false),
-        "DarkTyrannomon" to SpeciesBytes(b9 = 0x07, stage = 3, b13 = null, b15 = null, confirmed = false),
+        "Greymon" to SpeciesBytes(b9 = 0x04, stage = 3, b13 = 0x03, b15 = null, confirmed = false),
+        "Greymon (Blue)" to SpeciesBytes(b9 = 0x05, stage = 3, b13 = 0x02, b15 = null, confirmed = false),
+        "Monochromon" to SpeciesBytes(b9 = 0x06, stage = 3, b13 = 0x01, b15 = null, confirmed = false),
+        "DarkTyrannomon" to SpeciesBytes(b9 = 0x07, stage = 3, b13 = 0x01, b15 = null, confirmed = false),
         // Ultimate
-        "MetalGreymon (Vaccine)" to SpeciesBytes(b9 = 0x08, stage = 4, b13 = null, b15 = null, confirmed = false),
-        "MetalGreymon (Virus)" to SpeciesBytes(b9 = 0x09, stage = 4, b13 = null, b15 = null, confirmed = false),
-        "SkullGreymon" to SpeciesBytes(b9 = 0x0A, stage = 4, b13 = null, b15 = null, confirmed = false),
-        "Vermilimon" to SpeciesBytes(b9 = 0x0B, stage = 4, b13 = null, b15 = null, confirmed = false),
+        "MetalGreymon (Vaccine)" to SpeciesBytes(b9 = 0x08, stage = 4, b13 = 0x03, b15 = null, confirmed = false),
+        "MetalGreymon (Virus)" to SpeciesBytes(b9 = 0x09, stage = 4, b13 = 0x02, b15 = null, confirmed = false),
+        "SkullGreymon" to SpeciesBytes(b9 = 0x0A, stage = 4, b13 = 0x01, b15 = null, confirmed = false),
+        "Vermilimon" to SpeciesBytes(b9 = 0x0B, stage = 4, b13 = 0x01, b15 = null, confirmed = false),
         // Mega
-        "WarGreymon" to SpeciesBytes(b9 = 0x0C, stage = 5, b13 = null, b15 = null, confirmed = false),
-        "VictoryGreymon" to SpeciesBytes(b9 = 0x0D, stage = 5, b13 = null, b15 = null, confirmed = false),
-        "BlackWarGreymon" to SpeciesBytes(b9 = 0x0E, stage = 5, b13 = null, b15 = null, confirmed = false),
-        // Jogress (special — may not follow the standard pattern)
-        // "Omegamon" to ..., "Omegamon Zwart" to ... (skip for now)
+        "WarGreymon" to SpeciesBytes(b9 = 0x0C, stage = 5, b13 = 0x03, b15 = null, confirmed = false),
+        "VictoryGreymon" to SpeciesBytes(b9 = 0x0D, stage = 5, b13 = 0x03, b15 = null, confirmed = false),
+        "BlackWarGreymon" to SpeciesBytes(b9 = 0x0E, stage = 5, b13 = 0x01, b15 = null, confirmed = false),
+        // Jogress (from DIM file indices 15-16; names need confirmation)
+        // "Omegamon" to SpeciesBytes(b9 = 0x0F, stage = 5, b13 = 0x03, b15 = null, confirmed = false),
+        // "Omegamon Zwart" to SpeciesBytes(b9 = 0x10, stage = 5, b13 = 0x03, b15 = null, confirmed = false),
     )
 
     /**
