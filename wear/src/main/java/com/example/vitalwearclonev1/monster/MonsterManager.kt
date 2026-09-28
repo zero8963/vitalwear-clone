@@ -108,6 +108,9 @@ class MonsterManager(private val context: Context) {
             clearSlot("stored_")
         }
         writeMonster("current_", stored)
+        // Reset the care clock on wake — otherwise time spent stored eats into
+        // the critical-heal timer (2026-09-28 fix).
+        prefs.edit().putLong("current_last_care_tick", System.currentTimeMillis()).apply()
         Timber.d("Stored monster woken: ${stored.cardName} #${stored.characterId}")
     }
 

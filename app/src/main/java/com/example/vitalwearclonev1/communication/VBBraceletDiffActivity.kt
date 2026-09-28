@@ -4,6 +4,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -14,6 +15,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.Button
 import androidx.compose.material.ButtonDefaults
 import androidx.compose.material.Card
@@ -105,8 +107,10 @@ class VBBraceletDiffActivity : ComponentActivity() {
                         fontFamily = FontFamily.Monospace)
                 }
 
+                Spacer(Modifier.height(8.dp))
+
                 if (r != null) {
-                    // Summary card
+                    // Summary card — fixed at top, ranges scroll below.
                     Card(
                         modifier = Modifier.fillMaxWidth(),
                         backgroundColor = Color(0xFF1E3A5F), elevation = 4.dp
@@ -147,19 +151,18 @@ class VBBraceletDiffActivity : ComponentActivity() {
                         }
                     }
                     Spacer(Modifier.height(8.dp))
-                    Text(
-                        "Tip: the species ID is likely one of the ★ candidates — " +
-                                "a couple of bytes that flip when the Digimon changes.",
-                        color = Color.Gray, fontSize = 11.sp, textAlign = TextAlign.Center
-                    )
-                    Spacer(Modifier.height(8.dp))
 
+                    // Scrollable range list — takes all remaining space.
+                    // Each range card scrolls horizontally for wide hex rows.
                     LazyColumn(
                         modifier = Modifier.weight(1f).fillMaxWidth(),
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         items(r.ranges) { range -> RangeCard(range) }
                     }
+                } else {
+                    // No result yet — spacer to keep Done button at bottom.
+                    Spacer(Modifier.weight(1f))
                 }
 
                 Spacer(Modifier.height(8.dp))
@@ -194,22 +197,27 @@ class VBBraceletDiffActivity : ComponentActivity() {
                         fontFamily = FontFamily.Monospace)
                 }
                 Spacer(Modifier.height(4.dp))
-                // 16 bytes per row.
-                var off = range.start
-                var ai = 0
-                while (ai < range.length) {
-                    val n = minOf(16, range.length - ai)
-                    Text(
-                        VBBraceletDiff.formatRow(
-                            off,
-                            range.aBytes.copyOfRange(ai, ai + n),
-                            range.bBytes.copyOfRange(ai, ai + n)
-                        ),
-                        color = Color(0xFF8A9BB5), fontSize = 10.sp,
-                        fontFamily = FontFamily.Monospace
-                    )
-                    off += n
-                    ai += n
+                // Hex rows scroll horizontally if wider than the screen.
+                val hScroll = rememberScrollState()
+                Column(modifier = Modifier.horizontalScroll(hScroll)) {
+                    // 16 bytes per row.
+                    var off = range.start
+                    var ai = 0
+                    while (ai < range.length) {
+                        val n = minOf(16, range.length - ai)
+                        Text(
+                            VBBraceletDiff.formatRow(
+                                off,
+                                range.aBytes.copyOfRange(ai, ai + n),
+                                range.bBytes.copyOfRange(ai, ai + n)
+                            ),
+                            color = Color(0xFF8A9BB5), fontSize = 10.sp,
+                            fontFamily = FontFamily.Monospace,
+                            maxLines = 1
+                        )
+                        off += n
+                        ai += n
+                    }
                 }
             }
         }

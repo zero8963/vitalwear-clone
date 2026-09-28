@@ -399,27 +399,20 @@ fun LabUI() {
                             context.startActivity(intent)
                         }, onSyncToVB = {
                             Timber.d("Sync to VB clicked for ${monster.name} index=$index")
-                            val intent = Intent(context, com.example.vitalwearclonev1.communication.VBSyncActivity::class.java).apply {
-                                putExtra("name", monster.name)
-                                putExtra("charId", monster.charId)
-                                putExtra("stage", monster.stage)
-                                putExtra("atk", monster.attack)
-                                putExtra("cals", monster.calories)
-                                putExtra("spd", monster.speed)
-                                putExtra("def", monster.defense)
-                                putExtra("raw", monster.rawPayload)
-                                putExtra("wins", monster.currentWins)
-                                putExtra("winsReq", monster.winsRequired)
-                                putExtra("timeAlive", monster.timeAlive)
-                                putExtra("evoTime", monster.evolutionTime)
-                                putExtra("attribute", monster.attribute)
-                                putExtra("mood", monster.mood)
-                                putExtra("steps", monster.steps)
-                                putExtra("bp", monster.bp)
-                                putExtra("sp", monster.sp)
-                                putExtra("winRatio", monster.winRatio)
-                                putExtra("trophies", monster.trophies)
-                            }
+                            // RETIRED: The old VBSyncActivity used VBNfcProtocol with a guessed
+                            // layout that wrote near page 2 lock bytes — unsafe for the real Hero.
+                            // Redirect to the safe Bracelet Character flow (proven read/modify-write
+                            // with checksums and two-tap DIM verification).
+                            android.widget.Toast.makeText(
+                                context,
+                                "Old direct sync is retired (unsafe layout). " +
+                                "Use Bracelet Character → Write Back for live edits.",
+                                android.widget.Toast.LENGTH_LONG
+                            ).show()
+                            val intent = Intent(
+                                context,
+                                com.example.vitalwearclonev1.communication.VBBraceletActivity::class.java
+                            )
                             context.startActivity(intent)
                         }, onSetHome = {
                             val monsterManager = com.example.vitalwearclonev1.monster.PhoneMonsterManager(context)
