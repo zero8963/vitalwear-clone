@@ -89,7 +89,9 @@ object VBBraceletSpeciesMap {
         // idx 6: blue Greymon variant (tool names it "Greymon"; Virus attr).
         // b15 unknown — needs device read.
         "Greymon (Blue)" to SpeciesBytes(b9 = 0x06, stage = 3, b13 = 0x01, b15 = null, confirmed = false),
-        "DarkTyrannomon" to SpeciesBytes(b9 = 0x07, stage = 3, b13 = 0x01, b15 = null, confirmed = false),
+        // idx 7: DarkTyrannomon — device-confirmed 2026-09-29 (user's bracelet
+        // read): b9=0x07, stage 3, b13=0x01 (Virus), b15=0x28.
+        "DarkTyrannomon" to SpeciesBytes(b9 = 0x07, stage = 3, b13 = 0x01, b15 = 0x28, confirmed = true),
         // Ultimate
         "MetalGreymon (Vaccine)" to SpeciesBytes(b9 = 0x08, stage = 4, b13 = 0x03, b15 = null, confirmed = false),
         "MetalGreymon (Virus)" to SpeciesBytes(b9 = 0x09, stage = 4, b13 = 0x02, b15 = null, confirmed = false),
