@@ -72,11 +72,18 @@ fun DigiDexScreen(onBack: () -> Unit) {
         if (cardNames.isEmpty()) {
             Text("No DIM cards installed.", color = Color.Gray, fontSize = 14.sp)
         } else {
-            // Card picker
+            // Card picker (2026-09-29): lime green DIM select button, black text.
             var expanded by remember { mutableStateOf(false) }
             Box {
-                OutlinedButton(onClick = { expanded = true }) {
-                    Text(selectedCard ?: "Select card", color = Color.White)
+                Button(
+                    onClick = { expanded = true },
+                    colors = ButtonDefaults.buttonColors(backgroundColor = Color(0xFF9EFF57))
+                ) {
+                    Text(
+                        "DIM Select: ${selectedCard ?: "Select card"}",
+                        color = Color.Black,
+                        fontWeight = FontWeight.Bold
+                    )
                 }
                 DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
                     cardNames.forEach { name ->
