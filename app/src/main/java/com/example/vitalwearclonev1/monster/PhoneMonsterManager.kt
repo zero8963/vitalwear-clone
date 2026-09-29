@@ -624,8 +624,25 @@ class PhoneMonsterManager(private val context: Context) {
         var care = toCareState(current).copy(consecutiveBattles = 0)
         care = CareManager.recordExercise(care)
         persistCare(care)
-        Timber.d("Workout completed: overwork counter reset; critical ${CareManager.formatCriticalMs(care.criticalRemainingMs)} left")
+        // Bracelet evolution logic (2026-09-29): workouts stand in for
+        // missions/adventure mode — each completed workout earns a trophy
+        // toward evolution, plus vital points from the physical effort.
+        // This is separate from the stat power-ups in applyWorkoutPowerUp.
+        addTrophy()
+        addVitalPoints(CareTuning.WORKOUT_VITAL_POINTS)
+        Timber.d("Workout completed: +1 trophy, +${CareTuning.WORKOUT_VITAL_POINTS} VP; overwork counter reset; critical ${CareManager.formatCriticalMs(care.criticalRemainingMs)} left")
         return wasCritical && care.criticalRemainingMs <= 0
+    }
+
+    /**
+     * Education mode (quiz/lessons) stands in for missions alongside workouts:
+     * each completed lesson earns a trophy toward evolution. Called from
+     * EducationalGameActivity when the user finishes a lesson set.
+     */
+    fun recordLessonCompleted() {
+        val current = getCurrentMonster() ?: return
+        addTrophy()
+        Timber.d("Lesson completed: +1 trophy (now ${current.stageTrophies + 1} this stage)")
     }
 
     private fun toCareState(current: MonsterState): CareState = CareState(
@@ -652,21 +669,50 @@ class PhoneMonsterManager(private val context: Context) {
 
     fun evolve() {
         val current = getCurrentMonster() ?: return
-        
+
         val candidates = getEvolutionCandidates()
         if (candidates.isEmpty()) {
             Timber.d("No evolution paths found for card ${current.cardName}")
             return
         }
-        
+
+        // End-of-tree lock (2026-09-29): no onward paths means this is the
+        // final form — refuse to evolve so a stray tap can't write past it
+        // and break the sprite.
+        if (isAtMaxEvolution()) {
+            Timber.w("evolve() blocked: ${current.cardName}#${current.characterId} is at max evolution")
+            return
+        }
+
         val available = candidates.filter { it.requirementsMet }
         val pick = if (available.isNotEmpty()) {
             available.maxByOrNull { it.path.requiredTrophies * 1000 + it.path.requiredVitalValues }!!
         } else {
             candidates.maxByOrNull { c -> c.progress.count { it.met } } ?: candidates.first()
         }
-        
+
         evolveTo(pick.path.toIndex, pick.path.hoursUntilEvolution)
+    }
+
+    /**
+     * True when the current monster has no onward evolution paths — it's at
+     * the end of its tree. The UI should hide/disable the evolve button when
+     * this returns true.
+     */
+    fun isAtMaxEvolution(): Boolean {
+        val current = getCurrentMonster() ?: return true
+        val card = try {
+            CardManager(context).getCard(current.cardName)
+        } catch (t: Throwable) {
+            null
+        } ?: return true
+        val paths = try {
+            DimCardAdapter.getEvolutionPaths(card, current.characterId)
+        } catch (t: Throwable) {
+            emptyList()
+        }
+        return EvolutionEngine.isAtMaxEvolution(paths)
+    }
     }
 
     fun forceEvolve() {

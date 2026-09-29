@@ -646,6 +646,9 @@ fun GamePlayScreen(mode: String, grade: String, floor: Int, isAdjusted: Boolean,
                         // Roll 1-5%, minus 1% per mistake on this floor (never below 0).
                         val gain = monsterManager.grantPracticeCritBonus(mistakes)
                         val total = monsterManager.getSecretCritDamageBonus()
+                        // 2026-09-29: education stands in for bracelet missions —
+                        // each cleared floor earns a trophy toward evolution.
+                        monsterManager.recordLessonCompleted()
                         Toast.makeText(context, if (gain > 0)
                             "Secret Crit Damage +$gain%! (total +$total%)"
                             else "Floor cleared! No crit bonus - too many mistakes.",

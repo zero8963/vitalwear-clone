@@ -451,6 +451,9 @@ fun HomeScreen(monsterManager: PhoneMonsterManager, isWatchConnected: Boolean?) 
     val canEvolve = remember(monsterState.value) {
         val state = monsterState.value
         if (state == null) false
+        // End-of-tree lock (2026-09-29): no onward paths = final form,
+        // disable the button so a stray tap can't break the sprite.
+        else if (monsterManager.isAtMaxEvolution()) false
         else if (state.stage == 0) state.timeAlive >= 60
         else state.winsRequired > 0 && state.currentWins >= state.winsRequired
     }

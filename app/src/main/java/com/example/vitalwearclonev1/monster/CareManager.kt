@@ -65,6 +65,8 @@ object CareTuning {
     const val CRITICAL_HEAL_WINDOW_MS = 30 * 60 * 1000L
     /** Each completed exercise shaves this much off the critical timer. */
     const val EXERCISE_HEAL_MS = 15 * 60 * 1000L
+    /** Vital Points earned per completed workout (bracelet evolution logic). */
+    const val WORKOUT_VITAL_POINTS = 100
 }
 
 object CareManager {
