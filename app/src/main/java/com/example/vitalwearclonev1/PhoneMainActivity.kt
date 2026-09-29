@@ -1053,8 +1053,12 @@ suspend fun sendP2PChallenge(context: Context, state: PhoneMonsterManager.Monste
                 dos.write(state.cardName.toByteArray(java.nio.charset.Charset.defaultCharset()))
                 dos.writeByte(0)
                 dos.writeInt(state.characterId)
-                dos.writeInt(state.attackBonus)
-                dos.writeInt(state.healthBonus)
+                // P2P stat fix (2026-09-29): the watch reads these as TOTAL stats.
+                // The old code sent raw bonuses (often 0 for a fresh Digimon),
+                // so the watch saw HP=0 and skipped straight to the result
+                // screen with no animation. Send base + bonus totals.
+                dos.writeInt(state.baseAp + state.attackBonus)
+                dos.writeInt(state.baseHp + state.healthBonus)
                 dos.writeInt(state.speedBonus)
                 dos.writeInt(state.defenseBonus)
                 dos.writeLong(System.currentTimeMillis())

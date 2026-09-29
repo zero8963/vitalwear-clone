@@ -1024,8 +1024,11 @@ fun BattleScreen(state: MonsterManager.MonsterState?, opponent: BattleOpponent?,
     val isEnemyAttacking = remember { mutableStateOf(false) }
 
     // Health States
-    val myMaxHP = remember { ((state?.baseHp ?: 500) + (state?.healthBonus ?: 0)).toFloat() }
-    val enemyMaxHP = remember { if (opponent != null) opponent.hp.toFloat() else 500f }
+    // P2P safety net (2026-09-29): clamp HP to a minimum of 1. If the phone
+    // ever sends 0 HP (old bug sent raw bonuses instead of totals), the
+    // battle loop would skip straight to RESULT with no animation.
+    val myMaxHP = remember { ((state?.baseHp ?: 500) + (state?.healthBonus ?: 0)).toFloat().coerceAtLeast(1f) }
+    val enemyMaxHP = remember { if (opponent != null) opponent.hp.toFloat().coerceAtLeast(1f) else 500f }
     var myCurrentHP by remember { mutableFloatStateOf(myMaxHP) }
     var enemyCurrentHP by remember { mutableFloatStateOf(enemyMaxHP) }
     
