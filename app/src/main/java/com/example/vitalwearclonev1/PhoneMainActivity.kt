@@ -698,6 +698,11 @@ fun HomeScreen(monsterManager: PhoneMonsterManager, isWatchConnected: Boolean?) 
                     )
                 }
 
+                // Evolution tracking values (2026-09-29): hoisted so both the
+                // Evolution Progress card and the stat-bar tracker strip can use them.
+                val evoSnapshot = remember(monsterState.value) { monsterManager.getPerformanceSnapshot() }
+                val evoCandidates = remember(monsterState.value) { monsterManager.getEvolutionCandidates() }
+
                 if (state.stage == 0) {
                     val remaining = (60 - state.timeAlive).coerceAtLeast(0)
                     Text("Hatching in: ${remaining}s", color = Color.Yellow, fontWeight = FontWeight.Bold)
@@ -706,8 +711,6 @@ fun HomeScreen(monsterManager: PhoneMonsterManager, isWatchConnected: Boolean?) 
                     // values being counted this stage — trophies, VP, battles, win rate —
                     // plus each evolution path's requirements so the user can verify
                     // the tracker is working and see which path they're qualifying for.
-                    val evoSnapshot = remember(monsterState.value) { monsterManager.getPerformanceSnapshot() }
-                    val evoCandidates = remember(monsterState.value) { monsterManager.getEvolutionCandidates() }
                     Card(
                         modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 8.dp),
                         backgroundColor = Color(0, 40, 80),
@@ -788,6 +791,26 @@ fun HomeScreen(monsterManager: PhoneMonsterManager, isWatchConnected: Boolean?) 
                         StatItem("HP", state.healthBonus.toString(), Color.Green)
                         StatItem("SPD", state.speedBonus.toString(), Color.Cyan)
                         StatItem("DEF", state.defenseBonus.toString(), Color.Yellow)
+                    }
+                }
+
+                // Evolution tracker strip (2026-09-29): compact VP / trophies /
+                // wins-losses row under the stat bar so the counted values for
+                // the equipped partner are always visible at a glance.
+                evoSnapshot?.let { snap ->
+                    Card(
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 4.dp),
+                        backgroundColor = Color(0, 30, 60, 180),
+                        elevation = 0.dp
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(10.dp),
+                            horizontalArrangement = Arrangement.SpaceEvenly
+                        ) {
+                            StatItem("VP", snap.vitalPoints.toString(), Color(0, 200, 255))
+                            StatItem("TROPHY", snap.trophies.toString(), Color(255, 215, 0))
+                            StatItem("W/L", "${snap.wins}/${snap.battles - snap.wins}", Color.Green)
+                        }
                     }
                 }
 
