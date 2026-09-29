@@ -698,60 +698,15 @@ fun HomeScreen(monsterManager: PhoneMonsterManager, isWatchConnected: Boolean?) 
                     )
                 }
 
-                // Evolution tracking values (2026-09-29): hoisted so both the
-                // Evolution Progress card and the stat-bar tracker strip can use them.
+                // Evolution tracking values (2026-09-29): snapshot feeds the
+                // VP/Trophy/W-L tracker strip under the stat bar. Per-path tree
+                // details are intentionally NOT shown here — the user wants the
+                // home screen clean; trees will live in a DigiDex (settings).
                 val evoSnapshot = remember(monsterState.value) { monsterManager.getPerformanceSnapshot() }
-                val evoCandidates = remember(monsterState.value) { monsterManager.getEvolutionCandidates() }
 
                 if (state.stage == 0) {
                     val remaining = (60 - state.timeAlive).coerceAtLeast(0)
                     Text("Hatching in: ${remaining}s", color = Color.Yellow, fontWeight = FontWeight.Bold)
-                } else {
-                    // Evolution Progress Tracker (2026-09-29): shows the real bracelet
-                    // values being counted this stage — trophies, VP, battles, win rate —
-                    // plus each evolution path's requirements so the user can verify
-                    // the tracker is working and see which path they're qualifying for.
-                    Card(
-                        modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 8.dp),
-                        backgroundColor = Color(0, 40, 80),
-                        elevation = 4.dp
-                    ) {
-                        Column(modifier = Modifier.padding(12.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text("Evolution Progress", color = Color.Cyan, fontSize = 14.sp, fontWeight = FontWeight.Bold)
-                            Spacer(Modifier.height(8.dp))
-                            evoSnapshot?.let { snap ->
-                                EvolutionStatRow("Trophies", "${snap.trophies}", Color(255, 215, 0))
-                                EvolutionStatRow("Vital Points", "${snap.vitalPoints} VP", Color(0, 200, 255))
-                                EvolutionStatRow("Battles", "${snap.battles}", Color.White)
-                                EvolutionStatRow("Wins", "${snap.wins}", Color.Green)
-                                EvolutionStatRow("Win Rate", "${snap.winRatioPercent}%", Color(150, 255, 150))
-                                if (evoCandidates.isNotEmpty()) {
-                                    Spacer(Modifier.height(8.dp))
-                                    Text("Paths:", color = Color.Gray, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                                    evoCandidates.forEach { candidate ->
-                                        val allMet = candidate.requirementsMet
-                                        Text(
-                                            "→ Slot ${candidate.path.toIndex} ${if (allMet) "✓ READY" else ""}",
-                                            color = if (allMet) Color.Green else Color.White,
-                                            fontSize = 12.sp,
-                                            fontWeight = if (allMet) FontWeight.Bold else FontWeight.Normal
-                                        )
-                                        candidate.progress.forEach { req ->
-                                            if (req.label != "Time") {
-                                                val metColor = if (req.met) Color.Green else Color(255, 150, 150)
-                                                Text(
-                                                    "  ${req.label}: ${req.current}${req.unit} / ${req.required}${req.unit}",
-                                                    color = metColor,
-                                                    fontSize = 11.sp
-                                                )
-                                            }
-                                        }
-                                        Spacer(Modifier.height(4.dp))
-                                    }
-                                }
-                            } ?: Text("No evolution data", color = Color.Gray, fontSize = 12.sp)
-                        }
-                    }
                 }
 
                 if (state.isEvolutionPaused) {
@@ -1062,21 +1017,6 @@ fun HomeScreen(monsterManager: PhoneMonsterManager, isWatchConnected: Boolean?) 
                 }
             )
         }
-    }
-}
-
-/**
- * Single row in the Evolution Progress tracker (2026-09-29).
- * Shows one tracked value with its label.
- */
-@Composable
-fun EvolutionStatRow(label: String, value: String, color: Color) {
-    Row(
-        modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
-        horizontalArrangement = Arrangement.SpaceBetween
-    ) {
-        Text(label, color = Color.Gray, fontSize = 12.sp)
-        Text(value, color = color, fontSize = 12.sp, fontWeight = FontWeight.Bold)
     }
 }
 
