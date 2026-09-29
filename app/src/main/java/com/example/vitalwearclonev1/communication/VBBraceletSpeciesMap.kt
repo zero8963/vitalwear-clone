@@ -116,7 +116,10 @@ object VBBraceletSpeciesMap {
         // b15=0x31->0x34.
         // idx 16 = Omegamon Black / Zwart (secret, unlocked via DIM edit)
         "Omegamon" to SpeciesBytes(b9 = 0x0F, stage = 5, b13 = 0x03, b15 = 0x34, confirmed = true),
-        // "Omegamon (Black)" to SpeciesBytes(b9 = 0x10, stage = 5, b13 = 0x03, b15 = null, confirmed = false),
+        // idx 16 = Omegamon Black / Zwart (secret, unlocked via DIM edit)
+        // device-confirmed 2026-09-28 (BlackWarGreymon evolution):
+        // b9=0x0E->0x10, stage 5 unchanged, b13=0x01->0x03, b15=0x31->0x46.
+        "Omegamon (Black)" to SpeciesBytes(b9 = 0x10, stage = 5, b13 = 0x03, b15 = 0x46, confirmed = true),
     )
 
     /**
