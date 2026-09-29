@@ -1187,6 +1187,13 @@ fun SettingsScreen(
     var tapCount by remember { mutableIntStateOf(0) }
     var showDevToggle by remember { mutableStateOf(monsterManager.isDevModeEnabled()) }
     var gpsTracking by remember { mutableStateOf(context.getSharedPreferences("tracking_prefs", Context.MODE_PRIVATE).getBoolean("gps_enabled", false)) }
+    // DigiDex (2026-09-29): sub-screen showing installed DIM cards' evolution trees.
+    var showDigiDex by remember { mutableStateOf(false) }
+
+    if (showDigiDex) {
+        com.example.vitalwearclonev1.dex.DigiDexScreen(onBack = { showDigiDex = false })
+        return
+    }
 
     LaunchedEffect(Unit) {
         if (gpsTracking && !com.example.vitalwearclonev1.sensor.PhoneTrackingService.isServiceRunning) {
@@ -1205,6 +1212,17 @@ fun SettingsScreen(
 
     Column(modifier = Modifier.fillMaxSize().background(Color(0, 30, 60)).padding(16.dp).verticalScroll(rememberScrollState())) {
         Text("Settings", color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Bold)
+
+        Spacer(Modifier.height(16.dp))
+
+        // DigiDex (2026-09-29): browse installed DIM cards' evolution trees.
+        Button(
+            onClick = { showDigiDex = true },
+            modifier = Modifier.fillMaxWidth(),
+            colors = ButtonDefaults.buttonColors(backgroundColor = Color(0, 120, 180))
+        ) {
+            Text("DigiDex — Evolution Trees", color = Color.White, fontWeight = FontWeight.Bold)
+        }
 
         Spacer(Modifier.height(16.dp))
 
