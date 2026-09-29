@@ -713,7 +713,6 @@ class PhoneMonsterManager(private val context: Context) {
         }
         return EvolutionEngine.isAtMaxEvolution(paths)
     }
-    }
 
     fun forceEvolve() {
         evolve()
