@@ -400,6 +400,21 @@ class PhoneMonsterManager(private val context: Context) {
      * card's real requirements and this stage's performance. Empty = no
      * options on this card (or card missing).
      */
+    /**
+     * Exposes this stage's tracked evolution values for the progress UI.
+     * Lets the user verify trophies, VP, battles, and win rate are counting.
+     */
+    fun getPerformanceSnapshot(): PerformanceSnapshot? {
+        val current = getCurrentMonster() ?: return null
+        return PerformanceSnapshot(
+            vitalPoints = current.stageVitalPoints,
+            trophies = current.stageTrophies,
+            battles = current.stageBattles,
+            wins = current.stageWins,
+            hoursAtStage = current.timeAlive / 3600.0
+        )
+    }
+
     fun getEvolutionCandidates(): List<EvolutionCandidate> {
         val current = getCurrentMonster() ?: return emptyList()
         val card = try {
