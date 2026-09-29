@@ -44,16 +44,24 @@ object DigiDexData {
     private val IMPULSE_CITY_NAMES: Map<Int, String> =
         VBBraceletSpeciesMap.IMPULSE_CITY.entries.associate { (name, bytes) -> bytes.b9 to name }
 
-    private fun nameFor(cardName: String, index: Int): String {
-        // Match Impulse City by card name (case-insensitive, handles "01. Impulse City" etc.)
-        if (cardName.contains("impulse", ignoreCase = true)) {
+    /** Impulse City is DIM ID 1. */
+    private const val IMPULSE_CITY_DIM_ID = 1
+
+    private fun isImpulseCity(cardName: String, dimId: Int?): Boolean {
+        // Prefer the DIM ID from the card header (robust); fall back to name match.
+        if (dimId == IMPULSE_CITY_DIM_ID) return true
+        return cardName.contains("impulse", ignoreCase = true)
+    }
+
+    private fun nameFor(cardName: String, dimId: Int?, index: Int): String {
+        if (isImpulseCity(cardName, dimId)) {
             IMPULSE_CITY_NAMES[index]?.let { return it }
         }
         return "Slot $index"
     }
 
-    private fun stageFor(cardName: String, index: Int): Int {
-        if (cardName.contains("impulse", ignoreCase = true)) {
+    private fun stageFor(cardName: String, dimId: Int?, index: Int): Int {
+        if (isImpulseCity(cardName, dimId)) {
             IMPULSE_CITY_NAMES[index]?.let { name ->
                 return VBBraceletSpeciesMap.IMPULSE_CITY[name]?.stage ?: -1
             }
@@ -76,6 +84,13 @@ object DigiDexData {
             return null
         }
 
+        val dimId = try {
+            card.header.dimId
+        } catch (t: Throwable) {
+            Timber.w(t, "DigiDex: couldn't read dimId for $cardName")
+            null
+        }
+
         val entries = (0 until count).map { index ->
             val paths = try {
                 DimCardAdapter.getEvolutionPaths(card, index)
@@ -85,12 +100,12 @@ object DigiDexData {
             }
             DexEntry(
                 index = index,
-                name = nameFor(cardName, index),
-                stage = stageFor(cardName, index),
+                name = nameFor(cardName, dimId, index),
+                stage = stageFor(cardName, dimId, index),
                 evolutions = paths.map { path ->
                     DexEvolution(
                         toIndex = path.toIndex,
-                        toName = nameFor(cardName, path.toIndex),
+                        toName = nameFor(cardName, dimId, path.toIndex),
                         requiredVitalPoints = path.requiredVitalValues,
                         requiredTrophies = path.requiredTrophies,
                         requiredBattles = path.requiredBattles,
