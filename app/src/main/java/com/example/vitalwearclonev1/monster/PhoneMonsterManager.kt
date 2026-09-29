@@ -36,6 +36,10 @@ class PhoneMonsterManager(private val context: Context) {
         private const val DIM_STAT_SCALE = 2
         /** Bump when seeding/normalization changes; triggers a re-seed. */
         private const val BASE_STATS_VERSION = 3
+        /** Max training bonus per stat (2026-09-29): prevents Int overflow
+         *  from uncapped workout grinding. 9999 is generous — at ~75 per
+         *  workout that's 133 full workouts to cap out. */
+        const val MAX_BONUS_STAT = 9999
     }
 
     data class MonsterState(
@@ -734,20 +738,25 @@ class PhoneMonsterManager(private val context: Context) {
 
     fun setBonusStats(atk: Int, hp: Int, spd: Int, def: Int) {
         prefs.edit()
-            .putInt("current_attack_bonus", atk)
-            .putInt("current_health_bonus", hp)
-            .putInt("current_speed_bonus", spd)
-            .putInt("current_defense_bonus", def)
+            .putInt("current_attack_bonus", atk.coerceIn(0, MAX_BONUS_STAT))
+            .putInt("current_health_bonus", hp.coerceIn(0, MAX_BONUS_STAT))
+            .putInt("current_speed_bonus", spd.coerceIn(0, MAX_BONUS_STAT))
+            .putInt("current_defense_bonus", def.coerceIn(0, MAX_BONUS_STAT))
             .apply()
     }
 
     fun updateBonusStats(atkDelta: Int, hpDelta: Int, spdDelta: Int, defDelta: Int) {
         val current = getCurrentMonster() ?: return
+        // Stat cap fix (2026-09-29): bonuses were uncapped, so heavy workout
+        // users overflowed past Int.MAX (2.1B) and wrapped to NEGATIVE stats.
+        // Add in Long to avoid overflow during the add, then clamp to
+        // [0, MAX_BONUS_STAT]. This also heals already-overflowed stats back
+        // into range on the next workout.
         setBonusStats(
-            current.attackBonus + atkDelta,
-            current.healthBonus + hpDelta,
-            current.speedBonus + spdDelta,
-            current.defenseBonus + defDelta
+            (current.attackBonus.toLong() + atkDelta).coerceIn(0L, MAX_BONUS_STAT.toLong()).toInt(),
+            (current.healthBonus.toLong() + hpDelta).coerceIn(0L, MAX_BONUS_STAT.toLong()).toInt(),
+            (current.speedBonus.toLong() + spdDelta).coerceIn(0L, MAX_BONUS_STAT.toLong()).toInt(),
+            (current.defenseBonus.toLong() + defDelta).coerceIn(0L, MAX_BONUS_STAT.toLong()).toInt()
         )
     }
 

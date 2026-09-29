@@ -29,6 +29,9 @@ class MonsterManager(private val context: Context) {
         private const val DIM_STAT_SCALE = 2
         /** Bump when seeding/normalization changes; triggers a re-seed. */
         private const val BASE_STATS_VERSION = 3
+        /** Max training bonus per stat (2026-09-29): prevents Int overflow
+         *  from uncapped workout grinding. Matches the phone's cap. */
+        const val MAX_BONUS_STAT = 9999
     }
 
     data class MonsterState(
@@ -332,11 +335,13 @@ class MonsterManager(private val context: Context) {
      *  the dice. Used by /WORKOUT_SESSION when the phone sends all 4 ints. */
     fun addExactTrainingBonus(atkDelta: Int, hpDelta: Int, spdDelta: Int, defDelta: Int) {
         val current = getCurrentMonster() ?: return
+        // Stat cap (2026-09-29): same overflow guard as the phone — bonuses
+        // clamp to [0, MAX_BONUS_STAT], added in Long to avoid wraparound.
         prefs.edit()
-            .putInt("current_attack_bonus", current.attackBonus + atkDelta)
-            .putInt("current_health_bonus", current.healthBonus + hpDelta)
-            .putInt("current_speed_bonus", current.speedBonus + spdDelta)
-            .putInt("current_defense_bonus", current.defenseBonus + defDelta)
+            .putInt("current_attack_bonus", (current.attackBonus.toLong() + atkDelta).coerceIn(0L, MAX_BONUS_STAT.toLong()).toInt())
+            .putInt("current_health_bonus", (current.healthBonus.toLong() + hpDelta).coerceIn(0L, MAX_BONUS_STAT.toLong()).toInt())
+            .putInt("current_speed_bonus", (current.speedBonus.toLong() + spdDelta).coerceIn(0L, MAX_BONUS_STAT.toLong()).toInt())
+            .putInt("current_defense_bonus", (current.defenseBonus.toLong() + defDelta).coerceIn(0L, MAX_BONUS_STAT.toLong()).toInt())
             .apply()
     }
 
@@ -348,11 +353,13 @@ class MonsterManager(private val context: Context) {
 
         // Randomly boost 2-4 stats
         val statsToBoost = listOf("ATK", "HP", "SPD", "DEF").shuffled().take(random.nextInt(2, 5))
-        
-        if (statsToBoost.contains("ATK")) edit.putInt("current_attack_bonus", current.attackBonus + base + random.nextInt(0, 50))
-        if (statsToBoost.contains("HP")) edit.putInt("current_health_bonus", current.healthBonus + base + random.nextInt(0, 50))
-        if (statsToBoost.contains("SPD")) edit.putInt("current_speed_bonus", current.speedBonus + base + random.nextInt(0, 50))
-        if (statsToBoost.contains("DEF")) edit.putInt("current_defense_bonus", current.defenseBonus + base + random.nextInt(0, 50))
+
+        // Stat cap (2026-09-29): clamp to [0, MAX_BONUS_STAT], Long math
+        // avoids overflow wraparound on the add.
+        if (statsToBoost.contains("ATK")) edit.putInt("current_attack_bonus", (current.attackBonus.toLong() + base + random.nextInt(0, 50)).coerceIn(0L, MAX_BONUS_STAT.toLong()).toInt())
+        if (statsToBoost.contains("HP")) edit.putInt("current_health_bonus", (current.healthBonus.toLong() + base + random.nextInt(0, 50)).coerceIn(0L, MAX_BONUS_STAT.toLong()).toInt())
+        if (statsToBoost.contains("SPD")) edit.putInt("current_speed_bonus", (current.speedBonus.toLong() + base + random.nextInt(0, 50)).coerceIn(0L, MAX_BONUS_STAT.toLong()).toInt())
+        if (statsToBoost.contains("DEF")) edit.putInt("current_defense_bonus", (current.defenseBonus.toLong() + base + random.nextInt(0, 50)).coerceIn(0L, MAX_BONUS_STAT.toLong()).toInt())
 
         // Add calories for completion
         edit.putInt("current_calories", current.calories + base)
