@@ -448,18 +448,36 @@ fun HomeScreen(monsterManager: PhoneMonsterManager, isWatchConnected: Boolean?) 
         }
     }
 
-    val canEvolve = remember(monsterState.value) {
+    // End-of-tree lock state (2026-09-29 perf fix): computed OFF the main
+    // thread when the monster's species changes, cached so composition never
+    // does disk I/O. The old version called isAtMaxEvolution() synchronously
+    // inside remember{} — getCard() reads a .bin from disk, which janked
+    // every recomposition.
+    val isAtMaxEvolution = remember { mutableStateOf(false) }
+    LaunchedEffect(monsterState.value?.cardName, monsterState.value?.characterId) {
+        val state = monsterState.value
+        isAtMaxEvolution.value = if (state == null) {
+            true
+        } else {
+            withContext(Dispatchers.IO) { monsterManager.isAtMaxEvolution() }
+        }
+    }
+
+    val canEvolve = remember(monsterState.value, isAtMaxEvolution.value) {
         val state = monsterState.value
         if (state == null) false
-        // End-of-tree lock (2026-09-29): no onward paths = final form,
-        // disable the button so a stray tap can't break the sprite.
-        else if (monsterManager.isAtMaxEvolution()) false
+        // End-of-tree lock: no onward paths = final form, disable the button
+        // so a stray tap can't break the sprite.
+        else if (isAtMaxEvolution.value) false
         else if (state.stage == 0) state.timeAlive >= 60
         else state.winsRequired > 0 && state.currentWins >= state.winsRequired
     }
 
-    // Aging Loop
-    LaunchedEffect(monsterState.value) {
+    // Aging Loop (2026-09-29 perf fix): keyed on Unit so it doesn't restart
+    // on every state change. The old LaunchedEffect(monsterState.value)
+    // cancelled and relaunched the loop each time we wrote state below,
+    // churning coroutines every 10 seconds.
+    LaunchedEffect(Unit) {
         while (true) {
             val state = monsterState.value
             if (state != null && !state.isEvolutionPaused) {
