@@ -106,14 +106,7 @@ object VBBraceletResearch {
 
     /** Species-name candidates for a b9 roster index across every mapped card. */
     fun speciesCandidates(b9: Int): List<Pair<String, String>> {
-        val cards = listOf(
-            "Impulse City" to VBBraceletSpeciesMap.IMPULSE_CITY,
-            "Dinosaur Roar" to VBBraceletSpeciesMap.DINOSAUR_ROAR,
-            "Renamon" to VBBraceletSpeciesMap.RENAMON,
-            "Terriermon" to VBBraceletSpeciesMap.TERRIERMON,
-            "Ryudamon" to VBBraceletSpeciesMap.RYUDAMON
-        )
-        return cards.flatMap { (card, map) ->
+        return VBBraceletSpeciesMap.allCards().flatMap { (card, map) ->
             map.entries
                 .filter { it.value.b9 == b9 }
                 .filterNot { (name, _) -> VBBraceletSpeciesMap.isPlaceholderSlot(name) }

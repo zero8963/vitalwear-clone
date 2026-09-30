@@ -131,21 +131,54 @@ object VBBraceletSpeciesMap {
     )
 
     /**
+     * Resolve the species map for a card name. Matches fuzzily (case/space/
+     * punctuation-insensitive) because imported card names come from user-
+     * edited filenames. Ordered specific-first so alternate/v2 cards win
+     * over their base names (e.g. "fairimon48" before "fairimon").
+     *
+     * Returns null if the card isn't recognized.
+     */
+    private val BUILTIN_MATCHERS: List<Pair<List<String>, Map<String, SpeciesBytes>>> by lazy { listOf(
+        listOf("impulse", "pulsecity") to IMPULSE_CITY,
+        listOf("dinosaur", "dinosarroar") to DINOSAUR_ROAR,
+        listOf("terriermon") to TERRIERMON,
+        listOf("ryudamon") to RYUDAMON,
+        // NOTE: "renamon" is deliberately last — the Renamon BEM ("renamonbem",
+        // "renamon25") must match before the Renamon DIM does.
+    ) }
+
+    fun mapFor(cardName: String): Map<String, SpeciesBytes>? {
+        val normalized = cardName.lowercase().replace(Regex("[^a-z0-9]"), "")
+        if (normalized == "zero") return VBBraceletSpeciesMapsGen.ZERO
+        val all = BUILTIN_MATCHERS +
+            VBBraceletSpeciesMapsGen.EXTRA_MATCHERS +
+            listOf(listOf("renamon") to RENAMON)
+        for ((keys, map) in all) {
+            if (keys.any { it in normalized }) return map
+        }
+        return null
+    }
+
+    /**
+     * Display name -> species map for EVERY reference card (the 5 hand-mapped
+     * cards plus all generated ones). Used by pickers and the b15 research
+     * name suggestions.
+     */
+    fun allCards(): LinkedHashMap<String, Map<String, SpeciesBytes>> =
+        linkedMapOf(
+            "Impulse City" to IMPULSE_CITY,
+            "Dinosaur Roar" to DINOSAUR_ROAR,
+            "Renamon" to RENAMON,
+            "Terriermon" to TERRIERMON,
+            "Ryudamon" to RYUDAMON,
+        ).apply { putAll(VBBraceletSpeciesMapsGen.EXTRA_CARDS) }
+
+    /**
      * Lookup species bytes by DIM card name and species name.
      * Returns null if the species isn't mapped.
      */
-    fun lookup(cardName: String, speciesName: String): SpeciesBytes? {
-        // Normalize card name: "Impulse City", "Pulse City", "Pulsecity" all match.
-        val normalized = cardName.lowercase().replace(" ", "")
-        return when {
-            "impulse" in normalized || "pulsecity" in normalized -> IMPULSE_CITY[speciesName]
-            "dinosaur" in normalized || "dinosarroar" in normalized -> DINOSAUR_ROAR[speciesName]
-            "renamon" in normalized -> RENAMON[speciesName]
-            "terriermon" in normalized -> TERRIERMON[speciesName]
-            "ryudamon" in normalized -> RYUDAMON[speciesName]
-            else -> null
-        }
-    }
+    fun lookup(cardName: String, speciesName: String): SpeciesBytes? =
+        mapFor(cardName)?.get(speciesName)
 
     /**
      * True for "Slot 0xNN" placeholder entries: unmapped roster slots kept

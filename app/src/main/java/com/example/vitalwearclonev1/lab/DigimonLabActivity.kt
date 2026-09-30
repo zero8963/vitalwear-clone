@@ -466,25 +466,8 @@ private fun EvolveFormDialog(
     onEvolve: (String) -> Unit
 ) {
     val speciesList = remember(cardName) {
-        val normalized = cardName.lowercase().replace(" ", "")
-        when {
-            "impulse" in normalized || "pulsecity" in normalized ->
-                com.example.vitalwearclonev1.communication.VBBraceletSpeciesMap.IMPULSE_CITY
-                    .entries.sortedBy { it.value.b9 }
-            "dinosaur" in normalized ->
-                com.example.vitalwearclonev1.communication.VBBraceletSpeciesMap.DINOSAUR_ROAR
-                    .entries.sortedBy { it.value.b9 }
-            "renamon" in normalized ->
-                com.example.vitalwearclonev1.communication.VBBraceletSpeciesMap.RENAMON
-                    .entries.sortedBy { it.value.b9 }
-            "terriermon" in normalized ->
-                com.example.vitalwearclonev1.communication.VBBraceletSpeciesMap.TERRIERMON
-                    .entries.sortedBy { it.value.b9 }
-            "ryudamon" in normalized ->
-                com.example.vitalwearclonev1.communication.VBBraceletSpeciesMap.RYUDAMON
-                    .entries.sortedBy { it.value.b9 }
-            else -> emptyList()
-        }
+        com.example.vitalwearclonev1.communication.VBBraceletSpeciesMap
+            .mapFor(cardName)?.entries?.sortedBy { it.value.b9 } ?: emptyList()
     }
     var selected by remember { mutableStateOf<String?>(null) }
 
