@@ -250,11 +250,32 @@ class PhoneMonsterManager(private val context: Context) {
     }
 
     /**
+     * Win VP scaled by opponent strength (2026-09-30): payout = 50 * opp / me,
+     * clamped to [BATTLE_VP_WIN_MIN, BATTLE_VP_WIN_MAX]. Even match pays 50,
+     * a 2x-stronger foe pays 100, 3x+ caps at 150, stomping a weakling floors
+     * at 20. Player power = baseHp + healthBonus + baseAp + attackBonus, the
+     * same HP+attack currency the battle engine fights in.
+     */
+    private fun scaledWinPayout(opponentPower: Long?): Int {
+        val current = getCurrentMonster()
+        val opp = opponentPower
+        if (current == null || opp == null || opp <= 0) return CareTuning.BATTLE_VP_WIN
+        val me = current.baseHp.toLong() + current.healthBonus + current.baseAp + current.attackBonus
+        if (me <= 0) return CareTuning.BATTLE_VP_WIN
+        return (CareTuning.BATTLE_VP_WIN.toLong() * opp / me).toInt()
+            .coerceIn(CareTuning.BATTLE_VP_WIN_MIN, CareTuning.BATTLE_VP_WIN_MAX)
+    }
+
+    /**
      * Records a finished battle — win OR loss. Updates lifetime + per-stage
      * counters, recomputes win ratio, and charges the care system.
+     * @param opponentPower optional opponent strength (HP + attack in the same
+     * currency as the player's baseHp+baseAp) used to scale the win payout:
+     * beating a stronger foe pays more, up to BATTLE_VP_WIN_MAX. Null keeps
+     * the flat BATTLE_VP_WIN.
      * @return true if the Digimon died of poor care during this battle.
      */
-    fun recordBattleResult(won: Boolean): Boolean {
+    fun recordBattleResult(won: Boolean, opponentPower: Long? = null): Boolean {
         val current = getCurrentMonster() ?: return false
         val careTick = CareManager.recordBattle(toCareState(current), won)
         persistCare(careTick.state)
@@ -272,11 +293,15 @@ class PhoneMonsterManager(private val context: Context) {
             .putInt("current_stage_wins", current.stageWins + if (won) 1 else 0)
             .apply()
 
-        // Battles feed vitals too (2026-09-30): wins earn, losses drain a
-        // random 20-150 until the drain is linked to evolution-tree proximity
-        // vs the opponent (the real bracelet scaled it that way).
+        // Battles feed vitals too (2026-09-30): wins earn scaled by opponent
+        // strength (stronger foe = bigger payout, encourages hunting up),
+        // losses drain a random 20-150 until the drain is linked to
+        // evolution-tree proximity vs the opponent (the real bracelet scaled
+        // it that way).
         if (won) {
-            addVitalPoints(CareTuning.BATTLE_VP_WIN)
+            val payout = scaledWinPayout(opponentPower)
+            addVitalPoints(payout)
+            Timber.d("Battle win +$payout VP (opponentPower=$opponentPower)")
         } else {
             val drain = (CareTuning.BATTLE_VP_LOSS_MIN..CareTuning.BATTLE_VP_LOSS_MAX).random()
             addVitalPoints(-drain)

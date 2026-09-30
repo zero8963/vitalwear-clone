@@ -1042,7 +1042,10 @@ fun P2PBattleOverlay(opponent: BattleOpponent, monsterManager: PhoneMonsterManag
             seed = opponent.seed,
             onResult = { isWin ->
                 timber.log.Timber.d("P2P Battle finished on phone. Result: $isWin")
-                monsterManager.recordBattleResult(isWin)
+                // Opponent power in the same HP+attack currency the battle
+                // engine uses (2026-09-30: win VP scales with foe strength).
+                val oppPower = (opponent.hp + opponent.atk).toLong()
+                monsterManager.recordBattleResult(isWin, oppPower)
                 onDismiss()
             }
         )

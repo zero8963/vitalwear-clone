@@ -582,7 +582,9 @@ fun VitalWearApp(service: VitalForegroundService?, isBound: Boolean, isAmbient: 
                         val seed = activeOpponent.value?.seed ?: System.currentTimeMillis()
                         BattleScreen(monsterState.value, activeOpponent.value, seed, cardManager, monsterManager) { result ->
                             val won = result == "WIN!"
-                            monsterManager.recordBattleResult(won)
+                            // Win VP scales with foe strength (2026-09-30).
+                            val oppPower = activeOpponent.value?.let { (it.hp + it.atk).toLong() }
+                            monsterManager.recordBattleResult(won, oppPower)
                             if (won) {
                                 if (activeOpponent.value?.isBoss == true) {
                                     monsterManager.completeAdventureLevel()
