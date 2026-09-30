@@ -127,7 +127,7 @@ fun NaviCustScreen(ownerId: String, ownerName: String) {
             .verticalScroll(rememberScrollState())
             .padding(16.dp)
     ) {
-        Text("Program Grid", color = Color.White, fontSize = 26.sp, fontWeight = FontWeight.Bold)
+        Text("Digi-Custom", color = Color.White, fontSize = 26.sp, fontWeight = FontWeight.Bold)
         Text("$ownerName's loadout", color = Color.Cyan, fontSize = 14.sp)
         Spacer(Modifier.height(4.dp))
         Text(

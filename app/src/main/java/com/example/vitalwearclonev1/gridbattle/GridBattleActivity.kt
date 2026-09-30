@@ -35,8 +35,11 @@ import androidx.compose.ui.unit.sp
 class GridBattleActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // Deep link from the main UI's Folder / Digi-Custom buttons (2026-09-30).
+        val startScreen = intent.getStringExtra("startScreen")
+            ?.takeIf { it == "folder" || it == "navicust" }
         setContent {
-            var screen by remember { mutableStateOf("compendium") }
+            var screen by remember { mutableStateOf(startScreen ?: "compendium") }
             // The active Digimon owns this grid-battle profile (chips folder +
             // NaviCust loadout are saved per Digimon).
             val monsterManager = remember {
@@ -59,7 +62,17 @@ class GridBattleActivity : ComponentActivity() {
             }
 
             if (screen == "battle" && battleSetup != null) {
-                GridBattleScreen(setup = battleSetup!!, onExit = { screen = "lobby" })
+                GridBattleScreen(
+                    setup = battleSetup!!,
+                    onExit = { screen = "lobby" },
+                    onResult = { won ->
+                        // Link grid-battle results into VP/care (2026-09-30):
+                        // win payout scales with foe strength, losses drain.
+                        val bs = battleSetup!!
+                        val oppPower = (bs.config.enemyMaxHp + bs.config.enemyAtk).toLong()
+                        monsterManager.recordBattleResult(won, oppPower)
+                    }
+                )
             } else if (screen == "pvpHost" && battleSetup != null && pvpHostBinding != null) {
                 GridBattleScreen(
                     setup = battleSetup!!,
@@ -99,7 +112,7 @@ class GridBattleActivity : ComponentActivity() {
                     Tab(
                         selected = screen == "navicust",
                         onClick = { screen = "navicust" },
-                        text = { Text("NaviCust") }
+                        text = { Text("Digi-Custom") }
                     )
                     Tab(
                         selected = screen == "folder",

@@ -1008,6 +1008,39 @@ fun HomeScreen(monsterManager: PhoneMonsterManager, isWatchConnected: Boolean?) 
                     ) {
                         Text("Workouts", color = Color.White, fontSize = 10.sp)
                     }
+                    // 2026-09-30: chip Folder + Digi-Custom get their own
+                    // compact buttons under Workouts — side by side, small but
+                    // tappable. Deep-link into the battle activity's screens.
+                    Spacer(Modifier.height(8.dp))
+                    Row(modifier = Modifier.fillMaxWidth()) {
+                        Button(
+                            modifier = Modifier.height(44.dp).weight(1f),
+                            onClick = {
+                                context.startActivity(
+                                    Intent(context, com.example.vitalwearclonev1.gridbattle.GridBattleActivity::class.java).apply {
+                                        putExtra("startScreen", "folder")
+                                    }
+                                )
+                            },
+                            colors = ButtonDefaults.buttonColors(backgroundColor = Color(0, 90, 160))
+                        ) {
+                            Text("Folder", color = Color.White, fontSize = 11.sp)
+                        }
+                        Spacer(Modifier.width(8.dp))
+                        Button(
+                            modifier = Modifier.height(44.dp).weight(1f),
+                            onClick = {
+                                context.startActivity(
+                                    Intent(context, com.example.vitalwearclonev1.gridbattle.GridBattleActivity::class.java).apply {
+                                        putExtra("startScreen", "navicust")
+                                    }
+                                )
+                            },
+                            colors = ButtonDefaults.buttonColors(backgroundColor = Color(0, 130, 130))
+                        ) {
+                            Text("Digi-Custom", color = Color.White, fontSize = 11.sp)
+                        }
+                    }
                 }
                 Spacer(Modifier.height(100.dp))
             }

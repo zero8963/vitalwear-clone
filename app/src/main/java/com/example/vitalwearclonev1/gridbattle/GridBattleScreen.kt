@@ -96,7 +96,13 @@ internal fun charBaseIndex(characterId: Int, isBem: Boolean): Int {
 fun GridBattleScreen(
     setup: BattleSetup,
     onExit: () -> Unit,
-    pvpHost: PvpHostBinding? = null
+    pvpHost: PvpHostBinding? = null,
+    /**
+     * Fires once per finished fight with true on player victory (2026-09-30).
+     * Used to link grid-battle results into the VP/care system. Null = no
+     * reporting (e.g. Wi-Fi PvP, which reports symmetrically elsewhere).
+     */
+    onResult: ((won: Boolean) -> Unit)? = null
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -207,6 +213,9 @@ fun GridBattleScreen(
             snap = engine.snapshot()
             if (snap.winner != null) {
                 pvpHost?.sendEnd(snap.winner!!)
+                // Link the result into VP/care (2026-09-30). Fires once per
+                // fight; rematches run a fresh engine so each fight counts.
+                onResult?.invoke(snap.winner == 0)
                 break
             }
         }
