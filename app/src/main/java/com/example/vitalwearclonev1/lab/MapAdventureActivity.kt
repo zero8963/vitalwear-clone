@@ -985,11 +985,15 @@ fun GridBattleScreen(
 ) {
     // 2026-09-30: adaptive battle layout. The arena cell shrinks to fit the available
     // space so the field is always fully visible (portrait and landscape). In landscape
-    // the controls move to a side column instead of stacking below the arena.
+    // the D-pad goes left, the arena stays center, and chips + attack buttons stack right.
     BoxWithConstraints(Modifier.fillMaxSize().background(Color(0, 0, 15)).padding(16.dp)) {
         val isLandscape = maxWidth > maxHeight
         if (isLandscape) {
-            Row(Modifier.fillMaxSize()) {
+            // 2026-09-30: landscape game layout — D-pad left, arena center,
+            // chips + attack buttons stacked right.
+            Row(Modifier.fillMaxSize(), verticalAlignment = Alignment.CenterVertically) {
+                BattleDpad(onMove, buttonSize = 56.dp)
+                Spacer(Modifier.width(8.dp))
                 Column(Modifier.weight(1f).fillMaxHeight()) {
                     BattleHeader(nickname, level, hp, maxHp, hudLine, chipHudHint, playerStatus, compact = true)
                     Spacer(Modifier.height(4.dp))
@@ -999,12 +1003,10 @@ fun GridBattleScreen(
                     }
                 }
                 Spacer(Modifier.width(8.dp))
-                // 2026-09-30: tray takes remaining height via weight(1f); controls keep
-                // their natural size instead of being squished.
-                Column(Modifier.fillMaxHeight().width(144.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                Column(Modifier.fillMaxHeight().width(160.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
                     BattleTray(battlePrograms, onUseProgram, chipHand, onUseChip, chipAtkScale, horizontal = false, modifier = Modifier.weight(1f))
                     Spacer(Modifier.height(8.dp))
-                    BattleControls(onMove, onAttack, compact = true)
+                    BattleAttackButtons(onAttack, buttonSize = 72.dp)
                 }
             }
         } else {
@@ -1238,44 +1240,45 @@ private fun BattleArena(
     }
 
 /**
- * 2026-09-30: D-pad + SWD/BST controls. Full size in portrait; compact in landscape
- * so the arena keeps usable height.
+ * 2026-09-30: D-pad + SWD/BST controls. Full size in portrait; in landscape the
+ * D-pad goes left and the attack buttons go right (see GridBattleScreen).
  */
 @Composable
 private fun BattleControls(onMove: (Int, Int) -> Unit, onAttack: (String) -> Unit, compact: Boolean) {
     if (compact) {
+        // (landscape no longer uses this path; kept for API stability)
         Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Button(onClick = { onAttack("SWORD") }, Modifier.size(64.dp), colors = ButtonDefaults.buttonColors(backgroundColor = Color.Red), shape = CircleShape, contentPadding = PaddingValues(0.dp)) { Text("SWD", color = Color.White, fontSize = 13.sp) }
-                Button(onClick = { onAttack("BUSTER") }, Modifier.size(64.dp), colors = ButtonDefaults.buttonColors(backgroundColor = Color.Cyan), shape = CircleShape, contentPadding = PaddingValues(0.dp)) { Text("BST", fontSize = 13.sp) }
-            }
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                IconButton(onClick = { onMove(0, -1) }, Modifier.size(48.dp).background(Color.DarkGray.copy(0.8f), CircleShape)) { Icon(Icons.Default.KeyboardArrowUp, null, tint = Color.White) }
-                Row(modifier = Modifier.padding(vertical = 4.dp)) {
-                    IconButton(onClick = { onMove(-1, 0) }, Modifier.size(48.dp).background(Color.DarkGray.copy(0.8f), CircleShape)) { Icon(Icons.Default.KeyboardArrowLeft, null, tint = Color.White) }
-                    Spacer(Modifier.width(36.dp))
-                    IconButton(onClick = { onMove(1, 0) }, Modifier.size(48.dp).background(Color.DarkGray.copy(0.8f), CircleShape)) { Icon(Icons.Default.KeyboardArrowRight, null, tint = Color.White) }
-                }
-                IconButton(onClick = { onMove(0, 1) }, Modifier.size(48.dp).background(Color.DarkGray.copy(0.8f), CircleShape)) { Icon(Icons.Default.KeyboardArrowDown, null, tint = Color.White) }
-            }
+            BattleAttackButtons(onAttack, buttonSize = 64.dp)
+            BattleDpad(onMove, buttonSize = 48.dp)
         }
     } else {
         Row(Modifier.fillMaxWidth().padding(bottom = 60.dp), Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                IconButton(onClick = { onMove(0, -1) }, Modifier.background(Color.DarkGray.copy(0.8f), CircleShape)) { Icon(Icons.Default.KeyboardArrowUp, null, tint = Color.White) }
-                Row(modifier = Modifier.padding(vertical = 10.dp)) {
-                    IconButton(onClick = { onMove(-1, 0) }, Modifier.background(Color.DarkGray.copy(0.8f), CircleShape)) { Icon(Icons.Default.KeyboardArrowLeft, null, tint = Color.White) }
-                    Spacer(Modifier.width(44.dp))
-                    IconButton(onClick = { onMove(1, 0) }, Modifier.background(Color.DarkGray.copy(0.8f), CircleShape)) { Icon(Icons.Default.KeyboardArrowRight, null, tint = Color.White) }
-                }
-                IconButton(onClick = { onMove(0, 1) }, Modifier.background(Color.DarkGray.copy(0.8f), CircleShape)) { Icon(Icons.Default.KeyboardArrowDown, null, tint = Color.White) }
-            }
-            Row {
-                Button(onClick = { onAttack("SWORD") }, Modifier.size(75.dp), colors = ButtonDefaults.buttonColors(backgroundColor = Color.Red), shape = CircleShape) { Text("SWD", color = Color.White) }
-                Spacer(Modifier.width(16.dp))
-                Button(onClick = { onAttack("BUSTER") }, Modifier.size(75.dp), colors = ButtonDefaults.buttonColors(backgroundColor = Color.Cyan), shape = CircleShape) { Text("BST") }
-            }
+            BattleDpad(onMove, buttonSize = 48.dp)
+            BattleAttackButtons(onAttack, buttonSize = 75.dp)
         }
+    }
+}
+
+/** 2026-09-30: D-pad. Used left-of-arena in landscape, left-of-buttons in portrait. */
+@Composable
+private fun BattleDpad(onMove: (Int, Int) -> Unit, buttonSize: androidx.compose.ui.unit.Dp) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        IconButton(onClick = { onMove(0, -1) }, Modifier.size(buttonSize).background(Color.DarkGray.copy(0.8f), CircleShape)) { Icon(Icons.Default.KeyboardArrowUp, null, tint = Color.White) }
+        Row(modifier = Modifier.padding(vertical = 10.dp)) {
+            IconButton(onClick = { onMove(-1, 0) }, Modifier.size(buttonSize).background(Color.DarkGray.copy(0.8f), CircleShape)) { Icon(Icons.Default.KeyboardArrowLeft, null, tint = Color.White) }
+            Spacer(Modifier.width(buttonSize - 4.dp))
+            IconButton(onClick = { onMove(1, 0) }, Modifier.size(buttonSize).background(Color.DarkGray.copy(0.8f), CircleShape)) { Icon(Icons.Default.KeyboardArrowRight, null, tint = Color.White) }
+        }
+        IconButton(onClick = { onMove(0, 1) }, Modifier.size(buttonSize).background(Color.DarkGray.copy(0.8f), CircleShape)) { Icon(Icons.Default.KeyboardArrowDown, null, tint = Color.White) }
+    }
+}
+
+/** 2026-09-30: SWD/BST attack buttons. Used right-side in landscape, right-of-D-pad in portrait. */
+@Composable
+private fun BattleAttackButtons(onAttack: (String) -> Unit, buttonSize: androidx.compose.ui.unit.Dp) {
+    Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+        Button(onClick = { onAttack("SWORD") }, Modifier.size(buttonSize), colors = ButtonDefaults.buttonColors(backgroundColor = Color.Red), shape = CircleShape, contentPadding = PaddingValues(0.dp)) { Text("SWD", color = Color.White) }
+        Button(onClick = { onAttack("BUSTER") }, Modifier.size(buttonSize), colors = ButtonDefaults.buttonColors(backgroundColor = Color.Cyan), shape = CircleShape, contentPadding = PaddingValues(0.dp)) { Text("BST") }
     }
 }
 
