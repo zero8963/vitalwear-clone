@@ -1053,8 +1053,8 @@ fun MonsterCard(monster: StoredMonster, index: Int, onRestore: () -> Unit, onAdv
             title = { Text("Experimental Write") },
             text = {
                 Text(
-                    "b15 for $speciesName isn't mapped yet. Write anyway, keeping " +
-                            "the current b15 byte from the source backup?\n\n" +
+                    "b13/b15 for $speciesName aren't mapped yet. Write anyway, keeping " +
+                            "the current bytes from the source backup?\n\n" +
                             "The bracelet may show a glitched character or reject it. " +
                             "Your original backup is preserved either way."
                 )

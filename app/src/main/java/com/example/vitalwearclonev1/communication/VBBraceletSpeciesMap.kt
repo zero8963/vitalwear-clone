@@ -39,19 +39,25 @@ object VBBraceletSpeciesMap {
         "Exermon" to SpeciesBytes(b9 = 0x04, stage = 3, b13 = 0x02, b15 = 0x09),
         "Runnermon" to SpeciesBytes(b9 = 0x05, stage = 3, b13 = 0x01, b15 = 0x09),
         "Namakemon" to SpeciesBytes(b9 = 0x06, stage = 3, b13 = 0x01, b15 = 0x0A),
-        // Ultimate (Perfect)
-        // Boutmon: b13/b15 not yet mapped (needs device read)
+        // Ultimate (Perfect) — b9/stage from DIM roster (01._Impulse_City_14_amd3.bin,
+        // DIM_PARSE_REFERENCE.txt). b13/b15 unknown → experimental write keeps
+        // source bytes.
+        "Boutmon" to SpeciesBytes(b9 = 0x07, stage = 4, b13 = null, b15 = null, confirmed = false),
         "Shootmon" to SpeciesBytes(b9 = 0x08, stage = 4, b13 = 0x03, b15 = 0x0F),
-        // Divemon: b13/b15 not yet mapped
+        "Divemon" to SpeciesBytes(b9 = 0x09, stage = 4, b13 = null, b15 = null, confirmed = false),
         "Tempomon" to SpeciesBytes(b9 = 0x0A, stage = 4, b13 = 0x02, b15 = 0x10),
         "Climbmon" to SpeciesBytes(b9 = 0x0B, stage = 4, b13 = 0x01, b15 = 0x10),
-        // Pistmon: b13/b15 not yet mapped
+        "Pistmon" to SpeciesBytes(b9 = 0x0C, stage = 4, b13 = null, b15 = null, confirmed = false),
         // Mega (Ultimate)
         // Kazuchimon: b13=Vaccine(03) from card game data; b15=0x11
         // DEVICE-CONFIRMED 2026-09-28: user wrote app-evolved Kazuchimon to
         // real Hero via Send Evolved — bracelet accepted and displayed correctly.
         "Kazuchimon" to SpeciesBytes(b9 = 0x0D, stage = 5, b13 = 0x03, b15 = 0x11, confirmed = true),
-        // Shivamon, Achillesmon, Shroudmon: not yet mapped
+        "Shivamon" to SpeciesBytes(b9 = 0x0E, stage = 5, b13 = null, b15 = null, confirmed = false),
+        "Achillesmon" to SpeciesBytes(b9 = 0x0F, stage = 5, b13 = null, b15 = null, confirmed = false),
+        // Shroudmon: secret evolution (unlock=1 in DIM roster), hardest evo reqs
+        // (7000 vitals / 20 trophies / 25 battles / 70% win rate).
+        "Shroudmon" to SpeciesBytes(b9 = 0x10, stage = 5, b13 = null, b15 = null, confirmed = false),
     )
 
     /**
