@@ -999,8 +999,10 @@ fun GridBattleScreen(
                     }
                 }
                 Spacer(Modifier.width(8.dp))
-                Column(Modifier.fillMaxHeight(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-                    BattleTray(battlePrograms, onUseProgram, chipHand, onUseChip, chipAtkScale, horizontal = false)
+                // 2026-09-30: tray takes remaining height via weight(1f); controls keep
+                // their natural size instead of being squished.
+                Column(Modifier.fillMaxHeight().width(144.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                    BattleTray(battlePrograms, onUseProgram, chipHand, onUseChip, chipAtkScale, horizontal = false, modifier = Modifier.weight(1f))
                     Spacer(Modifier.height(8.dp))
                     BattleControls(onMove, onAttack, compact = true)
                 }
@@ -1056,10 +1058,11 @@ private fun BattleTray(
     chipHand: List<Int>,
     onUseChip: (Int) -> Unit,
     chipAtkScale: Float,
-    horizontal: Boolean
+    horizontal: Boolean,
+    modifier: Modifier = Modifier
 ) {
     if (horizontal) {
-        Box(Modifier.fillMaxWidth().height(60.dp).background(Color.Black.copy(0.3f), RoundedCornerShape(8.dp)).padding(4.dp)) {
+        Box(modifier.fillMaxWidth().height(60.dp).background(Color.Black.copy(0.3f), RoundedCornerShape(8.dp)).padding(4.dp)) {
             if (battlePrograms.isEmpty() && chipHand.isEmpty()) {
                 Text("NO PROGRAMS LOADED", color = Color.Gray, fontSize = 10.sp, modifier = Modifier.align(Alignment.Center))
             } else {
@@ -1070,7 +1073,9 @@ private fun BattleTray(
             }
         }
     } else {
-        Box(Modifier.width(80.dp).fillMaxHeight().background(Color.Black.copy(0.3f), RoundedCornerShape(8.dp)).padding(4.dp)) {
+        // 2026-09-30: no fillMaxHeight here — the caller sizes this with weight(1f)
+        // so the side-column controls keep their natural size.
+        Box(modifier.width(80.dp).background(Color.Black.copy(0.3f), RoundedCornerShape(8.dp)).padding(4.dp)) {
             if (battlePrograms.isEmpty() && chipHand.isEmpty()) {
                 Text("NO PROGRAMS", color = Color.Gray, fontSize = 8.sp, modifier = Modifier.align(Alignment.Center))
             } else {
@@ -1241,17 +1246,17 @@ private fun BattleControls(onMove: (Int, Int) -> Unit, onAttack: (String) -> Uni
     if (compact) {
         Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Button(onClick = { onAttack("SWORD") }, Modifier.size(56.dp), colors = ButtonDefaults.buttonColors(backgroundColor = Color.Red), shape = CircleShape, contentPadding = PaddingValues(0.dp)) { Text("SWD", color = Color.White, fontSize = 12.sp) }
-                Button(onClick = { onAttack("BUSTER") }, Modifier.size(56.dp), colors = ButtonDefaults.buttonColors(backgroundColor = Color.Cyan), shape = CircleShape, contentPadding = PaddingValues(0.dp)) { Text("BST", fontSize = 12.sp) }
+                Button(onClick = { onAttack("SWORD") }, Modifier.size(64.dp), colors = ButtonDefaults.buttonColors(backgroundColor = Color.Red), shape = CircleShape, contentPadding = PaddingValues(0.dp)) { Text("SWD", color = Color.White, fontSize = 13.sp) }
+                Button(onClick = { onAttack("BUSTER") }, Modifier.size(64.dp), colors = ButtonDefaults.buttonColors(backgroundColor = Color.Cyan), shape = CircleShape, contentPadding = PaddingValues(0.dp)) { Text("BST", fontSize = 13.sp) }
             }
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                IconButton(onClick = { onMove(0, -1) }, Modifier.size(40.dp).background(Color.DarkGray.copy(0.8f), CircleShape)) { Icon(Icons.Default.KeyboardArrowUp, null, tint = Color.White) }
+                IconButton(onClick = { onMove(0, -1) }, Modifier.size(48.dp).background(Color.DarkGray.copy(0.8f), CircleShape)) { Icon(Icons.Default.KeyboardArrowUp, null, tint = Color.White) }
                 Row(modifier = Modifier.padding(vertical = 4.dp)) {
-                    IconButton(onClick = { onMove(-1, 0) }, Modifier.size(40.dp).background(Color.DarkGray.copy(0.8f), CircleShape)) { Icon(Icons.Default.KeyboardArrowLeft, null, tint = Color.White) }
-                    Spacer(Modifier.width(32.dp))
-                    IconButton(onClick = { onMove(1, 0) }, Modifier.size(40.dp).background(Color.DarkGray.copy(0.8f), CircleShape)) { Icon(Icons.Default.KeyboardArrowRight, null, tint = Color.White) }
+                    IconButton(onClick = { onMove(-1, 0) }, Modifier.size(48.dp).background(Color.DarkGray.copy(0.8f), CircleShape)) { Icon(Icons.Default.KeyboardArrowLeft, null, tint = Color.White) }
+                    Spacer(Modifier.width(36.dp))
+                    IconButton(onClick = { onMove(1, 0) }, Modifier.size(48.dp).background(Color.DarkGray.copy(0.8f), CircleShape)) { Icon(Icons.Default.KeyboardArrowRight, null, tint = Color.White) }
                 }
-                IconButton(onClick = { onMove(0, 1) }, Modifier.size(40.dp).background(Color.DarkGray.copy(0.8f), CircleShape)) { Icon(Icons.Default.KeyboardArrowDown, null, tint = Color.White) }
+                IconButton(onClick = { onMove(0, 1) }, Modifier.size(48.dp).background(Color.DarkGray.copy(0.8f), CircleShape)) { Icon(Icons.Default.KeyboardArrowDown, null, tint = Color.White) }
             }
         }
     } else {
