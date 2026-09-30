@@ -53,8 +53,8 @@ object CareTuning {
     const val MISTAKE_PENALTY_HOURS = 24.0
     /** Lifespan burned per battle (wear and tear), in hours. */
     const val BATTLE_COST_HOURS = 0.5
-    /** Steps that earn one Vital Point. */
-    const val STEPS_PER_VITAL_POINT = 500
+    /** Steps that earn one Vital Point. (2026-09-30: was 500, far too stingy.) */
+    const val STEPS_PER_VITAL_POINT = 4
     /** Daily steps that count as "looked after" for the day. */
     const val DAILY_STEP_GOAL = 4000
     /** Straight losses before the poor-condition skull warning appears. */
@@ -65,6 +65,9 @@ object CareTuning {
     const val CRITICAL_HEAL_WINDOW_MS = 30 * 60 * 1000L
     /** Each completed exercise shaves this much off the critical timer. */
     const val EXERCISE_HEAL_MS = 15 * 60 * 1000L
+    /** Vital Points earned per battle (2026-09-30). Win pays more. */
+    const val BATTLE_VP_WIN = 50
+    const val BATTLE_VP_LOSS = 20
 }
 
 object CareManager {

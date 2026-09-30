@@ -272,6 +272,9 @@ class PhoneMonsterManager(private val context: Context) {
             .putInt("current_stage_wins", current.stageWins + if (won) 1 else 0)
             .apply()
 
+        // Battles feed vitals too (2026-09-30) — the exertion counts, win or lose.
+        addVitalPoints(if (won) CareTuning.BATTLE_VP_WIN else CareTuning.BATTLE_VP_LOSS)
+
         for (warning in careTick.warnings) Timber.w(warning)
         if (careTick.died) {
             // De-digivolve safety net (2026-09-30): 6th straight loss bounces

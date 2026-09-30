@@ -81,6 +81,13 @@ class PhoneHealthSyncManager(private val context: Context) {
 
     suspend fun syncNow() {
         val stats = getDailyStats()
+        // Steps -> vitals (2026-09-30): feed the step counter into Vital
+        // Points like the real bracelet does. Delta-only, safe to call often.
+        try {
+            PhoneMonsterManager(context).syncStepsToVitalPoints(stats.first.toInt())
+        } catch (e: Exception) {
+            Timber.e(e, "Step->VP sync failed")
+        }
         
         try {
             Timber.d("Starting Health Sync with combined GPS/Health data...")
