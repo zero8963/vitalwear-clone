@@ -116,11 +116,26 @@ fun WorkoutDashboard(syncManager: PhoneHealthSyncManager, workoutManager: Workou
         steps = stats.first
         calories = stats.second
         diagText = diag
+        // 2026-09-30: credit detected Health Connect workout blocks the moment
+        // the dashboard is viewed — each qualifying block earns +1 trophy and
+        // +100 VP exactly like an in-app routine (idempotent: a block credits
+        // once, so re-viewing is safe). This closes the gap where the card
+        // showed a workout as "counted" but the trophy only landed on the
+        // next 15-min background sync.
+        val newlyCredited = syncManager.creditNewExerciseSessions()
         val sw = syncManager.getSamsungWorkoutsToday()
         samsungCount = sw.count
         samsungCals = sw.caloriesKcal
         samsungSessions = sw.totalSessions
         samsungDiag = sw.diag
+        if (newlyCredited > 0) {
+            val trophyWord = if (newlyCredited == 1) "trophy" else "trophies"
+            android.widget.Toast.makeText(
+                context,
+                "Samsung workout credited: +$newlyCredited $trophyWord, +${newlyCredited * 100} VP",
+                android.widget.Toast.LENGTH_LONG
+            ).show()
+        }
     }
 
     LazyColumn(
@@ -167,7 +182,9 @@ fun WorkoutDashboard(syncManager: PhoneHealthSyncManager, workoutManager: Workou
                     // blocks — the gray line below lists each session's length + time.
                     // 2026-09-26: each counted block now also grants training stat
                     // bonuses, exactly like finishing an in-app routine.
-                    Text("$samsungCount counted as workouts (10+ min active) — each earns training stats", color = Color(0xFF9CCC65), fontSize = 12.sp)
+                    // 2026-09-30: and the same +1 trophy / +100 VP an in-app
+                    // routine grants — credited when this screen is viewed.
+                    Text("$samsungCount counted as workouts (10+ min active) — each earns +1 trophy, +100 VP, and training stats", color = Color(0xFF9CCC65), fontSize = 12.sp)
                     Spacer(Modifier.height(8.dp))
                     Text(samsungDiag, color = Color.Gray, fontSize = 11.sp)
                 }

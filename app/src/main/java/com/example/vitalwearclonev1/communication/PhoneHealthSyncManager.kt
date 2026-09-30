@@ -187,21 +187,24 @@ class PhoneHealthSyncManager(private val context: Context) {
      * Health Connect (Samsung Health syncs its workouts there) counts like
      * one of the app's own workouts —
      *   1. each newly-qualifying block gets one call to
-     *      PhoneMonsterManager.recordExerciseCompleted(), shaving 15 min off
-     *      the critical timer and resetting the overwork counter (no-op when
-     *      the Digimon isn't critical, exactly like the in-app workouts);
+     *      PhoneMonsterManager.recordExerciseCompleted() — the EXACT same
+     *      rewards as finishing an in-app routine: +1 trophy toward
+     *      evolution, +100 VP, critical-timer healing, overwork reset;
      *   2. each newly-qualifying block ALSO grants training stat bonuses via
      *      applyWorkoutPowerUp(), with the completion ratio scaled by block
      *      length (a 20+ min block = a fully completed in-app routine), and
      *      the EXACT deltas are forwarded to the watch through
      *      sendWorkoutSession() so both Digimon gain identically.
      * Each block is credited at most once per purpose (tracked by block start
-     * time), so this is safe to run on every sync. The bonus marker starts at
-     * 0 on first run, so blocks already healing-credited by older builds still
-     * get their stat bonuses in one catch-up pass over the 48h window.
+     * time), so this is safe to run on every sync and every dashboard view.
+     * The bonus marker starts at 0 on first run, so blocks already
+     * healing-credited by older builds still get their stat bonuses in one
+     * catch-up pass over the 48h window.
+     * @return the number of blocks credited with the trophy/VP workout
+     * rewards on this call (0 when nothing new was detected).
      */
-    suspend fun creditNewExerciseSessions() {
-        val client = getClient() ?: return
+    suspend fun creditNewExerciseSessions(): Int {
+        val client = getClient() ?: return 0
         try {
             val now = Instant.now()
             val prefs = context.getSharedPreferences("workout_heal_prefs", Context.MODE_PRIVATE)
@@ -221,14 +224,16 @@ class PhoneHealthSyncManager(private val context: Context) {
 
             var maxCreditedStart = lastCreditedStart
             var maxBonusStart = lastBonusStart
+            var newlyCredited = 0
             val monsterManager = PhoneMonsterManager(context)
             for (block in clusterSessions(response.records)) {
                 val startMs = block.startTime.toEpochMilli()
                 if (!block.isRealWorkout()) continue
                 if (startMs > lastCreditedStart) {
                     val fullyHealed = monsterManager.recordExerciseCompleted()
+                    newlyCredited++
                     Timber.i("Credited ${block.activeSeconds / 60}min Health Connect workout block " +
-                        "(${block.sessions.size} sessions, fully healed out of critical: $fullyHealed)")
+                        "(${block.sessions.size} sessions, +1 trophy, fully healed out of critical: $fullyHealed)")
                     if (startMs > maxCreditedStart) maxCreditedStart = startMs
                 }
                 if (startMs > lastBonusStart) {
@@ -248,8 +253,10 @@ class PhoneHealthSyncManager(private val context: Context) {
                 .putLong("last_credited_block_start", maxCreditedStart)
                 .putLong("last_bonus_block_start", maxBonusStart)
                 .apply()
+            return newlyCredited
         } catch (e: Exception) {
             Timber.w(e, "Exercise session credit check failed")
+            return 0
         }
     }
 
