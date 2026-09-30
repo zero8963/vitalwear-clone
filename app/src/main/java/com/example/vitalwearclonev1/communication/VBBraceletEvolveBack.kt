@@ -26,7 +26,9 @@ import java.util.Locale
  * bracelet-side evolutions from this backup may need a fresh read.
  *
  * The species bytes MUST be in [VBBraceletSpeciesMap]. If b13/b15 are unknown
- * (unconfirmed), the function throws — do not guess.
+ * (unconfirmed), the function throws — do not guess — unless the caller
+ * explicitly passes allowUnknownB15 = true, in which case the unknown bytes
+ * are kept from the source backup (experimental; the bracelet may glitch).
  */
 object VBBraceletEvolveBack {
 
@@ -55,13 +57,17 @@ object VBBraceletEvolveBack {
     }
 
     /**
-     * Preview the evolved-form write. Throws if the species isn't mapped
-     * or if b13/b15 are unconfirmed.
+     * Preview the evolved-form write. Throws if the species isn't mapped.
+     * Throws if b13/b15 are unconfirmed UNLESS [allowUnknownB15] is true —
+     * in that case the unknown bytes are kept from the source backup and a
+     * strong warning is recorded (experimental: the bracelet may show a
+     * glitched character or reject the write).
      */
     fun preview(
         context: Context,
         monster: StoredMonster,
-        targetSpecies: String
+        targetSpecies: String,
+        allowUnknownB15: Boolean = false
     ): EvolvePreview {
         val cardName = monster.name // DIM card name (e.g. "Impulse City")
         val species = VBBraceletSpeciesMap.lookup(cardName, targetSpecies)
@@ -78,9 +84,20 @@ object VBBraceletEvolveBack {
             )
         }
         if (species.b13 == null || species.b15 == null) {
-            throw IllegalArgumentException(
-                "Species '$targetSpecies' has unknown b13/b15. " +
-                        "Cannot write incomplete species bytes."
+            if (!allowUnknownB15) {
+                throw IllegalArgumentException(
+                    "Species '$targetSpecies' has unknown b13/b15. " +
+                            "Cannot write incomplete species bytes."
+                )
+            }
+            val missing = listOfNotNull(
+                if (species.b13 == null) "b13" else null,
+                if (species.b15 == null) "b15" else null
+            ).joinToString("/")
+            warnings.add(
+                "EXPERIMENTAL: $missing for $targetSpecies is unknown — " +
+                        "keeping the current byte(s) from the source backup. " +
+                        "The bracelet may show a glitched character or reject this."
             )
         }
 
@@ -90,7 +107,7 @@ object VBBraceletEvolveBack {
             stage = species.stage,
             b13 = species.b13,
             b15 = species.b15,
-            confirmed = species.confirmed,
+            confirmed = species.confirmed && species.b13 != null && species.b15 != null,
             warnings = warnings
         )
     }
@@ -98,11 +115,15 @@ object VBBraceletEvolveBack {
     /**
      * Create a new backup with the evolved species bytes.
      * The original backup is preserved.
+     *
+     * When [allowUnknownB15] is true, unknown b13/b15 bytes are kept from the
+     * source backup instead of throwing (experimental).
      */
     fun evolveToNewBackup(
         context: Context,
         monster: StoredMonster,
-        targetSpecies: String
+        targetSpecies: String,
+        allowUnknownB15: Boolean = false
     ): EvolveResult {
         val backupId = sourceBackupId(monster)
             ?: throw IllegalArgumentException("This partner wasn't adopted from a bracelet backup.")
@@ -118,16 +139,17 @@ object VBBraceletEvolveBack {
             "Source backup blob is corrupt (${source.plain.size} bytes)."
         }
 
-        val p = preview(context, monster, targetSpecies)
+        val p = preview(context, monster, targetSpecies, allowUnknownB15)
         val patched = source.plain.copyOf()
         val changes = mutableListOf<String>()
 
         // Update species bytes (primary at 0x0040, mirror at 0x0050).
         // b9=species, b12=stage, b13=attribute, b15=species constant.
+        // Unknown b13/b15 (experimental path) are kept from the source backup.
         val b9 = p.b9
         val stage = p.stage
-        val b13 = p.b13!!
-        val b15 = p.b15!!
+        val b13 = p.b13
+        val b15 = p.b15
 
         fun setByte(off: Int, value: Int) {
             patched[off] = value.toByte()
@@ -137,14 +159,30 @@ object VBBraceletEvolveBack {
         // Primary block (0x0040)
         setByte(0x49, b9)
         setByte(0x4C, stage)
-        setByte(0x4D, b13)
-        setByte(0x4F, b15)
+        if (b13 != null) {
+            setByte(0x4D, b13)
+        } else {
+            changes.add("b13 kept from source (unknown, experimental)")
+        }
+        if (b15 != null) {
+            setByte(0x4F, b15)
+        } else {
+            changes.add("b15 kept from source (unknown, experimental)")
+        }
         // Mirror block (0x0050)
         setByte(0x59, b9)
         setByte(0x5C, stage)
-        setByte(0x5D, b13)
-        setByte(0x5F, b15)
-        changes.add("species b9=$b9 stage=$stage b13=$b13 b15=$b15")
+        if (b13 != null) {
+            setByte(0x5D, b13)
+        }
+        if (b15 != null) {
+            setByte(0x5F, b15)
+        }
+        changes.add(
+            "species b9=$b9 stage=$stage " +
+                    "b13=${b13?.toString() ?: "kept"} " +
+                    "b15=${b15?.toString() ?: "kept"}"
+        )
 
         // Reset Next timer to 1440 (post-evolution standard).
         // Timer at 0x008D-0x008E (U16 BE), mirror at 0x009D.

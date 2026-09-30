@@ -771,6 +771,8 @@ fun MonsterCard(monster: StoredMonster, index: Int, onRestore: () -> Unit, onAdv
     var showLinkDialog by remember { mutableStateOf(false) }
     var showRefreshPicker by remember { mutableStateOf(false) }
     var showEvolvePicker by remember { mutableStateOf(false) }
+    // Experimental b15 write (2026-09-30): species picked whose b13/b15 is unmapped.
+    var pendingExperimentalSpecies by remember { mutableStateOf<String?>(null) }
     var refreshBackup by remember { mutableStateOf<com.example.vitalwearclonev1.communication.VBBraceletBackups.Backup?>(null) }
     var nicknameText by remember { mutableStateOf(monster.nickname ?: "") }
 
@@ -1026,10 +1028,66 @@ fun MonsterCard(monster: StoredMonster, index: Int, onRestore: () -> Unit, onAdv
                             Toast.LENGTH_LONG
                         ).show()
                     } catch (e: Exception) {
-                        Timber.e(e, "evolve-back failed")
-                        Toast.makeText(context, "Failed: ${e.message}", Toast.LENGTH_LONG).show()
+                        // 2026-09-30: offer the experimental write when b13/b15 is unmapped.
+                        if ((e is IllegalArgumentException) &&
+                            e.message?.contains("unknown b13/b15") == true
+                        ) {
+                            pendingExperimentalSpecies = speciesName
+                        } else {
+                            Timber.e(e, "evolve-back failed")
+                            Toast.makeText(context, "Failed: ${e.message}", Toast.LENGTH_LONG).show()
+                        }
                     }
                 }
+            }
+        )
+    }
+
+    // Experimental b15 write confirmation (2026-09-30): the user explicitly asked
+    // for the ability to send species whose b15 isn't device-confirmed yet, to see
+    // what the bracelet does. Unknown bytes are kept from the source backup.
+    if (pendingExperimentalSpecies != null) {
+        val speciesName = pendingExperimentalSpecies!!
+        AlertDialog(
+            onDismissRequest = { pendingExperimentalSpecies = null },
+            title = { Text("Experimental Write") },
+            text = {
+                Text(
+                    "b15 for $speciesName isn't mapped yet. Write anyway, keeping " +
+                            "the current b15 byte from the source backup?\n\n" +
+                            "The bracelet may show a glitched character or reject it. " +
+                            "Your original backup is preserved either way."
+                )
+            },
+            confirmButton = {
+                Button(onClick = {
+                    pendingExperimentalSpecies = null
+                    scope.launch {
+                        try {
+                            val result = withContext(Dispatchers.IO) {
+                                com.example.vitalwearclonev1.communication.VBBraceletEvolveBack
+                                    .evolveToNewBackup(
+                                        context, monster, speciesName,
+                                        allowUnknownB15 = true
+                                    )
+                            }
+                            val warn = if (result.preview.warnings.isNotEmpty())
+                                "\n⚠️ ${result.preview.warnings.joinToString("; ")}" else ""
+                            Toast.makeText(
+                                context,
+                                "Experimental backup saved: $speciesName$warn\n" +
+                                        "Write it via Bracelet → Write to Bracelet.",
+                                Toast.LENGTH_LONG
+                            ).show()
+                        } catch (e: Exception) {
+                            Timber.e(e, "experimental evolve-back failed")
+                            Toast.makeText(context, "Failed: ${e.message}", Toast.LENGTH_LONG).show()
+                        }
+                    }
+                }) { Text("Write Anyway") }
+            },
+            dismissButton = {
+                Button(onClick = { pendingExperimentalSpecies = null }) { Text("Cancel") }
             }
         )
     }
