@@ -102,6 +102,8 @@ class VBBraceletCharacterActivity : ComponentActivity(), NfcAdapter.ReaderCallba
     private val syncDialogData = mutableStateOf<Pair<StoredMonster, VBBraceletSyncBack.SyncPreview>?>(null)
     /** Non-null while the evolution tracker dialog is open. */
     private val trackerOpen = mutableStateOf(false)
+    /** Non-null while the b15 research contribution dialog is open. */
+    private val researchOpen = mutableStateOf(false)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -591,6 +593,20 @@ class VBBraceletCharacterActivity : ComponentActivity(), NfcAdapter.ReaderCallba
                                 modifier = Modifier.padding(top = 4.dp)
                             )
                         }
+                        if (ch != null) {
+                            Spacer(Modifier.height(8.dp))
+                            Button(
+                                onClick = { researchOpen.value = true },
+                                colors = ButtonDefaults.buttonColors(backgroundColor = Color(0xFF00796B))
+                            ) { Text("Contribute to b15 research") }
+                            Text(
+                                "Share this character's species bytes with the community " +
+                                        "b15 mapping project. Opt-in — you preview exactly " +
+                                        "what's sent before it leaves your phone.",
+                                color = Color.Gray, fontSize = 11.sp, textAlign = TextAlign.Center,
+                                modifier = Modifier.padding(top = 4.dp)
+                            )
+                        }
                     }
                     UiState.WriteTap1Armed -> {
                         Text("Tap 1 armed — tap the bracelet.", color = Color.Yellow, fontSize = 14.sp)
@@ -726,6 +742,17 @@ class VBBraceletCharacterActivity : ComponentActivity(), NfcAdapter.ReaderCallba
                 trackerOpen.value = false
             }
         }
+        if (researchOpen.value) {
+            val c = ch
+            if (c != null) {
+                ResearchDialog(
+                    ch = c,
+                    onClose = { researchOpen.value = false }
+                )
+            } else {
+                researchOpen.value = false
+            }
+        }
     }
 
     private fun armTap2() {
@@ -783,6 +810,137 @@ class VBBraceletCharacterActivity : ComponentActivity(), NfcAdapter.ReaderCallba
             },
             confirmButton = {
                 TextButton(onClick = onClose) { Text("Close") }
+            }
+        )
+    }
+
+    /**
+     * b15 research contribution dialog (2026-09-30): shows the contributor
+     * EXACTLY what will be sent, asks them to confirm the DIM + species name
+     * against their bracelet's display, then POSTs to the research endpoint.
+     */
+    @Composable
+    private fun ResearchDialog(ch: VBBraceletData.BraceletCharacter, onClose: () -> Unit) {
+        val b9 = ch.plain[0x49].toInt() and 0xFF
+        val candidates = remember { VBBraceletResearch.speciesCandidates(b9) }
+        var dimName by remember { mutableStateOf("") }
+        var speciesName by remember { mutableStateOf(candidates.firstOrNull()?.first ?: "") }
+        var endpoint by remember {
+            mutableStateOf(VBBraceletResearch.getEndpoint(this@VBBraceletCharacterActivity))
+        }
+        var sending by remember { mutableStateOf(false) }
+        val preview = remember(dimName, speciesName) {
+            VBBraceletResearch.buildSubmission(
+                this@VBBraceletCharacterActivity, ch,
+                dimName.ifBlank { "?" }, speciesName.ifBlank { "?" }
+            )
+        }
+        AlertDialog(
+            onDismissRequest = { if (!sending) onClose() },
+            title = { Text("Contribute to b15 research") },
+            text = {
+                Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+                    Text(
+                        "Your bracelet knows this species' b15 code and we don't — " +
+                                "sharing it helps map Digimon the project owner has never " +
+                                "owned. Only the lines below leave your phone: no " +
+                                "nicknames, no vitals, no battle records.",
+                        fontSize = 12.sp
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    Text("DIM card name", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                    TextField(
+                        value = dimName,
+                        onValueChange = { dimName = it },
+                        singleLine = true,
+                        placeholder = { Text("e.g. Dinosaur Roar") },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    Text("Species name (as shown on your bracelet)", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                    if (candidates.isNotEmpty()) {
+                        Text(
+                            "b9=0x" + b9.toString(16).uppercase().padStart(2, '0') +
+                                    " matches: " + candidates.joinToString(", ") { "${it.first} (${it.second})" },
+                            fontSize = 11.sp, color = Color(0xFFFFD54F)
+                        )
+                        Spacer(Modifier.height(4.dp))
+                    }
+                    TextField(
+                        value = speciesName,
+                        onValueChange = { speciesName = it },
+                        singleLine = true,
+                        placeholder = { Text("e.g. Agumon") },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        "Exactly what will be sent:",
+                        fontWeight = FontWeight.Bold, fontSize = 13.sp
+                    )
+                    for (line in preview.previewLines()) {
+                        Text(line, fontFamily = FontFamily.Monospace, fontSize = 12.sp)
+                    }
+                    Spacer(Modifier.height(8.dp))
+                    Text("Research endpoint URL", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                    Text(
+                        "Get this from the project owner (their Apps Script web-app URL). " +
+                                "Saved on your phone after the first send.",
+                        fontSize = 11.sp, color = Color.Gray
+                    )
+                    TextField(
+                        value = endpoint,
+                        onValueChange = { endpoint = it },
+                        singleLine = true,
+                        placeholder = { Text("https://script.google.com/…/exec") },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    if (sending) {
+                        Spacer(Modifier.height(8.dp))
+                        CircularProgressIndicator(color = Color.Cyan)
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        if (sending) return@TextButton
+                        val url = endpoint.trim()
+                        if (!url.startsWith("http")) {
+                            Toast.makeText(
+                                this@VBBraceletCharacterActivity,
+                                "Paste the research endpoint URL first.",
+                                Toast.LENGTH_LONG
+                            ).show()
+                            return@TextButton
+                        }
+                        if (dimName.isBlank() || speciesName.isBlank()) {
+                            Toast.makeText(
+                                this@VBBraceletCharacterActivity,
+                                "Enter the DIM card and species names.",
+                                Toast.LENGTH_LONG
+                            ).show()
+                            return@TextButton
+                        }
+                        VBBraceletResearch.saveEndpoint(this@VBBraceletCharacterActivity, url)
+                        val submission = VBBraceletResearch.buildSubmission(
+                            this@VBBraceletCharacterActivity, ch, dimName, speciesName
+                        )
+                        sending = true
+                        VBBraceletResearch.submit(url, submission) { ok, message ->
+                            runOnUiThread {
+                                sending = false
+                                Toast.makeText(
+                                    this@VBBraceletCharacterActivity, message, Toast.LENGTH_LONG
+                                ).show()
+                                if (ok) onClose()
+                            }
+                        }
+                    }
+                ) { Text(if (sending) "Sending…" else "Send contribution") }
+            },
+            dismissButton = {
+                TextButton(onClick = { if (!sending) onClose() }) { Text("Cancel") }
             }
         )
     }
