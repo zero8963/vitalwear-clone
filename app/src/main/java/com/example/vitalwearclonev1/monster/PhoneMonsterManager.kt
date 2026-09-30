@@ -456,9 +456,35 @@ class PhoneMonsterManager(private val context: Context) {
      * stats drop with the weaker form.
      * @return the character ID bounced back to, or -1 if there was no prior form.
      */
+    /**
+     * 2026-09-30: reverse-lookup the DIM evolution tree to find a species that
+     * evolves INTO the given characterId. Used as a de-digivolve fallback when
+     * the app didn't witness the evolution (adopted/hatched at higher stage).
+     * Returns null if no prior species exists (e.g., Baby stage).
+     */
+    private fun findPriorSpeciesFromTree(cardName: String, characterId: Int): Int? {
+        return try {
+            val card = CardManager(context).getCard(cardName) ?: return null
+            val entries = card.transformationRequirements.transformationEntries
+            entries.firstOrNull { it.toCharacterIndex == characterId }?.fromCharacterIndex
+        } catch (t: Throwable) {
+            Timber.e(t, "findPriorSpeciesFromTree: failed")
+            null
+        }
+    }
+
     fun deDigivolve(): Int {
         val current = getCurrentMonster() ?: return -1
-        val priorId = current.previousCharacterId
+        var priorId = current.previousCharacterId
+        // 2026-09-30: fallback for Digimon that didn't evolve in-app (adopted,
+        // hatched at higher stage). Reverse-lookup the evolution tree for a
+        // valid prior species instead of dying.
+        if (priorId == -1 && current.stage > 0) {
+            priorId = findPriorSpeciesFromTree(current.cardName, current.characterId) ?: -1
+            if (priorId != -1) {
+                Timber.w("deDigivolve: no recorded previous, tree fallback found $priorId for ${current.characterId}")
+            }
+        }
         if (priorId == -1) return -1
         val today = System.currentTimeMillis() / 86400000L
         persistCare(CareManager.initialForStage(maxOf(0, current.stage - 1), today))
