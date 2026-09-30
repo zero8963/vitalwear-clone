@@ -74,7 +74,10 @@ class MonsterManager(private val context: Context) {
         val lastCareTick: Long = 0,
         val lastSyncedSteps: Int = 0,
         val consecutiveLosses: Int = 0,
-        val criticalRemainingMs: Long = 0L
+        val criticalRemainingMs: Long = 0L,
+        // De-digivolve safety net (2026-09-30): prior form to bounce back to
+        // on 6th straight loss instead of dying. -1 = none.
+        val previousCharacterId: Int = -1
     )
 
     fun getCurrentMonster(): MonsterState? = getMonster("current_")
@@ -174,7 +177,8 @@ class MonsterManager(private val context: Context) {
             prefs.getLong(prefix + "last_care_tick", 0L),
             prefs.getInt(prefix + "last_synced_steps", 0),
             prefs.getInt(prefix + "consecutive_losses", 0),
-            prefs.getLong(prefix + "critical_remaining_ms", 0L)
+            prefs.getLong(prefix + "critical_remaining_ms", 0L),
+            prefs.getInt(prefix + "previous_character_id", -1)
         )
     }
 
@@ -220,6 +224,7 @@ class MonsterManager(private val context: Context) {
             .putInt(prefix + "last_synced_steps", state.lastSyncedSteps)
             .putInt(prefix + "consecutive_losses", state.consecutiveLosses)
             .putLong(prefix + "critical_remaining_ms", state.criticalRemainingMs)
+            .putInt(prefix + "previous_character_id", state.previousCharacterId)
             .apply()
     }
 
@@ -461,6 +466,13 @@ class MonsterManager(private val context: Context) {
 
         for (warning in careTick.warnings) Timber.w(warning)
         if (careTick.died) {
+            // De-digivolve safety net (2026-09-30): bounce back one evolution
+            // instead of dying when there's a prior form.
+            if (current.previousCharacterId != -1) {
+                val bouncedTo = deDigivolve()
+                Timber.w("6th straight loss: de-digivolved instead of dying (to $bouncedTo)")
+                return false
+            }
             val cause = when {
                 !won && current.criticalRemainingMs > 0 -> "critical"
                 careTick.newMistakes > 0 -> "overwork"
@@ -604,6 +616,8 @@ class MonsterManager(private val context: Context) {
         prefs.edit()
             .putInt("current_character_id", toIndex)
             .putInt("current_stage", current.stage + 1)
+            // De-digivolve safety net (2026-09-30).
+            .putInt("current_previous_character_id", current.characterId)
             .putLong("current_time_alive", 0)
             .putLong("current_evolution_time", hoursUntilEvolution * 3600L)
             .putInt("current_stage_battles", 0)
@@ -616,6 +630,38 @@ class MonsterManager(private val context: Context) {
         applyCardBaseStats(current.cardName, toIndex)
         Timber.d("Evolved ${current.cardName}: ${current.characterId} -> $toIndex")
         return true
+    }
+
+    /**
+     * De-digivolve (2026-09-30): care-mistake consequence. Mirrors the phone:
+     * 6th straight loss bounces back one evolution instead of dying; trophies
+     * and wins reset to 0; safety net consumed.
+     * @return the character ID bounced back to, or -1 if no prior form.
+     */
+    fun deDigivolve(): Int {
+        val current = getCurrentMonster() ?: return -1
+        val priorId = current.previousCharacterId
+        if (priorId == -1) return -1
+        val today = System.currentTimeMillis() / 86400000L
+        persistCare("current_", CareManager.initialForStage(maxOf(0, current.stage - 1), today))
+
+        prefs.edit()
+            .putInt("current_character_id", priorId)
+            .putInt("current_stage", maxOf(0, current.stage - 1))
+            .putLong("current_time_alive", 0)
+            .putInt("current_trophies", 0)
+            .putInt("current_stage_trophies", 0)
+            .putInt("current_wins", 0)
+            .putInt("current_stage_wins", 0)
+            .putInt("current_stage_battles", 0)
+            .putInt("current_stage_vital_points", 0)
+            .putInt("current_previous_character_id", -1)
+            .putLong("current_last_care_tick", System.currentTimeMillis())
+            .apply()
+
+        applyCardBaseStats(current.cardName, priorId)
+        Timber.w("De-digivolved ${current.cardName}: ${current.characterId} -> $priorId (care mistake)")
+        return priorId
     }
 
     /**
@@ -761,6 +807,7 @@ class MonsterManager(private val context: Context) {
             Timber.d("Reached max evolution for this version")
             return
         }
+        val priorId = current.characterId
         // Carry over bonuses
         setCurrentMonster(
             current.cardName, 
@@ -771,6 +818,9 @@ class MonsterManager(private val context: Context) {
             current.speedBonus,
             current.defenseBonus
         )
+        // De-digivolve safety net (2026-09-30): setCurrentMonster is a full
+        // reset, so restore the prior form after.
+        prefs.edit().putInt("current_previous_character_id", priorId).apply()
     }
 
     fun restoreMonster(cardName: String, characterId: Int, stage: Int, atk: Int, hp: Int, spd: Int, def: Int, 

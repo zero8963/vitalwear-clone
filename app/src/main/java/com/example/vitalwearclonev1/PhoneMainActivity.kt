@@ -238,6 +238,15 @@ fun PhoneMainScreen(activeOpponent: MutableState<BattleOpponent?>) {
         while(true) {
             try {
                 isExpiredState.value = monsterManager.isExpired()
+                // De-digivolve announcement (2026-09-30): surface the bounce-back.
+                val bouncedTo = monsterManager.popDeDigivolveEvent()
+                if (bouncedTo != -1) {
+                    Toast.makeText(
+                        context,
+                        "Your Digimon de-digivolved from neglect! Trophies and wins reset — rebuild the grind.",
+                        Toast.LENGTH_LONG
+                    ).show()
+                }
                 val nodes = Wearable.getNodeClient(context).connectedNodes.await()
                 isPhoneConnected.value = nodes.isNotEmpty()
 

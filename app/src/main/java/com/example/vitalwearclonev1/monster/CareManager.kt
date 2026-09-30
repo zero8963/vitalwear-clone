@@ -147,7 +147,10 @@ object CareManager {
      * real-world activity) is a care mistake that warns. Wins reset the loss
      * streak and heal critical instantly; losses build the streak — the 5th
      * straight loss opens the critical window, and losing while critical
-     * kills on the spot. Nothing else here can kill.
+     * kills on the spot UNLESS the Digimon has a prior evolution to bounce
+     * back to (de-digivolve safety net, handled by PhoneMonsterManager —
+     * trophies and wins reset, another 6-loss chain kills). Nothing else here
+     * can kill.
      */
     fun recordBattle(state: CareState, won: Boolean): TickResult {
         var s = state.copy(
