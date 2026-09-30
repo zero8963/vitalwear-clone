@@ -272,8 +272,16 @@ class PhoneMonsterManager(private val context: Context) {
             .putInt("current_stage_wins", current.stageWins + if (won) 1 else 0)
             .apply()
 
-        // Battles feed vitals too (2026-09-30) — the exertion counts, win or lose.
-        addVitalPoints(if (won) CareTuning.BATTLE_VP_WIN else CareTuning.BATTLE_VP_LOSS)
+        // Battles feed vitals too (2026-09-30): wins earn, losses drain a
+        // random 20-150 until the drain is linked to evolution-tree proximity
+        // vs the opponent (the real bracelet scaled it that way).
+        if (won) {
+            addVitalPoints(CareTuning.BATTLE_VP_WIN)
+        } else {
+            val drain = (CareTuning.BATTLE_VP_LOSS_MIN..CareTuning.BATTLE_VP_LOSS_MAX).random()
+            addVitalPoints(-drain)
+            Timber.d("Battle loss drained $drain VP")
+        }
 
         for (warning in careTick.warnings) Timber.w(warning)
         if (careTick.died) {
@@ -311,10 +319,10 @@ class PhoneMonsterManager(private val context: Context) {
     /** Earn Vital Points (lifetime + current stage). VP comes from exercise/activity. */
     fun addVitalPoints(points: Int) {
         val current = getCurrentMonster() ?: return
-        if (points <= 0) return
+        if (points == 0) return
         prefs.edit()
-            .putInt("current_vital_points", current.vitalPoints + points)
-            .putInt("current_stage_vital_points", current.stageVitalPoints + points)
+            .putInt("current_vital_points", (current.vitalPoints + points).coerceAtLeast(0))
+            .putInt("current_stage_vital_points", (current.stageVitalPoints + points).coerceAtLeast(0))
             .apply()
     }
 

@@ -69,10 +69,13 @@ object CareTuning {
     const val EXERCISE_HEAL_MS = 15 * 60 * 1000L
     /** Vital Points earned per completed workout (bracelet evolution logic). */
     const val WORKOUT_VITAL_POINTS = 100
-    /** Vital Points earned per battle (2026-09-30: battles feed vitals on the
-     * real bracelet too — the exertion counts). Win pays more. */
+    /** Vital Points earned per battle win (2026-09-30). */
     const val BATTLE_VP_WIN = 50
-    const val BATTLE_VP_LOSS = 20
+    /** Vital Points drained per battle loss: random in this range until it's
+     * linked to evolution-tree proximity vs the opponent (2026-09-30). The
+     * real bracelet scaled the drain by how close/far the two Digimon were. */
+    const val BATTLE_VP_LOSS_MIN = 20
+    const val BATTLE_VP_LOSS_MAX = 150
 }
 
 object CareManager {
