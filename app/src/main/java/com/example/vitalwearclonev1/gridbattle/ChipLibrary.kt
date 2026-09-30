@@ -11,6 +11,9 @@ package com.example.vitalwearclonev1.gridbattle
  * Damage is per hit; multiply by [hits] for multi-hit totals.
  * Exact balance numbers are tuned in the playtest pass - treat these
  * as the starting feel, not the final word.
+ *
+ * Status chips (2026-09-30): ids 151+ carry a [HitStatus] payload
+ * (burn/poison DoT, flinch, armor break) applied by the Net World engine.
  */
 enum class ChipTier { STANDARD, MEGA, GIGA }
 
@@ -28,7 +31,9 @@ data class BattleChip(
     val mb: Int,
     val hits: Int = 1,
     val effectKind: EffectKind,
-    val description: String
+    val description: String,
+    /** Status payload applied on hit (Net World engine, 2026-09-30). */
+    val status: HitStatus = HitStatus()
 )
 
 object ChipLibrary {
@@ -183,6 +188,14 @@ object ChipLibrary {
         BattleChip(148, "BloodHound", ChipTier.MEGA, ChipElement.CURSOR, 130, listOf('C', 'H'), 52, 1, EffectKind.PROJECTILE, "It has your scent. Run."),
         BattleChip(149, "SkyHunter", ChipTier.MEGA, ChipElement.CURSOR, 150, listOf('H', 'R'), 58, 1, EffectKind.PROJECTILE, "Strikes from above, unerringly."),
         BattleChip(150, "FateSeeker", ChipTier.GIGA, ChipElement.CURSOR, 320, listOf('*'), 92, 1, EffectKind.PROJECTILE, "You cannot dodge fate."),
+        // --- STATUS chips (2026-09-30): burn / poison / flinch / armor break ---
+        BattleChip(151, "EmberBrand", ChipTier.STANDARD, ChipElement.FIRE, 25, listOf('A', 'B'), 16, 1, EffectKind.PROJECTILE, "Brands the foe with living flame.", status = HitStatus(burnDps = 10f, burnSecs = 4f)),
+        BattleChip(152, "CinderHex", ChipTier.MEGA, ChipElement.FIRE, 60, listOf('B', 'C'), 55, 1, EffectKind.PROJECTILE, "A hex of clinging, hungry fire.", status = HitStatus(burnDps = 25f, burnSecs = 5f)),
+        BattleChip(153, "VenomDart", ChipTier.STANDARD, ChipElement.WOOD, 20, listOf('C'), 16, 1, EffectKind.PROJECTILE, "A dart dripping with slow venom.", status = HitStatus(poisonDps = 8f, poisonSecs = 6f)),
+        BattleChip(154, "ToxicBloom", ChipTier.MEGA, ChipElement.WOOD, 50, listOf('G', 'M'), 58, 1, EffectKind.LOB, "A blooming cloud of toxins where it lands.", status = HitStatus(poisonDps = 20f, poisonSecs = 6f)),
+        BattleChip(155, "QuakeSlam", ChipTier.STANDARD, ChipElement.BREAK, 45, listOf('J'), 22, 1, EffectKind.MELEE, "A stunning slam that interrupts the foe.", status = HitStatus(flinchChance = 0.7f, flinchPower = 2f)),
+        BattleChip(156, "ArmorCrack", ChipTier.MEGA, ChipElement.BREAK, 70, listOf('J', 'Q'), 55, 1, EffectKind.SWORD, "Shatters the foe's stance — hyper armor stripped for 6s.", status = HitStatus(armorBreakSecs = 6f)),
+        BattleChip(157, "PyroSurge", ChipTier.GIGA, ChipElement.FIRE, 200, listOf('P'), 90, 1, EffectKind.BEAM, "A piercing surge of living wildfire.", status = HitStatus(burnDps = 40f, burnSecs = 5f)),
     )
 
     fun byId(id: Int): BattleChip? = chips.find { it.id == id }

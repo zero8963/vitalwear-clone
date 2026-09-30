@@ -52,6 +52,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlin.math.abs
 import kotlin.math.atan2
+import kotlin.math.max
 import kotlin.random.Random
 import com.example.vitalwearclonev1.ui.AttackEffectCanvas
 import com.example.vitalwearclonev1.ui.attackEffectColor
@@ -60,7 +61,9 @@ import com.example.vitalwearclonev1.gridbattle.ChipElement
 import com.example.vitalwearclonev1.gridbattle.ChipFolder
 import com.example.vitalwearclonev1.gridbattle.ChipLibrary
 import com.example.vitalwearclonev1.gridbattle.EffectKind
+import com.example.vitalwearclonev1.gridbattle.HitStatus
 import com.example.vitalwearclonev1.gridbattle.NaviCustLoadout
+import com.example.vitalwearclonev1.gridbattle.VirusVariant
 import com.example.vitalwearclonev1.gridbattle.AttackFxOverrides
 import com.example.vitalwearclonev1.gridbattle.ownerIdFor
 import com.example.vitalwearclonev1.common.SoundManager
@@ -121,7 +124,19 @@ data class GridEntity(
     var isDead: Boolean = false,
     var nextMoveTime: Long = 0,
     var lastAttackTime: Long = 0,
-    var isHurt: Boolean = false
+    var isHurt: Boolean = false,
+    /** Virus behavior archetype (2026-09-30). */
+    var variant: VirusVariant = VirusVariant.NORMAL,
+    /** Flinch resistance: interrupts need flinchPower > hyperArmor. */
+    var hyperArmor: Float = 0f,
+    /** Fraction (0..1) of buster/sword-basic damage ignored (Warden hide). */
+    var basicResist: Float = 0f,
+    var burnDps: Float = 0f,
+    var burnUntil: Long = 0L,
+    var poisonDps: Float = 0f,
+    var poisonUntil: Long = 0L,
+    var armorBrokenUntil: Long = 0L,
+    var flinchedUntil: Long = 0L
 )
 
 data class GridProjectile(
@@ -134,7 +149,11 @@ data class GridProjectile(
     var isDead: Boolean = false,
     val isBig: Boolean = false,
     val attackId: Int = 0,
-    val element: ChipElement? = null
+    val element: ChipElement? = null,
+    /** Status payload riding this shot (chips, coats, virus attacks). */
+    val status: HitStatus? = null,
+    /** True for buster shots (Wardens resist these). */
+    val isBuster: Boolean = false
 )
 
 @Composable
@@ -177,6 +196,8 @@ fun NetworldAdventure(
     // Player attack multiplier from programs (+ BLAZE style bonus).
     val effAtkMult = (1f + programBonuses.attackPct / 100f) *
         (if (battleStyle == BattleStyle.BLAZE) 1.1f else 1f)
+    // Player flinch resistance from Digi-Custom hyper armor programs.
+    val playerHyperArmor = programBonuses.hyperArmor.toFloat()
     // Buster shot speed from programs (+ GALE style bonus).
     val busterSpeed = 0.45f * (1f + programBonuses.speedPct / 200f) *
         (if (battleStyle == BattleStyle.GALE) 1.15f else 1f)
@@ -187,6 +208,9 @@ fun NetworldAdventure(
             busterOverride?.let { add("Buster: ${it.displayName()}") }
             swordOverride?.let { add("Sword: ${it.displayName()}") }
             if (programBonuses.attackPct > 0) add("+${programBonuses.attackPct}% ATK")
+            if (programBonuses.hyperArmor > 0) add("HA +${programBonuses.hyperArmor}")
+            if (programBonuses.burnCoatChance > 0f) add("\uD83D\uDD25${(programBonuses.burnCoatChance * 100).toInt()}%")
+            if (programBonuses.poisonCoatChance > 0f) add("☠${(programBonuses.poisonCoatChance * 100).toInt()}%")
         }.joinToString(" • ")
     }
     val chipHudHint = if (chipFolder.isBattleReady) null
@@ -234,6 +258,12 @@ fun NetworldAdventure(
     
     var gameTime by remember { mutableLongStateOf(0L) }
     var lastBattleResult by remember { mutableStateOf(false) }
+    // Player status conditions (2026-09-30): burn/poison DoT + flinch lockout.
+    var playerBurnDps by remember { mutableFloatStateOf(0f) }
+    var playerBurnUntil by remember { mutableLongStateOf(0L) }
+    var playerPoisonDps by remember { mutableFloatStateOf(0f) }
+    var playerPoisonUntil by remember { mutableLongStateOf(0L) }
+    var playerFlinchedUntil by remember { mutableLongStateOf(0L) }
 
     // Visuals
     val playerSprites = remember { mutableStateOf<Map<String, Bitmap>>(emptyMap()) }
@@ -369,7 +399,11 @@ fun NetworldAdventure(
                     val hitIndex = nextProjectiles.indexOfFirst { it.isPlayer && abs(it.gridX - e.gridX) < 0.45f && it.gridY == e.gridY }
                     if (hitIndex != -1) {
                         val hit = nextProjectiles[hitIndex]
-                        enemies[i] = e.copy(hp = e.hp - hit.damage, isHurt = true)
+                        // Wardens resist buster/sword-basic damage; chips hit full force.
+                        val dmg = if (hit.isBuster) hit.damage * (1f - e.basicResist) else hit.damage
+                        var updated = e.copy(hp = e.hp - dmg, isHurt = true)
+                        updated = applyEnemyStatus(updated, hit.status)
+                        enemies[i] = updated
                         nextProjectiles[hitIndex] = hit.copy(isDead = true)
                         scope.launch { delay(200); if (i < enemies.size) enemies[i] = enemies[i].copy(isHurt = false) }
                         if (enemies[i].hp <= 0) enemies[i] = enemies[i].copy(isDead = true, hp = 0f)
@@ -379,13 +413,47 @@ fun NetworldAdventure(
 
             val eHitIndex = nextProjectiles.indexOfFirst { !it.isPlayer && abs(it.gridX - playerBattleX) < 0.45f && it.gridY == playerBattleY }
             if (eHitIndex != -1) {
-                playerHp -= nextProjectiles[eHitIndex].damage
-                nextProjectiles[eHitIndex] = nextProjectiles[eHitIndex].copy(isDead = true)
+                val shot = nextProjectiles[eHitIndex]
+                playerHp -= shot.damage
+                // Virus-applied status: burn/poison DoT + flinch vs hyper armor.
+                shot.status?.let { st ->
+                    if (st.burnSecs > 0f) {
+                        val until = gameTime + (st.burnSecs * 1000).toLong()
+                        if (st.burnDps >= playerBurnDps) { playerBurnDps = st.burnDps; playerBurnUntil = until }
+                        else if (until > playerBurnUntil) playerBurnUntil = until
+                    }
+                    if (st.poisonSecs > 0f) {
+                        val until = gameTime + (st.poisonSecs * 1000).toLong()
+                        if (st.poisonDps >= playerPoisonDps) { playerPoisonDps = st.poisonDps; playerPoisonUntil = until }
+                        else if (until > playerPoisonUntil) playerPoisonUntil = until
+                    }
+                    if (st.flinchChance > 0f && st.flinchPower > 0f && Random.nextFloat() < st.flinchChance &&
+                        st.flinchPower > playerHyperArmor) {
+                        playerFlinchedUntil = gameTime + 600L
+                    }
+                }
+                nextProjectiles[eHitIndex] = shot.copy(isDead = true)
                 SoundManager.play("hit")
                 if (playerHp <= 0) { lastBattleResult = false; phoneManager.addLoss(); adventureState = AdventureState.RESULT }
             }
 
             projectiles.clear(); projectiles.addAll(nextProjectiles.filter { !it.isDead })
+
+            // Damage-over-time ticks (2026-09-30).
+            val dtSecs = dt / 1000f
+            enemies.forEachIndexed { i, e ->
+                if (!e.isDead && (gameTime < e.burnUntil || gameTime < e.poisonUntil)) {
+                    var hp = e.hp
+                    if (gameTime < e.burnUntil) hp -= e.burnDps * dtSecs
+                    if (gameTime < e.poisonUntil) hp -= e.poisonDps * dtSecs
+                    enemies[i] = if (hp <= 0f) e.copy(hp = 0f, isDead = true) else e.copy(hp = hp)
+                }
+            }
+            if (gameTime < playerBurnUntil) playerHp -= playerBurnDps * dtSecs * (1f - programBonuses.burnResistPct / 100f)
+            if (gameTime < playerPoisonUntil) playerHp -= playerPoisonDps * dtSecs * (1f - programBonuses.poisonResistPct / 100f)
+            if (playerHp <= 0 && adventureState == AdventureState.BATTLE) {
+                lastBattleResult = false; phoneManager.addLoss(); adventureState = AdventureState.RESULT
+            }
 
             enemies.forEachIndexed { i, e ->
                 if (!e.isDead) {
@@ -399,10 +467,12 @@ fun NetworldAdventure(
                             enemies[i] = e.copy(nextMoveTime = gameTime + 500)
                         }
                     }
-                    if (gameTime > e.lastAttackTime + Random.nextLong((2000L - areaLevel * 100L).coerceAtLeast(800L), (4500L - areaLevel * 100L).coerceAtLeast(1500L))) {
+                    val paceMult = if (e.variant == VirusVariant.BRUISER) 1.5f else 1f
+                    if (gameTime > e.lastAttackTime + (Random.nextLong((2000L - areaLevel * 100L).coerceAtLeast(800L), (4500L - areaLevel * 100L).coerceAtLeast(1500L)) * paceMult).toLong()) {
                         val enemyDamage = (playerMaxHp * 0.12f + currentLevel * 5f) * (1f + areaLevel * 0.05f) *
-                            (if (battleStyle == BattleStyle.TERRA) 0.9f else 1f)
-                        projectiles.add(GridProjectile(Random.nextInt(10000), e.gridX.toFloat() - 0.5f, e.gridY, -0.25f, enemyDamage, false))
+                            (if (battleStyle == BattleStyle.TERRA) 0.9f else 1f) *
+                            (if (e.variant == VirusVariant.BRUISER) 1.2f else 1f)
+                        projectiles.add(GridProjectile(Random.nextInt(10000), e.gridX.toFloat() - 0.5f, e.gridY, -0.25f, enemyDamage, false, status = variantAttackStatus(e.variant)))
                         enemies[i] = enemies[i].copy(lastAttackTime = gameTime)
                     }
                 }
@@ -424,6 +494,110 @@ fun NetworldAdventure(
         }
     }
 
+    // ---- Status-effect helpers (2026-09-30) ----
+    /** Chip ATK scale — mirrors grid-battle BattleEngine.dmgScale(). Chips finally scale with training. */
+    fun chipAtkScale(): Float = 0.5f + currentAtk / 150f
+
+    /** Scale a chip's DoT payload by ATK (flinch/armor-break don't scale). */
+    fun scaledChipStatus(base: HitStatus): HitStatus {
+        if (base.isEmpty) return base
+        val s = chipAtkScale()
+        return base.copy(burnDps = base.burnDps * s, poisonDps = base.poisonDps * s)
+    }
+
+    /** Roll Digi-Custom hit coatings into a per-hit status payload (ATK-scaled). */
+    fun rollCoatStatus(): HitStatus {
+        val s = chipAtkScale()
+        var burnDps = 0f; var burnSecs = 0f
+        var poisonDps = 0f; var poisonSecs = 0f
+        if (programBonuses.burnCoatChance > 0f && Random.nextFloat() < programBonuses.burnCoatChance) {
+            burnDps = programBonuses.burnCoat.burnDps * s
+            burnSecs = programBonuses.burnCoat.burnSecs
+        }
+        if (programBonuses.poisonCoatChance > 0f && Random.nextFloat() < programBonuses.poisonCoatChance) {
+            poisonDps = programBonuses.poisonCoat.poisonDps * s
+            poisonSecs = programBonuses.poisonCoat.poisonSecs
+        }
+        val fl = programBonuses.flinchBonus
+        return HitStatus(burnDps, burnSecs, poisonDps, poisonSecs, fl, if (fl > 0f) 1f else 0f)
+    }
+
+    /** Merge two status payloads: strongest DoT wins, chances add, longest break wins. */
+    fun combineStatus(a: HitStatus, b: HitStatus): HitStatus {
+        if (a.isEmpty) return b
+        if (b.isEmpty) return a
+        return HitStatus(
+            burnDps = max(a.burnDps, b.burnDps),
+            burnSecs = max(a.burnSecs, b.burnSecs),
+            poisonDps = max(a.poisonDps, b.poisonDps),
+            poisonSecs = max(a.poisonSecs, b.poisonSecs),
+            flinchChance = (a.flinchChance + b.flinchChance).coerceAtMost(1f),
+            flinchPower = max(a.flinchPower, b.flinchPower),
+            armorBreakSecs = max(a.armorBreakSecs, b.armorBreakSecs)
+        )
+    }
+
+    /** Apply an offensive status payload to an enemy; returns the updated entity. */
+    fun applyEnemyStatus(e: GridEntity, status: HitStatus?): GridEntity {
+        if (status == null || status.isEmpty) return e
+        var t = e
+        if (status.burnSecs > 0f) {
+            val until = gameTime + (status.burnSecs * 1000).toLong()
+            t = if (status.burnDps >= t.burnDps) t.copy(burnDps = status.burnDps, burnUntil = until)
+                else t.copy(burnUntil = max(t.burnUntil, until))
+        }
+        if (status.poisonSecs > 0f) {
+            val until = gameTime + (status.poisonSecs * 1000).toLong()
+            t = if (status.poisonDps >= t.poisonDps) t.copy(poisonDps = status.poisonDps, poisonUntil = until)
+                else t.copy(poisonUntil = max(t.poisonUntil, until))
+        }
+        if (status.armorBreakSecs > 0f) {
+            t = t.copy(armorBrokenUntil = max(t.armorBrokenUntil, gameTime + (status.armorBreakSecs * 1000).toLong()))
+        }
+        if (status.flinchChance > 0f && status.flinchPower > 0f && Random.nextFloat() < status.flinchChance) {
+            val armor = if (gameTime < t.armorBrokenUntil) 0f else t.hyperArmor
+            if (status.flinchPower > armor) {
+                // Stagger: brief visual window + the next attack is delayed (interrupted).
+                t = t.copy(flinchedUntil = gameTime + 900L, lastAttackTime = t.lastAttackTime + 1500L)
+            }
+        }
+        return t
+    }
+
+    /** Roll a virus variant for an encounter; nastier types unlock on deeper floors. */
+    fun rollVirusVariant(): VirusVariant {
+        val r = Random.nextFloat()
+        return when {
+            areaLevel >= 3 && r < 0.10f -> VirusVariant.BRUISER
+            areaLevel >= 3 && r < 0.20f -> VirusVariant.WARDEN
+            areaLevel >= 2 && r < 0.34f -> VirusVariant.BURNER
+            areaLevel >= 2 && r < 0.46f -> VirusVariant.POISONER
+            else -> VirusVariant.NORMAL
+        }
+    }
+
+    /** Per-variant modifiers: HP multiplier, hyper armor, buster/basic resist fraction. */
+    fun variantMods(v: VirusVariant): Triple<Float, Float, Float> = when (v) {
+        VirusVariant.NORMAL -> Triple(1f, 0f, 0f)
+        VirusVariant.BURNER -> Triple(1.1f, 1f, 0f)
+        VirusVariant.POISONER -> Triple(1.1f, 1f, 0f)
+        VirusVariant.BRUISER -> Triple(1.6f, 6f, 0f)
+        VirusVariant.WARDEN -> Triple(1.2f, 2f, 0.5f)
+    }
+
+    /** Status payload carried by a variant's shots (null for NORMAL/WARDEN/BRUISER). */
+    fun variantAttackStatus(v: VirusVariant): HitStatus? = when (v) {
+        VirusVariant.BURNER -> HitStatus(
+            burnDps = 6f + areaLevel * 2f, burnSecs = 4f,
+            flinchChance = 0.15f, flinchPower = 1f
+        )
+        VirusVariant.POISONER -> HitStatus(
+            poisonDps = 5f + areaLevel * 1.5f, poisonSecs = 6f,
+            flinchChance = 0.15f, flinchPower = 1f
+        )
+        else -> null
+    }
+
     fun triggerEncounter() {
         if (!encountersEnabled) return
         if (Random.nextInt(100) < 18) {
@@ -441,12 +615,21 @@ fun NetworldAdventure(
             }
 
             val scaledEnemyHp = (playerMaxHp * 0.2f + currentAtk * 0.8f) * (1f + areaLevel * 0.1f)
-            
+
+            // Clear lingering status from the previous fight.
+            playerBurnDps = 0f; playerBurnUntil = 0L
+            playerPoisonDps = 0f; playerPoisonUntil = 0L
+            playerFlinchedUntil = 0L
+
             repeat(Random.nextInt(1, 4)) {
+                val variant = rollVirusVariant()
+                val (hpMult, armor, resist) = variantMods(variant)
+                val hp = scaledEnemyHp * hpMult
                 enemies.add(GridEntity(
                     id = it, gridX = Random.nextInt(3, 6), gridY = Random.nextInt(3),
-                    hp = scaledEnemyHp, maxHp = scaledEnemyHp,
-                    spriteIdx = Random.nextInt(enemySprites.size.coerceAtLeast(1))
+                    hp = hp, maxHp = hp,
+                    spriteIdx = Random.nextInt(enemySprites.size.coerceAtLeast(1)),
+                    variant = variant, hyperArmor = armor, basicResist = resist
                 ))
             }
             adventureState = AdventureState.BATTLE
@@ -546,35 +729,43 @@ fun NetworldAdventure(
                         onUseChip = { chipId ->
                             val chip = ChipLibrary.byId(chipId) ?: return@GridBattleScreen
                             SoundManager.play(SoundManager.forEffectKind(chip.effectKind.name))
+                            // 2026-09-30: chips scale with ATK like the buster does (mirrors
+                            // grid-battle BattleEngine.dmgScale); status rides along on hits.
+                            val atkScale = chipAtkScale()
+                            val chipStatus = combineStatus(scaledChipStatus(chip.status), rollCoatStatus())
                             when (chip.effectKind) {
                                 EffectKind.PROJECTILE -> {
-                                    projectiles.add(GridProjectile(Random.nextInt(10000), playerBattleX.toFloat() + 0.5f, playerBattleY, 0.6f, chip.damage * effAtkMult, true, element = chip.element))
+                                    projectiles.add(GridProjectile(Random.nextInt(10000), playerBattleX.toFloat() + 0.5f, playerBattleY, 0.6f, chip.damage * atkScale * effAtkMult, true, element = chip.element, status = chipStatus))
                                 }
                                 EffectKind.SWORD, EffectKind.MELEE -> {
                                     val tx = playerBattleX + 1
                                     enemies.forEachIndexed { i, e ->
                                         if (!e.isDead && e.gridX == tx && abs(e.gridY - playerBattleY) <= 1) {
-                                            enemies[i] = e.copy(hp = e.hp - chip.damage * effAtkMult, isHurt = true)
+                                            var updated = e.copy(hp = e.hp - chip.damage * atkScale * effAtkMult, isHurt = true)
+                                            updated = applyEnemyStatus(updated, chipStatus)
+                                            enemies[i] = updated
                                             scope.launch { delay(200); if (i < enemies.size) enemies[i] = enemies[i].copy(isHurt = false) }
                                             if (enemies[i].hp <= 0) enemies[i] = enemies[i].copy(isDead = true, hp = 0f)
                                         }
                                     }
                                 }
                                 EffectKind.LOB -> {
-                                    projectiles.add(GridProjectile(Random.nextInt(10000), playerBattleX.toFloat() + 0.5f, playerBattleY, 0.3f, chip.damage * 1.2f * effAtkMult, true, element = chip.element))
+                                    projectiles.add(GridProjectile(Random.nextInt(10000), playerBattleX.toFloat() + 0.5f, playerBattleY, 0.3f, chip.damage * 1.2f * atkScale * effAtkMult, true, element = chip.element, status = chipStatus))
                                 }
                                 EffectKind.BEAM -> {
-                                    projectiles.add(GridProjectile(Random.nextInt(10000), playerBattleX.toFloat() + 0.5f, playerBattleY, 0.8f, chip.damage * 1.5f * effAtkMult, true, isBig = true, element = chip.element))
+                                    projectiles.add(GridProjectile(Random.nextInt(10000), playerBattleX.toFloat() + 0.5f, playerBattleY, 0.8f, chip.damage * 1.5f * atkScale * effAtkMult, true, isBig = true, element = chip.element, status = chipStatus))
                                 }
                                 EffectKind.SUMMON -> {
                                     (playerBattleY - 1..playerBattleY + 1).map { it.coerceIn(0, 2) }.distinct().forEach { row ->
-                                        projectiles.add(GridProjectile(Random.nextInt(10000), playerBattleX.toFloat() + 0.5f, row, 0.6f, chip.damage * 0.6f * effAtkMult, true, element = chip.element))
+                                        projectiles.add(GridProjectile(Random.nextInt(10000), playerBattleX.toFloat() + 0.5f, row, 0.6f, chip.damage * 0.6f * atkScale * effAtkMult, true, element = chip.element, status = chipStatus))
                                     }
                                 }
                                 EffectKind.TRAP -> {
                                     enemies.forEachIndexed { i, e ->
                                         if (!e.isDead && e.gridX >= 3) {
-                                            enemies[i] = e.copy(hp = e.hp - chip.damage * effAtkMult, isHurt = true)
+                                            var updated = e.copy(hp = e.hp - chip.damage * atkScale * effAtkMult, isHurt = true)
+                                            updated = applyEnemyStatus(updated, chipStatus)
+                                            enemies[i] = updated
                                             scope.launch { delay(200); if (i < enemies.size) enemies[i] = enemies[i].copy(isHurt = false) }
                                             if (enemies[i].hp <= 0) enemies[i] = enemies[i].copy(isDead = true, hp = 0f)
                                         }
@@ -598,6 +789,8 @@ fun NetworldAdventure(
                             playerBattleY = (playerBattleY + dy).coerceIn(0, 2)
                         },
                         onAttack = { type ->
+                            // Staggered by a virus hit: briefly unable to act.
+                            if (gameTime < playerFlinchedUntil) return@GridBattleScreen
                             isAttackingAnim = true
                             // Roll the DIM-programmed attacks: big attack lands as a crit.
                             // Crit damage = 1.5x base + secret practice bonus, capped at 1.75x.
@@ -626,18 +819,30 @@ fun NetworldAdventure(
                             SoundManager.play(if (type == "SWORD") "sword" else if (isBig) "buster_charged" else "buster")
                             if (type == "SWORD") {
                                 val tx = playerBattleX + 1
+                                val swordStatus = rollCoatStatus()
                                 enemies.forEachIndexed { i, e ->
                                     if (!e.isDead && e.gridX == tx && abs(e.gridY - playerBattleY) <= 1) {
-                                        enemies[i] = e.copy(hp = e.hp - (250f + currentAtk) * dmgMult * effAtkMult, isHurt = true)
+                                        // Sword is a basic attack: Wardens resist it; coats ride along.
+                                        var updated = e.copy(hp = e.hp - (250f + currentAtk) * dmgMult * effAtkMult * (1f - e.basicResist), isHurt = true)
+                                        updated = applyEnemyStatus(updated, swordStatus)
+                                        enemies[i] = updated
                                         scope.launch { delay(200); if (i < enemies.size) enemies[i] = enemies[i].copy(isHurt = false) }
                                         if (enemies[i].hp <= 0) enemies[i] = enemies[i].copy(isDead = true, hp = 0f)
                                     }
                                 }
                             } else {
-                                projectiles.add(GridProjectile(Random.nextInt(10000), playerBattleX.toFloat() + 0.5f, playerBattleY, busterSpeed, (60f + currentAtk/2) * dmgMult * effAtkMult, true, isBig = isBig, attackId = usedAttackId, element = busterOverride?.element))
+                                projectiles.add(GridProjectile(Random.nextInt(10000), playerBattleX.toFloat() + 0.5f, playerBattleY, busterSpeed, (60f + currentAtk/2) * dmgMult * effAtkMult, true, isBig = isBig, attackId = usedAttackId, element = busterOverride?.element, isBuster = true, status = rollCoatStatus()))
                             }
                             scope.launch { delay(250); isAttackingAnim = false }
-                        }
+                        },
+                        // 2026-09-30: status rendering args.
+                        gameTime = gameTime,
+                        chipAtkScale = chipAtkScale(),
+                        playerStatus = buildString {
+                            if (gameTime < playerBurnUntil) append("🔥 ")
+                            if (gameTime < playerPoisonUntil) append("☠ ")
+                            if (gameTime < playerFlinchedUntil) append("😵 Staggered")
+                        }.trim()
                     )
                 }
                 AdventureState.RESULT -> {
@@ -771,7 +976,11 @@ fun GridBattleScreen(
     chipHudHint: String?,
     chipHand: List<Int>,
     onUseChip: (Int) -> Unit,
-    onMove: (Int, Int) -> Unit, onAttack: (String) -> Unit
+    onMove: (Int, Int) -> Unit, onAttack: (String) -> Unit,
+    /** 2026-09-30: status rendering — ms clock, chip ATK scale, player status line. */
+    gameTime: Long = 0L,
+    chipAtkScale: Float = 1f,
+    playerStatus: String = ""
 ) {
     val density = LocalDensity.current
     val cellSize = 50.dp 
@@ -782,6 +991,8 @@ fun GridBattleScreen(
                 Text("$nickname LV$level", color = Color.Green, fontWeight = FontWeight.Bold, fontSize = 18.sp)
                 if (hudLine.isNotEmpty()) Text(hudLine, color = Color.Cyan, fontSize = 9.sp)
                 chipHudHint?.let { Text(it, color = Color.Gray, fontSize = 9.sp) }
+                // 2026-09-30: player status line (burn/poison/stagger).
+                if (playerStatus.isNotEmpty()) Text(playerStatus, color = Color(0xFFFFAA66), fontSize = 10.sp, fontWeight = FontWeight.Bold)
             }
             Column(horizontalAlignment = Alignment.End) {
                 Text("HP ${hp.toInt()} / ${maxHp.toInt()}", color = Color.White, fontSize = 10.sp)
@@ -813,7 +1024,10 @@ fun GridBattleScreen(
                                 verticalArrangement = Arrangement.Center
                             ) {
                                 Text(chip.name, color = Color.White, fontSize = 7.sp, fontWeight = FontWeight.Bold, maxLines = 2)
-                                Text("${chip.damage} DMG", color = Color.White, fontSize = 8.sp)
+                                // 2026-09-30: chips scale with ATK; status payloads are labeled.
+                                Text("${(chip.damage * chipAtkScale).toInt()} DMG", color = Color.White, fontSize = 8.sp)
+                                val sLabel = chipStatusLabel(chip.status)
+                                if (sLabel.isNotEmpty()) Text(sLabel, color = Color(0xFFFFD54F), fontSize = 7.sp)
                             }
                         }
                     }
@@ -891,6 +1105,30 @@ fun GridBattleScreen(
                         (enemySprites.getOrNull(e.spriteIdx) ?: playerSprites["IDLE"])?.let {
                             Image(it.asImageBitmap(), null, Modifier.size(cellSize).offset { IntOffset((e.gridX * cellSizePx).toInt(), (e.gridY * cellSizePx).toInt()) }.graphicsLayer { scaleX = 1f; alpha = if (e.isHurt) 0.5f else 1f })
                         }
+                        // 2026-09-30: variant tag + status glyphs above the HP bar.
+                        val glyphs = buildString {
+                            if (gameTime < e.burnUntil) append("🔥")
+                            if (gameTime < e.poisonUntil) append("☠")
+                            if (gameTime < e.armorBrokenUntil) append("💥")
+                            if (gameTime < e.flinchedUntil) append("😵")
+                        }
+                        val variantTag = when (e.variant) {
+                            VirusVariant.BURNER -> "BURNER"
+                            VirusVariant.POISONER -> "POISONER"
+                            VirusVariant.BRUISER -> "BRUISER"
+                            VirusVariant.WARDEN -> "WARDEN"
+                            else -> null
+                        }
+                        if (glyphs.isNotEmpty() || variantTag != null) {
+                            Text(
+                                buildString {
+                                    if (variantTag != null) append("$variantTag ")
+                                    append(glyphs)
+                                }.trim(),
+                                color = Color.Yellow, fontSize = 8.sp, fontWeight = FontWeight.Bold,
+                                modifier = Modifier.offset { IntOffset((e.gridX * cellSizePx).toInt(), (e.gridY * cellSizePx).toInt() - 26) }
+                            )
+                        }
                         Box(Modifier.width(cellSize).height(4.dp).offset { IntOffset((e.gridX * cellSizePx).toInt(), (e.gridY * cellSizePx).toInt() - 12) }.background(Color.Red)) { Box(Modifier.fillMaxWidth(e.hp / e.maxHp).fillMaxHeight().background(Color.Green)) }
                     }
                 }
@@ -942,6 +1180,17 @@ private fun elementColor(element: ChipElement): Color = when (element) {
     ChipElement.BREAK -> Color(0xFFFF8A65)
     ChipElement.PLUS -> Color(0xFFFFF176)
     ChipElement.NULL -> Color(0xFF00BCD4)
+}
+
+/** Compact label for a chip's status payload (2026-09-30), shown under chip damage. */
+private fun chipStatusLabel(status: HitStatus): String {
+    if (status.isEmpty) return ""
+    val bits = mutableListOf<String>()
+    if (status.burnSecs > 0f) bits.add("🔥")
+    if (status.poisonSecs > 0f) bits.add("☠")
+    if (status.flinchChance > 0f) bits.add("💥stun")
+    if (status.armorBreakSecs > 0f) bits.add("🛡break")
+    return bits.joinToString(" ")
 }
 
 private fun getCharacterBaseIndex(characterId: Int, isBem: Boolean): Int {

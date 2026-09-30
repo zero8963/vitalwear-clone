@@ -53,7 +53,23 @@ data class ProgramPart(
     /** Non-null for Core parts: rewires the buster's element + animation. */
     val busterOverride: AttackOverride? = null,
     /** Non-null for Core parts: rewires the sword's element + animation. */
-    val swordOverride: AttackOverride? = null
+    val swordOverride: AttackOverride? = null,
+    /** % chance (0..1) each of your hits applies the burn coat (Net World). */
+    val burnCoatChance: Float = 0f,
+    /** Burn applied by the coat (dps scaled by ATK at hit time). */
+    val burnCoat: HitStatus = HitStatus(),
+    /** % chance (0..1) each of your hits applies the poison coat (Net World). */
+    val poisonCoatChance: Float = 0f,
+    /** Poison applied by the coat (dps scaled by ATK at hit time). */
+    val poisonCoat: HitStatus = HitStatus(),
+    /** Flat flinch resistance vs interrupts (Net World). */
+    val hyperArmor: Int = 0,
+    /** Bonus flinch chance (0..1) added to your hits (Net World). */
+    val flinchBonus: Float = 0f,
+    /** % of burn DoT ignored when you are burning (Net World). */
+    val burnResistPct: Int = 0,
+    /** % of poison DoT ignored when you are poisoned (Net World). */
+    val poisonResistPct: Int = 0
 ) {
     /** True for the special Core parts that rewire basic attacks. */
     fun isCore(): Boolean = busterOverride != null || swordOverride != null
@@ -64,6 +80,12 @@ data class ProgramPart(
         if (maxHpBonus > 0) bits.add("HP +$maxHpBonus")
         if (speedPct > 0) bits.add("SPD +$speedPct%")
         if (chargePct > 0) bits.add("CHG +$chargePct%")
+        if (burnCoatChance > 0f) bits.add("\uD83D\uDD25 coat ${(burnCoatChance * 100).toInt()}%")
+        if (poisonCoatChance > 0f) bits.add("☠ coat ${(poisonCoatChance * 100).toInt()}%")
+        if (hyperArmor > 0) bits.add("HA +$hyperArmor")
+        if (flinchBonus > 0f) bits.add("Flinch +${(flinchBonus * 100).toInt()}%")
+        if (burnResistPct > 0) bits.add("\uD83D\uDD25Resist $burnResistPct%")
+        if (poisonResistPct > 0) bits.add("☠Resist $poisonResistPct%")
         busterOverride?.let { bits.add("Buster: ${it.displayName()}") }
         swordOverride?.let { bits.add("Sword: ${it.displayName()}") }
         return bits.joinToString(", ")
@@ -165,7 +187,32 @@ object ProgramParts {
         ProgramPart(32, "BrambleEdge", ProgramColor.GREEN, TETRA_LINE,
             swordOverride = AttackOverride(ChipElement.WOOD, "slash_bramble"),
             maxHpBonus = 10,
-            description = "Your sword tangles foes in a Bramble Slash (WOOD)! +10 max HP.")
+            description = "Your sword tangles foes in a Bramble Slash (WOOD)! +10 max HP."),
+        // --- STATUS parts (2026-09-30): coatings, hyper armor, resists (Net World) ---
+        ProgramPart(33, "EmberCoat", ProgramColor.RED, TRI_L,
+            burnCoatChance = 0.25f, burnCoat = HitStatus(burnDps = 8f, burnSecs = 3f),
+            description = "Your hits may ignite foes in the Net World (25% burn)."),
+        ProgramPart(34, "InfernoWeave", ProgramColor.RED, TETRA_SKEW,
+            burnCoatChance = 0.4f, burnCoat = HitStatus(burnDps = 15f, burnSecs = 4f),
+            description = "Woven wildfire: your hits often ignite foes in the Net World (40% burn)."),
+        ProgramPart(35, "ImpactEdge", ProgramColor.RED, DOMINO,
+            flinchBonus = 0.2f,
+            description = "Heavy hits stagger foes in the Net World (+20% flinch)."),
+        ProgramPart(36, "VenomCoat", ProgramColor.GREEN, TRI_L,
+            poisonCoatChance = 0.25f, poisonCoat = HitStatus(poisonDps = 6f, poisonSecs = 5f),
+            description = "Your hits may poison foes in the Net World (25%)."),
+        ProgramPart(37, "PlagueWeave", ProgramColor.GREEN, TETRA_SKEW,
+            poisonCoatChance = 0.4f, poisonCoat = HitStatus(poisonDps = 12f, poisonSecs = 6f),
+            description = "Woven plague: your hits often poison foes in the Net World (40%)."),
+        ProgramPart(38, "IronStance", ProgramColor.GREEN, SQUARE,
+            hyperArmor = 2,
+            description = "Shrug off interrupts in the Net World (+2 hyper armor)."),
+        ProgramPart(39, "CoolantVeil", ProgramColor.BLUE, TRI_LINE,
+            burnResistPct = 50, poisonResistPct = 50,
+            description = "Halves burn and poison damage you take in the Net World."),
+        ProgramPart(40, "TitanStance", ProgramColor.YELLOW, TETRA_T,
+            hyperArmor = 4,
+            description = "An unmovable stance in the Net World (+4 hyper armor).")
     )
 
     fun byId(id: Int): ProgramPart? = all.find { it.id == id }
@@ -198,7 +245,16 @@ data class TotalBonuses(
     val attackPct: Int,
     val maxHpBonus: Int,
     val speedPct: Int,
-    val chargePct: Int
+    val chargePct: Int,
+    /** Summed coat chance (capped at 100%); coat potency = strongest part. */
+    val burnCoatChance: Float = 0f,
+    val burnCoat: HitStatus = HitStatus(),
+    val poisonCoatChance: Float = 0f,
+    val poisonCoat: HitStatus = HitStatus(),
+    val hyperArmor: Int = 0,
+    val flinchBonus: Float = 0f,
+    val burnResistPct: Int = 0,
+    val poisonResistPct: Int = 0
 )
 
 data class ValidationResult(
@@ -353,6 +409,9 @@ data class NaviCustLoadout(val placements: List<Placement>) {
     fun totalBonuses(): TotalBonuses {
         val glitched = validate().glitchedPartIds
         var atk = 0; var hp = 0; var spd = 0; var chg = 0
+        var burnChance = 0f; var burnDps = 0f; var burnSecs = 0f
+        var poisonChance = 0f; var poisonDps = 0f; var poisonSecs = 0f
+        var ha = 0; var flinch = 0f; var burnRes = 0; var poisonRes = 0
         for (p in placements) {
             if (p.partId in glitched) continue
             val part = ProgramParts.byId(p.partId) ?: continue
@@ -360,8 +419,28 @@ data class NaviCustLoadout(val placements: List<Placement>) {
             hp += part.maxHpBonus
             spd += part.speedPct
             chg += part.chargePct
+            burnChance += part.burnCoatChance
+            if (part.burnCoat.burnDps > burnDps) burnDps = part.burnCoat.burnDps
+            if (part.burnCoat.burnSecs > burnSecs) burnSecs = part.burnCoat.burnSecs
+            poisonChance += part.poisonCoatChance
+            if (part.poisonCoat.poisonDps > poisonDps) poisonDps = part.poisonCoat.poisonDps
+            if (part.poisonCoat.poisonSecs > poisonSecs) poisonSecs = part.poisonCoat.poisonSecs
+            ha += part.hyperArmor
+            flinch += part.flinchBonus
+            burnRes += part.burnResistPct
+            poisonRes += part.poisonResistPct
         }
-        return TotalBonuses(atk, hp, spd, chg)
+        return TotalBonuses(
+            atk, hp, spd, chg,
+            burnCoatChance = burnChance.coerceAtMost(1f),
+            burnCoat = HitStatus(burnDps = burnDps, burnSecs = burnSecs),
+            poisonCoatChance = poisonChance.coerceAtMost(1f),
+            poisonCoat = HitStatus(poisonDps = poisonDps, poisonSecs = poisonSecs),
+            hyperArmor = ha,
+            flinchBonus = flinch.coerceAtMost(1f),
+            burnResistPct = burnRes.coerceAtMost(90),
+            poisonResistPct = poisonRes.coerceAtMost(90)
+        )
     }
 
     /** Installed (non-glitched) parts only — glitched cores grant nothing. */
