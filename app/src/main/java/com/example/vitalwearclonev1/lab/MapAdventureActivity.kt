@@ -994,7 +994,7 @@ fun GridBattleScreen(
                     BattleHeader(nickname, level, hp, maxHp, hudLine, chipHudHint, playerStatus, compact = true)
                     Spacer(Modifier.height(4.dp))
                     BoxWithConstraints(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
-                        val cellSize = minOf(50.dp, maxWidth / 6, maxHeight / 3)
+                        val cellSize = minOf(maxWidth / 6, maxHeight / 3)
                         BattleArena(cellSize, playerX, playerY, playerSprites, isAttacking, attackFxId, attackFxProgress, coreFxKey, enemies, enemySprites, projectiles, gameTime)
                     }
                 }
@@ -1014,7 +1014,7 @@ fun GridBattleScreen(
                 Spacer(Modifier.height(8.dp))
                 BattleTray(battlePrograms, onUseProgram, chipHand, onUseChip, chipAtkScale, horizontal = true)
                 BoxWithConstraints(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
-                    val cellSize = minOf(50.dp, maxWidth / 6, maxHeight / 3)
+                    val cellSize = minOf(maxWidth / 6, maxHeight / 3)
                     BattleArena(cellSize, playerX, playerY, playerSprites, isAttacking, attackFxId, attackFxProgress, coreFxKey, enemies, enemySprites, projectiles, gameTime)
                 }
                 BattleControls(onMove, onAttack, compact = false)
