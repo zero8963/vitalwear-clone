@@ -383,6 +383,110 @@ fun NetworldAdventure(
         reloadPlayerSprites()
     }
 
+    // ---- Status-effect helpers (2026-09-30) ----
+    /** Chip ATK scale — mirrors grid-battle BattleEngine.dmgScale(). Chips finally scale with training. */
+    fun chipAtkScale(): Float = 0.5f + currentAtk / 150f
+
+    /** Scale a chip's DoT payload by ATK (flinch/armor-break don't scale). */
+    fun scaledChipStatus(base: HitStatus): HitStatus {
+        if (base.isEmpty) return base
+        val s = chipAtkScale()
+        return base.copy(burnDps = base.burnDps * s, poisonDps = base.poisonDps * s)
+    }
+
+    /** Roll Digi-Custom hit coatings into a per-hit status payload (ATK-scaled). */
+    fun rollCoatStatus(): HitStatus {
+        val s = chipAtkScale()
+        var burnDps = 0f; var burnSecs = 0f
+        var poisonDps = 0f; var poisonSecs = 0f
+        if (programBonuses.burnCoatChance > 0f && Random.nextFloat() < programBonuses.burnCoatChance) {
+            burnDps = programBonuses.burnCoat.burnDps * s
+            burnSecs = programBonuses.burnCoat.burnSecs
+        }
+        if (programBonuses.poisonCoatChance > 0f && Random.nextFloat() < programBonuses.poisonCoatChance) {
+            poisonDps = programBonuses.poisonCoat.poisonDps * s
+            poisonSecs = programBonuses.poisonCoat.poisonSecs
+        }
+        val fl = programBonuses.flinchBonus
+        return HitStatus(burnDps, burnSecs, poisonDps, poisonSecs, fl, if (fl > 0f) 1f else 0f)
+    }
+
+    /** Merge two status payloads: strongest DoT wins, chances add, longest break wins. */
+    fun combineStatus(a: HitStatus, b: HitStatus): HitStatus {
+        if (a.isEmpty) return b
+        if (b.isEmpty) return a
+        return HitStatus(
+            burnDps = max(a.burnDps, b.burnDps),
+            burnSecs = max(a.burnSecs, b.burnSecs),
+            poisonDps = max(a.poisonDps, b.poisonDps),
+            poisonSecs = max(a.poisonSecs, b.poisonSecs),
+            flinchChance = (a.flinchChance + b.flinchChance).coerceAtMost(1f),
+            flinchPower = max(a.flinchPower, b.flinchPower),
+            armorBreakSecs = max(a.armorBreakSecs, b.armorBreakSecs)
+        )
+    }
+
+    /** Apply an offensive status payload to an enemy; returns the updated entity. */
+    fun applyEnemyStatus(e: GridEntity, status: HitStatus?): GridEntity {
+        if (status == null || status.isEmpty) return e
+        var t = e
+        if (status.burnSecs > 0f) {
+            val until = gameTime + (status.burnSecs * 1000).toLong()
+            t = if (status.burnDps >= t.burnDps) t.copy(burnDps = status.burnDps, burnUntil = until)
+                else t.copy(burnUntil = max(t.burnUntil, until))
+        }
+        if (status.poisonSecs > 0f) {
+            val until = gameTime + (status.poisonSecs * 1000).toLong()
+            t = if (status.poisonDps >= t.poisonDps) t.copy(poisonDps = status.poisonDps, poisonUntil = until)
+                else t.copy(poisonUntil = max(t.poisonUntil, until))
+        }
+        if (status.armorBreakSecs > 0f) {
+            t = t.copy(armorBrokenUntil = max(t.armorBrokenUntil, gameTime + (status.armorBreakSecs * 1000).toLong()))
+        }
+        if (status.flinchChance > 0f && status.flinchPower > 0f && Random.nextFloat() < status.flinchChance) {
+            val armor = if (gameTime < t.armorBrokenUntil) 0f else t.hyperArmor
+            if (status.flinchPower > armor) {
+                // Stagger: brief visual window + the next attack is delayed (interrupted).
+                t = t.copy(flinchedUntil = gameTime + 900L, lastAttackTime = t.lastAttackTime + 1500L)
+            }
+        }
+        return t
+    }
+
+    /** Roll a virus variant for an encounter; nastier types unlock on deeper floors. */
+    fun rollVirusVariant(): VirusVariant {
+        val r = Random.nextFloat()
+        return when {
+            areaLevel >= 3 && r < 0.10f -> VirusVariant.BRUISER
+            areaLevel >= 3 && r < 0.20f -> VirusVariant.WARDEN
+            areaLevel >= 2 && r < 0.34f -> VirusVariant.BURNER
+            areaLevel >= 2 && r < 0.46f -> VirusVariant.POISONER
+            else -> VirusVariant.NORMAL
+        }
+    }
+
+    /** Per-variant modifiers: HP multiplier, hyper armor, buster/basic resist fraction. */
+    fun variantMods(v: VirusVariant): Triple<Float, Float, Float> = when (v) {
+        VirusVariant.NORMAL -> Triple(1f, 0f, 0f)
+        VirusVariant.BURNER -> Triple(1.1f, 1f, 0f)
+        VirusVariant.POISONER -> Triple(1.1f, 1f, 0f)
+        VirusVariant.BRUISER -> Triple(1.6f, 6f, 0f)
+        VirusVariant.WARDEN -> Triple(1.2f, 2f, 0.5f)
+    }
+
+    /** Status payload carried by a variant's shots (null for NORMAL/WARDEN/BRUISER). */
+    fun variantAttackStatus(v: VirusVariant): HitStatus? = when (v) {
+        VirusVariant.BURNER -> HitStatus(
+            burnDps = 6f + areaLevel * 2f, burnSecs = 4f,
+            flinchChance = 0.15f, flinchPower = 1f
+        )
+        VirusVariant.POISONER -> HitStatus(
+            poisonDps = 5f + areaLevel * 1.5f, poisonSecs = 6f,
+            flinchChance = 0.15f, flinchPower = 1f
+        )
+        else -> null
+    }
+
     // Battle Engine
     LaunchedEffect(adventureState) {
         if (adventureState != AdventureState.BATTLE) return@LaunchedEffect
@@ -492,110 +596,6 @@ fun NetworldAdventure(
             }
             delay(dt)
         }
-    }
-
-    // ---- Status-effect helpers (2026-09-30) ----
-    /** Chip ATK scale — mirrors grid-battle BattleEngine.dmgScale(). Chips finally scale with training. */
-    fun chipAtkScale(): Float = 0.5f + currentAtk / 150f
-
-    /** Scale a chip's DoT payload by ATK (flinch/armor-break don't scale). */
-    fun scaledChipStatus(base: HitStatus): HitStatus {
-        if (base.isEmpty) return base
-        val s = chipAtkScale()
-        return base.copy(burnDps = base.burnDps * s, poisonDps = base.poisonDps * s)
-    }
-
-    /** Roll Digi-Custom hit coatings into a per-hit status payload (ATK-scaled). */
-    fun rollCoatStatus(): HitStatus {
-        val s = chipAtkScale()
-        var burnDps = 0f; var burnSecs = 0f
-        var poisonDps = 0f; var poisonSecs = 0f
-        if (programBonuses.burnCoatChance > 0f && Random.nextFloat() < programBonuses.burnCoatChance) {
-            burnDps = programBonuses.burnCoat.burnDps * s
-            burnSecs = programBonuses.burnCoat.burnSecs
-        }
-        if (programBonuses.poisonCoatChance > 0f && Random.nextFloat() < programBonuses.poisonCoatChance) {
-            poisonDps = programBonuses.poisonCoat.poisonDps * s
-            poisonSecs = programBonuses.poisonCoat.poisonSecs
-        }
-        val fl = programBonuses.flinchBonus
-        return HitStatus(burnDps, burnSecs, poisonDps, poisonSecs, fl, if (fl > 0f) 1f else 0f)
-    }
-
-    /** Merge two status payloads: strongest DoT wins, chances add, longest break wins. */
-    fun combineStatus(a: HitStatus, b: HitStatus): HitStatus {
-        if (a.isEmpty) return b
-        if (b.isEmpty) return a
-        return HitStatus(
-            burnDps = max(a.burnDps, b.burnDps),
-            burnSecs = max(a.burnSecs, b.burnSecs),
-            poisonDps = max(a.poisonDps, b.poisonDps),
-            poisonSecs = max(a.poisonSecs, b.poisonSecs),
-            flinchChance = (a.flinchChance + b.flinchChance).coerceAtMost(1f),
-            flinchPower = max(a.flinchPower, b.flinchPower),
-            armorBreakSecs = max(a.armorBreakSecs, b.armorBreakSecs)
-        )
-    }
-
-    /** Apply an offensive status payload to an enemy; returns the updated entity. */
-    fun applyEnemyStatus(e: GridEntity, status: HitStatus?): GridEntity {
-        if (status == null || status.isEmpty) return e
-        var t = e
-        if (status.burnSecs > 0f) {
-            val until = gameTime + (status.burnSecs * 1000).toLong()
-            t = if (status.burnDps >= t.burnDps) t.copy(burnDps = status.burnDps, burnUntil = until)
-                else t.copy(burnUntil = max(t.burnUntil, until))
-        }
-        if (status.poisonSecs > 0f) {
-            val until = gameTime + (status.poisonSecs * 1000).toLong()
-            t = if (status.poisonDps >= t.poisonDps) t.copy(poisonDps = status.poisonDps, poisonUntil = until)
-                else t.copy(poisonUntil = max(t.poisonUntil, until))
-        }
-        if (status.armorBreakSecs > 0f) {
-            t = t.copy(armorBrokenUntil = max(t.armorBrokenUntil, gameTime + (status.armorBreakSecs * 1000).toLong()))
-        }
-        if (status.flinchChance > 0f && status.flinchPower > 0f && Random.nextFloat() < status.flinchChance) {
-            val armor = if (gameTime < t.armorBrokenUntil) 0f else t.hyperArmor
-            if (status.flinchPower > armor) {
-                // Stagger: brief visual window + the next attack is delayed (interrupted).
-                t = t.copy(flinchedUntil = gameTime + 900L, lastAttackTime = t.lastAttackTime + 1500L)
-            }
-        }
-        return t
-    }
-
-    /** Roll a virus variant for an encounter; nastier types unlock on deeper floors. */
-    fun rollVirusVariant(): VirusVariant {
-        val r = Random.nextFloat()
-        return when {
-            areaLevel >= 3 && r < 0.10f -> VirusVariant.BRUISER
-            areaLevel >= 3 && r < 0.20f -> VirusVariant.WARDEN
-            areaLevel >= 2 && r < 0.34f -> VirusVariant.BURNER
-            areaLevel >= 2 && r < 0.46f -> VirusVariant.POISONER
-            else -> VirusVariant.NORMAL
-        }
-    }
-
-    /** Per-variant modifiers: HP multiplier, hyper armor, buster/basic resist fraction. */
-    fun variantMods(v: VirusVariant): Triple<Float, Float, Float> = when (v) {
-        VirusVariant.NORMAL -> Triple(1f, 0f, 0f)
-        VirusVariant.BURNER -> Triple(1.1f, 1f, 0f)
-        VirusVariant.POISONER -> Triple(1.1f, 1f, 0f)
-        VirusVariant.BRUISER -> Triple(1.6f, 6f, 0f)
-        VirusVariant.WARDEN -> Triple(1.2f, 2f, 0.5f)
-    }
-
-    /** Status payload carried by a variant's shots (null for NORMAL/WARDEN/BRUISER). */
-    fun variantAttackStatus(v: VirusVariant): HitStatus? = when (v) {
-        VirusVariant.BURNER -> HitStatus(
-            burnDps = 6f + areaLevel * 2f, burnSecs = 4f,
-            flinchChance = 0.15f, flinchPower = 1f
-        )
-        VirusVariant.POISONER -> HitStatus(
-            poisonDps = 5f + areaLevel * 1.5f, poisonSecs = 6f,
-            flinchChance = 0.15f, flinchPower = 1f
-        )
-        else -> null
     }
 
     fun triggerEncounter() {
