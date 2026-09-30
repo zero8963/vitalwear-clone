@@ -101,6 +101,7 @@
             android:name=".lab.MapAdventureActivity"
             android:exported="true"
             android:label="Map Adventure"
+            android:configChanges="orientation|screenSize|screenLayout|keyboardHidden|smallestScreenSize|density"
             android:theme="@style/Theme.VitalwearCloneV1" />
 
         <activity

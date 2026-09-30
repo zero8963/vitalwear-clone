@@ -39,6 +39,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -982,87 +983,178 @@ fun GridBattleScreen(
     chipAtkScale: Float = 1f,
     playerStatus: String = ""
 ) {
-    val density = LocalDensity.current
-    val cellSize = 50.dp 
-    val cellSizePx = with(density) { cellSize.toPx() }
-    Column(Modifier.fillMaxSize().background(Color(0, 0, 15)).padding(16.dp)) {
-        Row(Modifier.fillMaxWidth(), Arrangement.SpaceBetween) {
-            Column {
-                Text("$nickname LV$level", color = Color.Green, fontWeight = FontWeight.Bold, fontSize = 18.sp)
-                if (hudLine.isNotEmpty()) Text(hudLine, color = Color.Cyan, fontSize = 9.sp)
-                chipHudHint?.let { Text(it, color = Color.Gray, fontSize = 9.sp) }
-                // 2026-09-30: player status line (burn/poison/stagger).
-                if (playerStatus.isNotEmpty()) Text(playerStatus, color = Color(0xFFFFAA66), fontSize = 10.sp, fontWeight = FontWeight.Bold)
+    // 2026-09-30: adaptive battle layout. The arena cell shrinks to fit the available
+    // space so the field is always fully visible (portrait and landscape). In landscape
+    // the controls move to a side column instead of stacking below the arena.
+    BoxWithConstraints(Modifier.fillMaxSize().background(Color(0, 0, 15)).padding(16.dp)) {
+        val isLandscape = maxWidth > maxHeight
+        if (isLandscape) {
+            Row(Modifier.fillMaxSize()) {
+                Column(Modifier.weight(1f).fillMaxHeight()) {
+                    BattleHeader(nickname, level, hp, maxHp, hudLine, chipHudHint, playerStatus, compact = true)
+                    Spacer(Modifier.height(4.dp))
+                    BoxWithConstraints(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
+                        val cellSize = minOf(50.dp, maxWidth / 6, maxHeight / 3)
+                        BattleArena(cellSize, playerX, playerY, playerSprites, isAttacking, attackFxId, attackFxProgress, coreFxKey, enemies, enemySprites, projectiles, gameTime)
+                    }
+                }
+                Spacer(Modifier.width(8.dp))
+                Column(Modifier.fillMaxHeight(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+                    BattleTray(battlePrograms, onUseProgram, chipHand, onUseChip, chipAtkScale, horizontal = false)
+                    Spacer(Modifier.height(8.dp))
+                    BattleControls(onMove, onAttack, compact = true)
+                }
             }
-            Column(horizontalAlignment = Alignment.End) {
-                Text("HP ${hp.toInt()} / ${maxHp.toInt()}", color = Color.White, fontSize = 10.sp)
-                LinearProgressIndicator(progress = (hp / maxHp).coerceIn(0f, 1f), Modifier.width(120.dp).height(10.dp).clip(RoundedCornerShape(5.dp)), color = Color.Green, backgroundColor = Color.Red)
+        } else {
+            Column(Modifier.fillMaxSize()) {
+                BattleHeader(nickname, level, hp, maxHp, hudLine, chipHudHint, playerStatus, compact = false)
+                // Battle Program Slide Menu
+                Spacer(Modifier.height(8.dp))
+                BattleTray(battlePrograms, onUseProgram, chipHand, onUseChip, chipAtkScale, horizontal = true)
+                BoxWithConstraints(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
+                    val cellSize = minOf(50.dp, maxWidth / 6, maxHeight / 3)
+                    BattleArena(cellSize, playerX, playerY, playerSprites, isAttacking, attackFxId, attackFxProgress, coreFxKey, enemies, enemySprites, projectiles, gameTime)
+                }
+                BattleControls(onMove, onAttack, compact = false)
             }
         }
-        
-        // Battle Program Slide Menu
-        Spacer(Modifier.height(8.dp))
+    }
+}
+
+/**
+ * 2026-09-30: battle header. The left column takes weight(1f) so a long program
+ * line (buster-change + DoT coats) can never push the HP readout off-screen, and
+ * the program line is capped at 2 lines with ellipsis so the header height stays
+ * stable instead of shoving the battlefield down.
+ */
+@Composable
+private fun BattleHeader(
+    nickname: String, level: Int, hp: Float, maxHp: Float,
+    hudLine: String, chipHudHint: String?, playerStatus: String, compact: Boolean
+) {
+    Row(Modifier.fillMaxWidth(), Arrangement.SpaceBetween, verticalAlignment = Alignment.Top) {
+        Column(Modifier.weight(1f)) {
+            Text("$nickname LV$level", color = Color.Green, fontWeight = FontWeight.Bold, fontSize = if (compact) 14.sp else 18.sp)
+            if (hudLine.isNotEmpty()) Text(hudLine, color = Color.Cyan, fontSize = 9.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
+            chipHudHint?.let { Text(it, color = Color.Gray, fontSize = 9.sp, maxLines = 1, overflow = TextOverflow.Ellipsis) }
+            // 2026-09-30: player status line (burn/poison/stagger).
+            if (playerStatus.isNotEmpty()) Text(playerStatus, color = Color(0xFFFFAA66), fontSize = 10.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+        }
+        Spacer(Modifier.width(8.dp))
+        Column(horizontalAlignment = Alignment.End) {
+            Text("HP ${hp.toInt()} / ${maxHp.toInt()}", color = Color.White, fontSize = 10.sp, maxLines = 1)
+            LinearProgressIndicator(progress = (hp / maxHp).coerceIn(0f, 1f), Modifier.width(120.dp).height(10.dp).clip(RoundedCornerShape(5.dp)), color = Color.Green, backgroundColor = Color.Red)
+        }
+    }
+}
+
+/** 2026-09-30: chip + battle-program tray. Horizontal in portrait, vertical strip in landscape. */
+@Composable
+private fun BattleTray(
+    battlePrograms: List<BattleProgramType>,
+    onUseProgram: (BattleProgramType) -> Unit,
+    chipHand: List<Int>,
+    onUseChip: (Int) -> Unit,
+    chipAtkScale: Float,
+    horizontal: Boolean
+) {
+    if (horizontal) {
         Box(Modifier.fillMaxWidth().height(60.dp).background(Color.Black.copy(0.3f), RoundedCornerShape(8.dp)).padding(4.dp)) {
             if (battlePrograms.isEmpty() && chipHand.isEmpty()) {
                 Text("NO PROGRAMS LOADED", color = Color.Gray, fontSize = 10.sp, modifier = Modifier.align(Alignment.Center))
             } else {
                 androidx.compose.foundation.lazy.LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    items(chipHand.size) { index ->
-                        val chipId = chipHand[index]
-                        val chip = ChipLibrary.byId(chipId)
-                        if (chip != null) {
-                            val chipColor = elementColor(chip.element)
-                            Column(
-                                Modifier
-                                    .width(70.dp)
-                                    .fillMaxHeight()
-                                    .background(chipColor.copy(0.2f), RoundedCornerShape(4.dp))
-                                    .border(1.dp, chipColor, RoundedCornerShape(4.dp))
-                                    .clickable { onUseChip(chipId) }
-                                    .padding(4.dp),
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                verticalArrangement = Arrangement.Center
-                            ) {
-                                Text(chip.name, color = Color.White, fontSize = 7.sp, fontWeight = FontWeight.Bold, maxLines = 2)
-                                // 2026-09-30: chips scale with ATK; status payloads are labeled.
-                                Text("${(chip.damage * chipAtkScale).toInt()} DMG", color = Color.White, fontSize = 8.sp)
-                                val sLabel = chipStatusLabel(chip.status)
-                                if (sLabel.isNotEmpty()) Text(sLabel, color = Color(0xFFFFD54F), fontSize = 7.sp)
-                            }
-                        }
-                    }
-                    items(battlePrograms.size) { index ->
-                        val program = battlePrograms[index]
-                        Column(
-                            Modifier
-                                .width(70.dp)
-                                .fillMaxHeight()
-                                .background(program.color.copy(0.2f), RoundedCornerShape(4.dp))
-                                .border(1.dp, program.color, RoundedCornerShape(4.dp))
-                                .clickable { onUseProgram(program) }
-                                .padding(4.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.Center
-                        ) {
-                            Text(program.icon, fontSize = 16.sp)
-                            Text(program.displayName, color = Color.White, fontSize = 8.sp, fontWeight = FontWeight.Bold)
-                        }
+                    items(chipHand.size) { index -> BattleChipCard(chipHand[index], onUseChip, chipAtkScale) }
+                    items(battlePrograms.size) { index -> BattleProgramCard(battlePrograms[index], onUseProgram) }
+                }
+            }
+        }
+    } else {
+        Box(Modifier.width(80.dp).fillMaxHeight().background(Color.Black.copy(0.3f), RoundedCornerShape(8.dp)).padding(4.dp)) {
+            if (battlePrograms.isEmpty() && chipHand.isEmpty()) {
+                Text("NO PROGRAMS", color = Color.Gray, fontSize = 8.sp, modifier = Modifier.align(Alignment.Center))
+            } else {
+                androidx.compose.foundation.lazy.LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    items(chipHand.size) { index -> BattleChipCard(chipHand[index], onUseChip, chipAtkScale) }
+                    items(battlePrograms.size) { index -> BattleProgramCard(battlePrograms[index], onUseProgram) }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun BattleChipCard(chipId: Int, onUseChip: (Int) -> Unit, chipAtkScale: Float) {
+    val chip = ChipLibrary.byId(chipId) ?: return
+    val chipColor = elementColor(chip.element)
+    Column(
+        Modifier
+            .width(70.dp)
+            .height(52.dp)
+            .background(chipColor.copy(0.2f), RoundedCornerShape(4.dp))
+            .border(1.dp, chipColor, RoundedCornerShape(4.dp))
+            .clickable { onUseChip(chipId) }
+            .padding(4.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Text(chip.name, color = Color.White, fontSize = 7.sp, fontWeight = FontWeight.Bold, maxLines = 2, overflow = TextOverflow.Ellipsis)
+        // 2026-09-30: chips scale with ATK; status payloads are labeled.
+        Text("${(chip.damage * chipAtkScale).toInt()} DMG", color = Color.White, fontSize = 8.sp, maxLines = 1)
+        val sLabel = chipStatusLabel(chip.status)
+        if (sLabel.isNotEmpty()) Text(sLabel, color = Color(0xFFFFD54F), fontSize = 7.sp, maxLines = 1)
+    }
+}
+
+@Composable
+private fun BattleProgramCard(program: BattleProgramType, onUseProgram: (BattleProgramType) -> Unit) {
+    Column(
+        Modifier
+            .width(70.dp)
+            .height(52.dp)
+            .background(program.color.copy(0.2f), RoundedCornerShape(4.dp))
+            .border(1.dp, program.color, RoundedCornerShape(4.dp))
+            .clickable { onUseProgram(program) }
+            .padding(4.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Text(program.icon, fontSize = 16.sp)
+        Text(program.displayName, color = Color.White, fontSize = 8.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+    }
+}
+
+/**
+ * 2026-09-30: the 6x3 battlefield (grid + entities + projectiles + FX), sized by the
+ * caller from the actual available space so it is always fully visible and centered.
+ */
+@Composable
+private fun BattleArena(
+    cellSize: androidx.compose.ui.unit.Dp,
+    playerX: Int, playerY: Int,
+    playerSprites: Map<String, Bitmap>,
+    isAttacking: Boolean,
+    attackFxId: Int?,
+    attackFxProgress: Float,
+    coreFxKey: String?,
+    enemies: List<GridEntity>,
+    enemySprites: List<Bitmap>,
+    projectiles: List<GridProjectile>,
+    gameTime: Long
+) {
+    val density = LocalDensity.current
+    val cellSizePx = with(density) { cellSize.toPx() }
+    Box(contentAlignment = Alignment.Center) {
+        Column {
+            repeat(3) { y ->
+                Row {
+                    repeat(6) { x ->
+                        Box(Modifier.size(cellSize).border(1.dp, if (x < 3) Color.Blue.copy(0.4f) else Color.Red.copy(0.4f)).background(if (x < 3) Color.Blue.copy(0.1f) else Color.Red.copy(0.1f)))
                     }
                 }
             }
         }
-
-        Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
-            Column {
-                repeat(3) { y -> 
-                    Row { 
-                        repeat(6) { x -> 
-                            Box(Modifier.size(cellSize).border(1.dp, if (x < 3) Color.Blue.copy(0.4f) else Color.Red.copy(0.4f)).background(if (x < 3) Color.Blue.copy(0.1f) else Color.Red.copy(0.1f))) 
-                        } 
-                    } 
-                }
-            }
-            Box(Modifier.size(width = cellSize * 6, height = cellSize * 3)) {
+        Box(Modifier.size(width = cellSize * 6, height = cellSize * 3)) {
                 // Character in Battle: Reverted scaleX = -1f to fix facing backwards issue
                 val pBmp = if (isAttacking) {
                     playerSprites["ATTACK"] ?: playerSprites["IDLE"]
@@ -1138,7 +1230,32 @@ fun GridBattleScreen(
                 }
             }
         }
-        Row(Modifier.fillMaxWidth().padding(bottom = 60.dp), Arrangement.SpaceBetween) {
+    }
+
+/**
+ * 2026-09-30: D-pad + SWD/BST controls. Full size in portrait; compact in landscape
+ * so the arena keeps usable height.
+ */
+@Composable
+private fun BattleControls(onMove: (Int, Int) -> Unit, onAttack: (String) -> Unit, compact: Boolean) {
+    if (compact) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Button(onClick = { onAttack("SWORD") }, Modifier.size(56.dp), colors = ButtonDefaults.buttonColors(backgroundColor = Color.Red), shape = CircleShape, contentPadding = PaddingValues(0.dp)) { Text("SWD", color = Color.White, fontSize = 12.sp) }
+                Button(onClick = { onAttack("BUSTER") }, Modifier.size(56.dp), colors = ButtonDefaults.buttonColors(backgroundColor = Color.Cyan), shape = CircleShape, contentPadding = PaddingValues(0.dp)) { Text("BST", fontSize = 12.sp) }
+            }
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                IconButton(onClick = { onMove(0, -1) }, Modifier.size(40.dp).background(Color.DarkGray.copy(0.8f), CircleShape)) { Icon(Icons.Default.KeyboardArrowUp, null, tint = Color.White) }
+                Row(modifier = Modifier.padding(vertical = 4.dp)) {
+                    IconButton(onClick = { onMove(-1, 0) }, Modifier.size(40.dp).background(Color.DarkGray.copy(0.8f), CircleShape)) { Icon(Icons.Default.KeyboardArrowLeft, null, tint = Color.White) }
+                    Spacer(Modifier.width(32.dp))
+                    IconButton(onClick = { onMove(1, 0) }, Modifier.size(40.dp).background(Color.DarkGray.copy(0.8f), CircleShape)) { Icon(Icons.Default.KeyboardArrowRight, null, tint = Color.White) }
+                }
+                IconButton(onClick = { onMove(0, 1) }, Modifier.size(40.dp).background(Color.DarkGray.copy(0.8f), CircleShape)) { Icon(Icons.Default.KeyboardArrowDown, null, tint = Color.White) }
+            }
+        }
+    } else {
+        Row(Modifier.fillMaxWidth().padding(bottom = 60.dp), Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 IconButton(onClick = { onMove(0, -1) }, Modifier.background(Color.DarkGray.copy(0.8f), CircleShape)) { Icon(Icons.Default.KeyboardArrowUp, null, tint = Color.White) }
                 Row(modifier = Modifier.padding(vertical = 10.dp)) {
