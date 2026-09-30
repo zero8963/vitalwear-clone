@@ -148,6 +148,14 @@ object VBBraceletSpeciesMap {
     }
 
     /**
+     * True for "Slot 0xNN" placeholder entries: unmapped roster slots kept
+     * selectable for experimental evolve-back writes. These are NOT real
+     * species names — never present them as candidates or record them as such.
+     */
+    fun isPlaceholderSlot(speciesName: String): Boolean =
+        speciesName.startsWith("Slot 0x")
+
+    /**
      * Renamon DIM species map.
      * Roster order + attributes (b13) parsed directly from the DIM file
      * (DIM_Renamon_35_5mmd.bin, character stats at 0x30000, bitwise-NOT encoded).
@@ -174,6 +182,24 @@ object VBBraceletSpeciesMap {
         "Kyubimon" to SpeciesBytes(b9 = 0x03, stage = 3, b13 = 0x02, b15 = null, confirmed = false),
         // Ultimate (main line: Taomon is one of slots 07-12, needs device ID)
         // Mega (main line: Sakuyamon/Kuzuhamon/Sakuyamon Maid Mode are slots 13-16, needs device ID)
+        // -----
+        // Unmapped roster slots: selectable as EXPERIMENTAL. b9/stage from the DIM
+        // roster dump; b13/b15 unknown and kept from the source backup on write.
+        // Names to be confirmed later — do not treat these labels as real species.
+        "Slot 0x04" to SpeciesBytes(b9 = 0x04, stage = 3, b13 = null, b15 = null, confirmed = false),
+        "Slot 0x05" to SpeciesBytes(b9 = 0x05, stage = 3, b13 = null, b15 = null, confirmed = false),
+        "Slot 0x06" to SpeciesBytes(b9 = 0x06, stage = 3, b13 = null, b15 = null, confirmed = false),
+        "Slot 0x07" to SpeciesBytes(b9 = 0x07, stage = 4, b13 = null, b15 = null, confirmed = false),
+        "Slot 0x08" to SpeciesBytes(b9 = 0x08, stage = 4, b13 = null, b15 = null, confirmed = false),
+        "Slot 0x09" to SpeciesBytes(b9 = 0x09, stage = 4, b13 = null, b15 = null, confirmed = false),
+        "Slot 0x0A" to SpeciesBytes(b9 = 0x0A, stage = 4, b13 = null, b15 = null, confirmed = false),
+        "Slot 0x0B" to SpeciesBytes(b9 = 0x0B, stage = 4, b13 = null, b15 = null, confirmed = false),
+        "Slot 0x0C" to SpeciesBytes(b9 = 0x0C, stage = 4, b13 = null, b15 = null, confirmed = false),
+        "Slot 0x0D" to SpeciesBytes(b9 = 0x0D, stage = 5, b13 = null, b15 = null, confirmed = false),
+        "Slot 0x0E" to SpeciesBytes(b9 = 0x0E, stage = 5, b13 = null, b15 = null, confirmed = false),
+        "Slot 0x0F" to SpeciesBytes(b9 = 0x0F, stage = 5, b13 = null, b15 = null, confirmed = false),
+        "Slot 0x10" to SpeciesBytes(b9 = 0x10, stage = 5, b13 = null, b15 = null, confirmed = false),
+
     )
 
     /**
@@ -200,6 +226,25 @@ object VBBraceletSpeciesMap {
         "Gargomon" to SpeciesBytes(b9 = 0x03, stage = 3, b13 = 0x03, b15 = null, confirmed = false),
         // Ultimate (main line: Rapidmon is one of slots 07-12, needs device ID)
         // Mega (main line: MegaGargomon/SaintGargomon are slots 13-16, needs device ID)
+        // -----
+        // Unmapped roster slots: selectable as EXPERIMENTAL. b9/stage from the DIM
+        // roster dump; b13/b15 unknown and kept from the source backup on write.
+        // Names to be confirmed later — do not treat these labels as real species.
+        "Slot 0x00" to SpeciesBytes(b9 = 0x00, stage = 0, b13 = null, b15 = null, confirmed = false),
+        "Slot 0x04" to SpeciesBytes(b9 = 0x04, stage = 3, b13 = null, b15 = null, confirmed = false),
+        "Slot 0x05" to SpeciesBytes(b9 = 0x05, stage = 3, b13 = null, b15 = null, confirmed = false),
+        "Slot 0x06" to SpeciesBytes(b9 = 0x06, stage = 3, b13 = null, b15 = null, confirmed = false),
+        "Slot 0x07" to SpeciesBytes(b9 = 0x07, stage = 4, b13 = null, b15 = null, confirmed = false),
+        "Slot 0x08" to SpeciesBytes(b9 = 0x08, stage = 4, b13 = null, b15 = null, confirmed = false),
+        "Slot 0x09" to SpeciesBytes(b9 = 0x09, stage = 4, b13 = null, b15 = null, confirmed = false),
+        "Slot 0x0A" to SpeciesBytes(b9 = 0x0A, stage = 4, b13 = null, b15 = null, confirmed = false),
+        "Slot 0x0B" to SpeciesBytes(b9 = 0x0B, stage = 4, b13 = null, b15 = null, confirmed = false),
+        "Slot 0x0C" to SpeciesBytes(b9 = 0x0C, stage = 4, b13 = null, b15 = null, confirmed = false),
+        "Slot 0x0D" to SpeciesBytes(b9 = 0x0D, stage = 5, b13 = null, b15 = null, confirmed = false),
+        "Slot 0x0E" to SpeciesBytes(b9 = 0x0E, stage = 5, b13 = null, b15 = null, confirmed = false),
+        "Slot 0x0F" to SpeciesBytes(b9 = 0x0F, stage = 5, b13 = null, b15 = null, confirmed = false),
+        "Slot 0x10" to SpeciesBytes(b9 = 0x10, stage = 5, b13 = null, b15 = null, confirmed = false),
+
     )
 
     /**
@@ -222,5 +267,26 @@ object VBBraceletSpeciesMap {
         // Rookie (main line)
         "Ryudamon" to SpeciesBytes(b9 = 0x02, stage = 2, b13 = 0x03, b15 = null, confirmed = false),
         // Champion/Ultimate/Mega names need device confirmation
+        // -----
+        // Unmapped roster slots: selectable as EXPERIMENTAL. b9/stage from the DIM
+        // roster dump; b13/b15 unknown and kept from the source backup on write.
+        // Names to be confirmed later — do not treat these labels as real species.
+        "Slot 0x00" to SpeciesBytes(b9 = 0x00, stage = 0, b13 = null, b15 = null, confirmed = false),
+        "Slot 0x01" to SpeciesBytes(b9 = 0x01, stage = 1, b13 = null, b15 = null, confirmed = false),
+        "Slot 0x03" to SpeciesBytes(b9 = 0x03, stage = 2, b13 = null, b15 = null, confirmed = false),
+        "Slot 0x04" to SpeciesBytes(b9 = 0x04, stage = 3, b13 = null, b15 = null, confirmed = false),
+        "Slot 0x05" to SpeciesBytes(b9 = 0x05, stage = 3, b13 = null, b15 = null, confirmed = false),
+        "Slot 0x06" to SpeciesBytes(b9 = 0x06, stage = 3, b13 = null, b15 = null, confirmed = false),
+        "Slot 0x07" to SpeciesBytes(b9 = 0x07, stage = 3, b13 = null, b15 = null, confirmed = false),
+        "Slot 0x08" to SpeciesBytes(b9 = 0x08, stage = 4, b13 = null, b15 = null, confirmed = false),
+        "Slot 0x09" to SpeciesBytes(b9 = 0x09, stage = 4, b13 = null, b15 = null, confirmed = false),
+        "Slot 0x0A" to SpeciesBytes(b9 = 0x0A, stage = 4, b13 = null, b15 = null, confirmed = false),
+        "Slot 0x0B" to SpeciesBytes(b9 = 0x0B, stage = 4, b13 = null, b15 = null, confirmed = false),
+        "Slot 0x0C" to SpeciesBytes(b9 = 0x0C, stage = 4, b13 = null, b15 = null, confirmed = false),
+        "Slot 0x0D" to SpeciesBytes(b9 = 0x0D, stage = 5, b13 = null, b15 = null, confirmed = false),
+        "Slot 0x0E" to SpeciesBytes(b9 = 0x0E, stage = 5, b13 = null, b15 = null, confirmed = false),
+        "Slot 0x0F" to SpeciesBytes(b9 = 0x0F, stage = 5, b13 = null, b15 = null, confirmed = false),
+        "Slot 0x10" to SpeciesBytes(b9 = 0x10, stage = 5, b13 = null, b15 = null, confirmed = false),
+
     )
 }

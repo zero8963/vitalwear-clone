@@ -114,7 +114,10 @@ object VBBraceletResearch {
             "Ryudamon" to VBBraceletSpeciesMap.RYUDAMON
         )
         return cards.flatMap { (card, map) ->
-            map.entries.filter { it.value.b9 == b9 }.map { (name, _) -> name to card }
+            map.entries
+                .filter { it.value.b9 == b9 }
+                .filterNot { (name, _) -> VBBraceletSpeciesMap.isPlaceholderSlot(name) }
+                .map { (name, _) -> name to card }
         }
     }
 
