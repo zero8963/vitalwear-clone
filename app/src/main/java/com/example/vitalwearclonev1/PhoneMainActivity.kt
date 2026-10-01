@@ -986,7 +986,17 @@ fun HomeScreen(monsterManager: PhoneMonsterManager, isWatchConnected: Boolean?) 
                                     currentWins = monster.currentWins,
                                     winsRequired = monster.winsRequired,
                                     timeAlive = monster.timeAlive,
-                                    evolutionTime = monster.evolutionTime
+                                    evolutionTime = monster.evolutionTime,
+                                    attribute = monster.attribute,
+                                    mood = monster.mood,
+                                    steps = monster.steps,
+                                    bp = monster.bp,
+                                    sp = monster.sp,
+                                    winRatio = monster.winRatio,
+                                    // 2026-10-01: preserve battle record + VP through Lab storage.
+                                    trophies = monster.trophies,
+                                    losses = monster.losses,
+                                    vitalPoints = monster.vitalPoints
                                 )
                             )
                             val prefs = context.getSharedPreferences("phone_monster_prefs", Context.MODE_PRIVATE)

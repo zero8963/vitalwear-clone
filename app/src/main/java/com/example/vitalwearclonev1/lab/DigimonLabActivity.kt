@@ -92,7 +92,9 @@ data class StoredMonster(
     val winRatio: Int = 0,
     val trophies: Int = 0,
     /** Lifetime losses (app-side battle record). Seeded from the bracelet at adoption. */
-    val losses: Int = 0
+    val losses: Int = 0,
+    /** 2026-10-01: Vital Points must survive the Lab round-trip. */
+    val vitalPoints: Int = 0
 )
 
 object LabStorage {
@@ -442,7 +444,10 @@ fun LabUI() {
                                 bp = monster.bp,
                                 sp = monster.sp,
                                 winRatio = monster.winRatio,
-                                trophies = monster.trophies
+                                trophies = monster.trophies,
+                                // 2026-10-01: restore battle record + VP from Lab.
+                                losses = monster.losses,
+                                vitalPoints = monster.vitalPoints
                             )
                             LabStorage.removeMonster(context, index)
                             Toast.makeText(context, "${monster.nickname ?: monster.name} moved to Home!", Toast.LENGTH_SHORT).show()

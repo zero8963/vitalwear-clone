@@ -183,7 +183,10 @@ class PhoneMonsterManager(private val context: Context) {
         bp: Int = 0,
         sp: Int = 0,
         winRatio: Int = 0,
-        trophies: Int = 0
+        trophies: Int = 0,
+        // 2026-10-01: losses + VP must survive Lab store/restore round-trips.
+        losses: Int = 0,
+        vitalPoints: Int = 0
     ) {
         val previous = getCurrentMonster()
         val isFresh = previous == null || previous.cardName != cardName || previous.characterId != characterId
@@ -213,6 +216,8 @@ class PhoneMonsterManager(private val context: Context) {
             .putInt("current_sp", sp)
             .putInt("current_win_ratio", winRatio)
             .putInt("current_trophies", trophies)
+            .putInt("current_losses", losses)
+            .putInt("current_vital_points", vitalPoints)
             // Fresh monster: no de-digivolve safety net.
             .putInt("previous_character_id", -1)
             .apply()
@@ -442,6 +447,19 @@ class PhoneMonsterManager(private val context: Context) {
             .putLong("current_last_care_tick", System.currentTimeMillis())
             .apply()
 
+        // 2026-10-01: Net World floor progress follows the Digimon through
+        // evolution (it's the same partner, just a new form). Take the max
+        // in case the new form already has progress.
+        try {
+            val ap = context.getSharedPreferences("adventure_prefs", Context.MODE_PRIVATE)
+            val oldKey = "highest_floor_${current.cardName}_${current.characterId}"
+            val newKey = "highest_floor_${current.cardName}_$toIndex"
+            val migrated = maxOf(ap.getInt(oldKey, 0), ap.getInt(newKey, 0))
+            if (migrated > 0) ap.edit().putInt(newKey, migrated).apply()
+        } catch (t: Throwable) {
+            Timber.e(t, "evolveTo: failed to migrate Net World floor progress")
+        }
+
         applyCardBaseStats(current.cardName, toIndex)
         Timber.d("Evolved ${current.cardName}: ${current.characterId} -> $toIndex")
         return true
@@ -507,6 +525,17 @@ class PhoneMonsterManager(private val context: Context) {
             .putInt("previous_character_id", -1)
             .putLong("current_last_care_tick", System.currentTimeMillis())
             .apply()
+
+        // 2026-10-01: Net World floor progress follows the Digimon back down.
+        try {
+            val ap = context.getSharedPreferences("adventure_prefs", Context.MODE_PRIVATE)
+            val oldKey = "highest_floor_${current.cardName}_${current.characterId}"
+            val newKey = "highest_floor_${current.cardName}_$priorId"
+            val migrated = maxOf(ap.getInt(oldKey, 0), ap.getInt(newKey, 0))
+            if (migrated > 0) ap.edit().putInt(newKey, migrated).apply()
+        } catch (t: Throwable) {
+            Timber.e(t, "deDigivolve: failed to migrate Net World floor progress")
+        }
 
         applyCardBaseStats(current.cardName, priorId)
         // Flag for the UI to announce the bounce.
