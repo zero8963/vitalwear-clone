@@ -1,0 +1,47 @@
+name: Publish Latest Release
+
+# Keeps a rolling "latest" release stocked with fresh APKs after every
+# successful main-branch build, so shared download links never go stale.
+on:
+  workflow_run:
+    workflows: ["Build APKs"]
+    types: [completed]
+    branches: [main]
+
+jobs:
+  publish:
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download APKs from the build run
+        uses: actions/download-artifact@v4
+        with:
+          name: vitalwear-apks
+          path: apks
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Stage release files
+        run: |
+          mkdir -p release
+          cp apks/app/build/outputs/apk/debug/app-debug.apk release/digital-masters-phone.apk
+          cp apks/wear/build/outputs/apk/debug/wear-debug.apk release/digital-masters-watch.apk
+          # Watch face ships from the v1.0.0 release (separate project, rarely changes).
+          curl -sL -o release/digital-masters-watchface.apk \
+            https://github.com/zero8963/vitalwear-clone/releases/download/v1.0.0/digital-masters-watchface.apk
+          ls -la release/
+
+      - name: Update rolling latest release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: latest
+          name: Digital Masters (latest build)
+          body: |
+            Rolling build of Digital Masters from the latest green `main` commit.
+
+            - **digital-masters-phone.apk** — phone app (dual-ABI: 32-bit and 64-bit). Installs over previous builds, data preserved.
+            - **digital-masters-watch.apk** — Wear OS companion app for Galaxy Watch.
+            - **digital-masters-watchface.apk** — VitalWear Partner watch face.
+          files: release/*.apk
