@@ -630,6 +630,10 @@ fun VitalWearApp(service: VitalForegroundService?, isBound: Boolean, isAmbient: 
                         currentScreen.value = "GAME"
                         monsterState.value = monsterManager.getCurrentMonster()
                     }
+                    "STATUS" -> StatusScreen(monsterManager, cardManager) {
+                        currentScreen.value = "GAME"
+                        monsterState.value = monsterManager.getCurrentMonster()
+                    }
                 }
             }
 
@@ -758,6 +762,10 @@ fun MenuScreen(phoneConnected: Boolean?, monsterState: MonsterManager.MonsterSta
 
         item {
             Chip(label = { Text("Storage") }, onClick = { onNavigate("STORAGE", "") }, modifier = Modifier.fillMaxWidth().padding(horizontal = 10.dp), colors = ChipDefaults.primaryChipColors(backgroundColor = Color(80, 60, 130)))
+        }
+
+        item {
+            Chip(label = { Text("Status") }, onClick = { onNavigate("STATUS", "") }, modifier = Modifier.fillMaxWidth().padding(horizontal = 10.dp), colors = ChipDefaults.primaryChipColors(backgroundColor = Color(0, 150, 136)))
         }
 
         item {
@@ -893,6 +901,141 @@ fun WorkoutListScreen(onBack: () -> Unit, samsungWorkouts: Int = 0, samsungWorko
         }
         item {
             Button(onClick = onBack, Modifier.padding(top = 10.dp)) { Text("Back") }
+        }
+    }
+}
+
+/**
+ * 2026-10-01: Partner status screen — evolution history, next evolutions with
+ * requirements, battle record, trophies, and VP.
+ */
+@Composable
+fun StatusScreen(monsterManager: MonsterManager, cardManager: CardManager, onExit: () -> Unit) {
+    val state = remember { mutableStateOf(monsterManager.getCurrentMonster()) }
+    val history = remember { mutableStateOf(monsterManager.getEvolutionHistory()) }
+    val candidates = remember { mutableStateOf(monsterManager.getEvolutionCandidates()) }
+
+    fun speciesName(cardName: String, charId: Int): String {
+        return try {
+            val map = com.example.vitalwearclonev1.communication.VBBraceletSpeciesMap.mapFor(cardName)
+            map?.entries?.firstOrNull { it.value.b9 == charId }?.key ?: "Species #$charId"
+        } catch (t: Throwable) {
+            "Species #$charId"
+        }
+    }
+
+    val stageNames = listOf("Egg", "Baby I", "Baby II", "Child", "Adult", "Ultimate", "Mega")
+
+    ScalingLazyColumn(Modifier.fillMaxSize().background(Color(0xFF0B1220)), horizontalAlignment = Alignment.CenterHorizontally) {
+        item { Text("STATUS", Modifier.padding(vertical = 10.dp), Color.Cyan, fontWeight = FontWeight.Bold) }
+
+        val s = state.value
+        if (s == null) {
+            item { Text("No partner", Modifier.padding(16.dp), Color.Gray) }
+        } else {
+            // Current form
+            item {
+                Text(
+                    speciesName(s.cardName, s.characterId),
+                    Modifier.padding(top = 4.dp), Color.White,
+                    fontWeight = FontWeight.Bold, fontSize = 16.sp
+                )
+            }
+            item {
+                Text(
+                    stageNames.getOrElse(s.stage) { "Stage ${s.stage}" },
+                    Modifier.padding(bottom = 8.dp), Color(0xFF88CCFF), fontSize = 12.sp
+                )
+            }
+
+            // Battle record
+            val total = s.currentWins + s.losses
+            val pct = if (total > 0) (s.currentWins * 100 / total) else 0
+            item {
+                Text(
+                    "W ${s.currentWins} / L ${s.losses}  ($pct%)",
+                    Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp,
+                    modifier = Modifier.padding(top = 8.dp)
+                )
+            }
+            item {
+                Row(
+                    Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 8.dp),
+                    horizontalArrangement = Arrangement.SpaceEvenly
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text("🏆", fontSize = 18.sp)
+                        Text("${s.trophies}", Color(0xFFFFD700), fontWeight = FontWeight.Bold)
+                        Text("Trophies", Color.Gray, fontSize = 10.sp)
+                    }
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text("⚡", fontSize = 18.sp)
+                        Text("${s.vitalPoints}", Color(0xFF00FF88), fontWeight = FontWeight.Bold)
+                        Text("VP", Color.Gray, fontSize = 10.sp)
+                    }
+                }
+            }
+
+            // Evolution history
+            item {
+                Text("EVOLUTION PATH", Modifier.padding(top = 12.dp, bottom = 4.dp), Color.Cyan, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+            }
+            val hist = history.value
+            if (hist.isEmpty()) {
+                item { Text("—", Color.Gray, fontSize = 12.sp) }
+            } else {
+                items(hist.size) { i ->
+                    val name = speciesName(s.cardName, hist[i])
+                    Text(
+                        (if (i == hist.size - 1) "→ " else "  ") + name,
+                        Color(if (i == hist.size - 1) Color.White else Color.Gray),
+                        fontSize = 12.sp,
+                        fontWeight = if (i == hist.size - 1) FontWeight.Bold else FontWeight.Normal
+                    )
+                }
+            }
+
+            // Next evolutions
+            item {
+                Text("NEXT EVOLUTIONS", Modifier.padding(top = 12.dp, bottom = 4.dp), Color.Cyan, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+            }
+            val cands = candidates.value
+            if (cands.isEmpty()) {
+                item { Text("Max evolution", Color.Gray, fontSize = 12.sp) }
+            } else {
+                items(cands.size) { i ->
+                    val c = cands[i]
+                    val targetName = speciesName(s.cardName, c.path.toCharacterIndex)
+                    Column(
+                        Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp)
+                            .background(Color(0xFF1A2332), RoundedCornerShape(8.dp))
+                            .padding(8.dp)
+                    ) {
+                        Text(
+                            targetName + if (c.requirementsMet) " ✓" else "",
+                            Color(if (c.requirementsMet) Color(0xFF00FF88) else Color.White),
+                            fontWeight = FontWeight.Bold, fontSize = 13.sp
+                        )
+                        c.progress.forEach { req ->
+                            val met = req.met
+                            Text(
+                                "${req.label}: ${req.current}/${req.required}${req.unit}",
+                                Color(if (met) Color(0xFF88FFAA) else Color(0xFFFFAA88)),
+                                fontSize = 11.sp
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        item {
+            Chip(
+                label = { Text("Back") },
+                onClick = onExit,
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 32.dp, vertical = 16.dp),
+                colors = ChipDefaults.primaryChipColors(backgroundColor = Color(0xFF333333))
+            )
         }
     }
 }

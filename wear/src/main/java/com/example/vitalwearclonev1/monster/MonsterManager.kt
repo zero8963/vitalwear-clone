@@ -291,7 +291,10 @@ class MonsterManager(private val context: Context) {
         bp: Int = 0,
         sp: Int = 0,
         winRatio: Int = 0,
-        trophies: Int = 0
+        trophies: Int = 0,
+        // 2026-10-01: parity with phone — preserve battle record + VP.
+        losses: Int = 0,
+        vitalPoints: Int = 0
     ) {
         prefs.edit()
             .putString("current_card", cardName)
@@ -306,6 +309,8 @@ class MonsterManager(private val context: Context) {
             .putInt("current_sp", sp)
             .putInt("current_win_ratio", winRatio)
             .putInt("current_trophies", trophies)
+            .putInt("current_losses", losses)
+            .putInt("current_vital_points", vitalPoints)
             .putLong("current_time_alive", 0)
             .putLong("current_evolution_time", 43200) // 12 hours
             .putInt("current_attack_bonus", atk)
@@ -643,6 +648,44 @@ class MonsterManager(private val context: Context) {
      * Evolve along the card's REAL tree to [toIndex] (not just +1).
      * Resets per-stage performance counters and reseeds the care clock.
      */
+    /**
+     * 2026-10-01: Net World highest-floor is keyed per-species; carry it across
+     * evolution/de-digivolve so the partner doesn't lose progress. Takes the max
+     * in case the target form already has progress.
+     */
+    /**
+     * 2026-10-01: Evolution history — the species IDs this Digimon has been,
+     * oldest first. Recorded on evolve/de-digivolve for the status screen.
+     */
+    fun getEvolutionHistory(): List<Int> {
+        val raw = prefs.getString("evolution_history", "") ?: ""
+        if (raw.isBlank()) {
+            // Seed with current form so history is never empty.
+            val cur = getCurrentMonster()?.characterId
+            return if (cur != null && cur != -1) listOf(cur) else emptyList()
+        }
+        return raw.split(",").mapNotNull { it.toIntOrNull() }
+    }
+
+    private fun recordEvolutionHistory(charId: Int) {
+        val hist = getEvolutionHistory().toMutableList()
+        // Avoid consecutive duplicates (e.g., dev jumps).
+        if (hist.lastOrNull() != charId) hist.add(charId)
+        prefs.edit().putString("evolution_history", hist.joinToString(",")).apply()
+    }
+
+    private fun migrateFloorProgress(cardName: String, fromCharId: Int, toCharId: Int) {
+        try {
+            val ap = context.getSharedPreferences("adventure_prefs", Context.MODE_PRIVATE)
+            val oldKey = "highest_floor_${cardName}_$fromCharId"
+            val newKey = "highest_floor_${cardName}_$toCharId"
+            val migrated = maxOf(ap.getInt(oldKey, 0), ap.getInt(newKey, 0))
+            if (migrated > 0) ap.edit().putInt(newKey, migrated).apply()
+        } catch (t: Throwable) {
+            Timber.e(t, "migrateFloorProgress: failed")
+        }
+    }
+
     fun evolveTo(toIndex: Int, hoursUntilEvolution: Int): Boolean {
         val current = getCurrentMonster() ?: return false
         val today = System.currentTimeMillis() / 86400000L
@@ -662,6 +705,11 @@ class MonsterManager(private val context: Context) {
             .putLong("current_last_care_tick", System.currentTimeMillis())
             .apply()
 
+        // 2026-10-01: Net World floor progress follows the Digimon up.
+        migrateFloorProgress(current.cardName, current.characterId, toIndex)
+        // 2026-10-01: record evolution history for the status screen.
+        recordEvolutionHistory(toIndex)
+
         applyCardBaseStats(current.cardName, toIndex)
         Timber.d("Evolved ${current.cardName}: ${current.characterId} -> $toIndex")
         return true
@@ -673,9 +721,29 @@ class MonsterManager(private val context: Context) {
      * and wins reset to 0; safety net consumed.
      * @return the character ID bounced back to, or -1 if no prior form.
      */
+    /**
+     * 2026-10-01: reverse-lookup the DIM evolution tree to find a species that
+     * evolves INTO the given characterId. Fallback for Digimon that didn't
+     * evolve on-watch (adopted/hatched at higher stage).
+     */
+    private fun findPriorSpeciesFromTree(cardName: String, characterId: Int): Int? {
+        return try {
+            val card = CardManager(context).getCard(cardName) ?: return null
+            val entries = card.transformationRequirements.transformationEntries
+            entries.firstOrNull { it.toCharacterIndex == characterId }?.fromCharacterIndex
+        } catch (t: Throwable) {
+            Timber.e(t, "findPriorSpeciesFromTree: failed")
+            null
+        }
+    }
+
     fun deDigivolve(): Int {
         val current = getCurrentMonster() ?: return -1
-        val priorId = current.previousCharacterId
+        var priorId = current.previousCharacterId
+        // 2026-10-01: tree fallback for Digimon without a recorded previous.
+        if (priorId == -1 && current.stage > 0) {
+            priorId = findPriorSpeciesFromTree(current.cardName, current.characterId) ?: -1
+        }
         if (priorId == -1) return -1
         val today = System.currentTimeMillis() / 86400000L
         persistCare("current_", CareManager.initialForStage(maxOf(0, current.stage - 1), today))
@@ -693,6 +761,11 @@ class MonsterManager(private val context: Context) {
             .putInt("current_previous_character_id", -1)
             .putLong("current_last_care_tick", System.currentTimeMillis())
             .apply()
+
+        // 2026-10-01: Net World floor progress follows the Digimon back down.
+        migrateFloorProgress(current.cardName, current.characterId, priorId)
+        // 2026-10-01: record de-digivolve in history.
+        recordEvolutionHistory(priorId)
 
         applyCardBaseStats(current.cardName, priorId)
         Timber.w("De-digivolved ${current.cardName}: ${current.characterId} -> $priorId (care mistake)")
