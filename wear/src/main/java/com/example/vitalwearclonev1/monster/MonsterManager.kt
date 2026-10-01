@@ -53,7 +53,10 @@ class MonsterManager(private val context: Context) {
         val healthBonus: Int = 0,
         val speedBonus: Int = 0,
         val defenseBonus: Int = 0,
-        val isEvolutionPaused: Boolean = false,
+        // 2026-10-01: default to paused (manual evolve). The player decides
+        // when to digivolve via the DIGIVOLVE button — auto-evolve cycled
+        // through stages too fast to train.
+        val isEvolutionPaused: Boolean = true,
         val adventureLevel: Int = 0,
         val adventureSteps: Int = 0,
         val isAdventureMode: Boolean = false,
@@ -156,7 +159,8 @@ class MonsterManager(private val context: Context) {
             prefs.getInt(prefix + "health_bonus", 0),
             prefs.getInt(prefix + "speed_bonus", 0),
             prefs.getInt(prefix + "defense_bonus", 0),
-            prefs.getBoolean(prefix + "evolution_paused", false),
+            // 2026-10-01: default to paused (manual evolve).
+            prefs.getBoolean(prefix + "evolution_paused", true),
             prefs.getInt(prefix + "adv_level", 0),
             prefs.getInt(prefix + "adv_steps", 0),
             prefs.getBoolean(prefix + "adv_mode", false),
@@ -317,7 +321,8 @@ class MonsterManager(private val context: Context) {
             .putInt("current_health_bonus", hp)
             .putInt("current_speed_bonus", spd)
             .putInt("current_defense_bonus", def)
-            .putBoolean("current_evolution_paused", false)
+            // 2026-10-01: new monsters start with evolution paused (manual).
+            .putBoolean("current_evolution_paused", true)
             .putBoolean("current_is_expired", false)
             .putInt("current_adv_level", 0)
             .putInt("current_adv_steps", 0)
@@ -871,6 +876,36 @@ class MonsterManager(private val context: Context) {
             emptyList()
         }
         return EvolutionEngine.isAtMaxEvolution(paths)
+    }
+
+    /**
+     * Manual evolution (2026-10-01): picks the best available candidate like
+     * the phone's evolve(). Used by the watch DIGIVOLVE button — the player
+     * decides when to evolve, not the background service.
+     */
+    fun evolve() {
+        val current = getCurrentMonster() ?: return
+
+        val candidates = getEvolutionCandidates()
+        if (candidates.isEmpty()) {
+            Timber.d("No evolution paths found for card ${current.cardName}")
+            return
+        }
+
+        // End-of-tree lock: no onward paths means this is the final form.
+        if (isAtMaxEvolution()) {
+            Timber.w("evolve() blocked: ${current.cardName}#${current.characterId} is at max evolution")
+            return
+        }
+
+        val available = candidates.filter { it.requirementsMet }
+        val pick = if (available.isNotEmpty()) {
+            available.maxByOrNull { it.path.requiredTrophies * 1000 + it.path.requiredVitalValues }!!
+        } else {
+            candidates.maxByOrNull { c -> c.progress.count { it.met } } ?: candidates.first()
+        }
+
+        evolveTo(pick.path.toIndex, pick.path.hoursUntilEvolution)
     }
 
     /**

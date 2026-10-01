@@ -657,6 +657,31 @@ fun VitalWearApp(service: VitalForegroundService?, isBound: Boolean, isAmbient: 
                         currentScreen.value = "GAME"
                         monsterState.value = monsterManager.getCurrentMonster()
                     }
+                    // 2026-10-01: hidden dev tools screen (was inline in menu).
+                    "DEV" -> DevScreen(
+                        onNavigate = { screen ->
+                            currentScreen.value = screen
+                            if (screen == "GAME") {
+                                monsterState.value = monsterManager.getCurrentMonster()
+                            }
+                        },
+                        onDevJump = { forward ->
+                            val before = monsterManager.getCurrentMonster()
+                            if (before != null) {
+                                val newId = (if (forward) before.characterId + 1 else before.characterId - 1).coerceAtLeast(0)
+                                evoPrefs.edit().putInt("last_char_" + before.cardName, newId).apply()
+                                monsterManager.devJump(forward)
+                                val after = monsterManager.getCurrentMonster()
+                                monsterState.value = after
+                                if (after != null && after.characterId != before.characterId) {
+                                    scope.launch {
+                                        playEvolutionSequence(before.characterId, after.characterId, before.cardName)
+                                    }
+                                }
+                                currentScreen.value = "GAME"
+                            }
+                        }
+                    )
                 }
             }
 
@@ -769,6 +794,29 @@ fun MonsterScreen(background: Bitmap?, monster: Bitmap?, time: String, steps: In
 }
 
 @Composable
+// 2026-10-01: hidden dev tools screen — keeps Dev:Prev/Dev:Next out of the
+// main menu. Reached via the subtle "Dev Tools" entry at the bottom of MENU.
+fun DevScreen(onNavigate: (String) -> Unit, onDevJump: (Boolean) -> Unit) {
+    ScalingLazyColumn(Modifier.fillMaxSize().background(Color.Black), horizontalAlignment = Alignment.CenterHorizontally) {
+        item { Text("DEV TOOLS", Modifier.padding(vertical = 10.dp), Color.Gray, fontWeight = FontWeight.Bold, fontSize = 12.sp) }
+
+        item {
+            Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 10.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                Chip(label = { Text("Dev:Prev", fontSize = 10.sp) }, onClick = {
+                    onDevJump(false)
+                }, modifier = Modifier.weight(1f), colors = ChipDefaults.primaryChipColors(backgroundColor = Color.DarkGray))
+                Chip(label = { Text("Dev:Next", fontSize = 10.sp) }, onClick = {
+                    onDevJump(true)
+                }, modifier = Modifier.weight(1f), colors = ChipDefaults.primaryChipColors(backgroundColor = Color.DarkGray))
+            }
+        }
+
+        item {
+            Chip(label = { Text("Back") }, onClick = { onNavigate("MENU") }, modifier = Modifier.fillMaxWidth().padding(horizontal = 10.dp), colors = ChipDefaults.primaryChipColors(backgroundColor = Color.DarkGray))
+        }
+    }
+}
+
 fun MenuScreen(phoneConnected: Boolean?, monsterState: MonsterManager.MonsterState?, monsterManager: MonsterManager, onNavigate: (String, String) -> Unit, onDevJump: (Boolean) -> Unit) {
     val context = androidx.compose.ui.platform.LocalContext.current
     val scope = rememberCoroutineScope()
@@ -776,6 +824,17 @@ fun MenuScreen(phoneConnected: Boolean?, monsterState: MonsterManager.MonsterSta
     val advCardName = monsterState?.takeIf { it.isAdventureMode }?.cardName
     val maxFloor = remember(advCardName) {
         if (advCardName != null) monsterManager.getMaxFloorForCard(advCardName) else 0
+    }
+    // 2026-10-01: end-of-tree lock for the DIGIVOLVE button. Disk I/O, so
+    // load off the main thread like the phone does.
+    val isAtMaxEvolution = remember { mutableStateOf(false) }
+    LaunchedEffect(monsterState?.cardName, monsterState?.characterId) {
+        val state = monsterState
+        isAtMaxEvolution.value = if (state == null) {
+            true
+        } else {
+            withContext(Dispatchers.IO) { monsterManager.isAtMaxEvolution() }
+        }
     }
     ScalingLazyColumn(Modifier.fillMaxSize().background(Color.Black), horizontalAlignment = Alignment.CenterHorizontally) {
         item { Text("MENU", Modifier.padding(vertical = 10.dp), Color.Cyan, fontWeight = FontWeight.Bold) }
@@ -796,15 +855,39 @@ fun MenuScreen(phoneConnected: Boolean?, monsterState: MonsterManager.MonsterSta
             Chip(label = { Text("Status") }, onClick = { onNavigate("STATUS", "") }, modifier = Modifier.fillMaxWidth().padding(horizontal = 10.dp), colors = ChipDefaults.primaryChipColors(backgroundColor = Color(0, 150, 136)))
         }
 
+        // 2026-10-01: manual DIGIVOLVE button. Auto-evolve now defaults to
+        // paused, so the player decides when to evolve — no more cycling
+        // through stages too fast to train. Disabled at max evolution.
         item {
-            Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 10.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                Chip(label = { Text("Dev:Prev", fontSize = 10.sp) }, onClick = {
-                    onDevJump(false)
-                }, modifier = Modifier.weight(1f), colors = ChipDefaults.primaryChipColors(backgroundColor = Color.DarkGray))
-                Chip(label = { Text("Dev:Next", fontSize = 10.sp) }, onClick = {
-                    onDevJump(true)
-                }, modifier = Modifier.weight(1f), colors = ChipDefaults.primaryChipColors(backgroundColor = Color.DarkGray))
-            }
+            val canEvolve = monsterState != null && !isAtMaxEvolution.value
+            Chip(
+                label = { Text(if (monsterState?.stage == 0) "HATCH" else "DIGIVOLVE", fontWeight = FontWeight.Bold) },
+                secondaryLabel = {
+                    Text(if (isAtMaxEvolution.value) "Max form" else if (monsterState?.isEvolutionPaused == true) "Ready when you are" else "Auto-evolve on")
+                },
+                onClick = {
+                    if (canEvolve) {
+                        scope.launch(Dispatchers.IO) {
+                            monsterManager.evolve()
+                        }
+                        onNavigate("GAME", "")
+                    }
+                },
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 10.dp),
+                colors = ChipDefaults.primaryChipColors(
+                    backgroundColor = if (canEvolve) Color(200, 150, 0) else Color.DarkGray
+                )
+            )
+        }
+
+        // 2026-10-01: dev tools moved to a separate hidden screen.
+        item {
+            Chip(
+                label = { Text("Dev Tools", fontSize = 10.sp, color = Color.Gray) },
+                onClick = { onNavigate("DEV", "") },
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 40.dp),
+                colors = ChipDefaults.primaryChipColors(backgroundColor = Color(30, 30, 30))
+            )
         }
 
         item {
