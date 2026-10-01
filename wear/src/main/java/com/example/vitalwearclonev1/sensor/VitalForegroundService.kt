@@ -163,6 +163,14 @@ class VitalForegroundService : Service() {
                         
                         if (state.isAdventureMode && deltaSteps > 0) {
                             monsterManager.updateAdventureSteps(deltaSteps)
+                            // 2026-10-01: boss trigger — 500 steps summons the floor boss.
+                            // This was the missing link: steps accumulated forever with
+                            // no boss ever spawning.
+                            val updated = monsterManager.getCurrentMonster()
+                            if (updated != null && updated.isAdventureMode && updated.adventureSteps >= 500) {
+                                Timber.d("Adventure: 500 steps reached, triggering boss for floor ${updated.adventureLevel + 1}")
+                                sendBroadcast(Intent("com.example.vitalwearclonev1.TRIGGER_BOSS_BATTLE"))
+                            }
                         }
                         
                         // Steps feed Vital Points; hitting the daily step goal counts

@@ -435,8 +435,49 @@ class MonsterManager(private val context: Context) {
 
     fun completeAdventureLevel() {
         val current = getCurrentMonster() ?: return
+        val newLevel = current.adventureLevel + 1
         prefs.edit()
-            .putInt("current_adv_level", current.adventureLevel + 1)
+            .putInt("current_adv_level", newLevel)
+            .putInt("current_adv_steps", 0)
+            .apply()
+        // 2026-10-01: track highest floor cleared per DIM card (not per Digimon),
+        // so any partner on the same card can revisit cleared floors.
+        // Floors are 1-indexed for the player; newLevel is the floor just cleared.
+        try {
+            val ap = context.getSharedPreferences("adventure_prefs", Context.MODE_PRIVATE)
+            val key = "max_floor_${current.cardName}"
+            if (newLevel > ap.getInt(key, 0)) {
+                ap.edit().putInt(key, newLevel).apply()
+            }
+        } catch (t: Throwable) {
+            Timber.e(t, "completeAdventureLevel: failed to record max floor")
+        }
+    }
+
+    /**
+     * 2026-10-01: highest floor cleared on this DIM card by any Digimon
+     * (1-indexed). Used for the floor selector — players can revisit any
+     * cleared floor.
+     */
+    fun getMaxFloorForCard(cardName: String): Int {
+        return try {
+            val ap = context.getSharedPreferences("adventure_prefs", Context.MODE_PRIVATE)
+            ap.getInt("max_floor_$cardName", 0)
+        } catch (t: Throwable) {
+            0
+        }
+    }
+
+    /**
+     * 2026-10-01: jump to a previously-cleared floor (1-indexed).
+     * Clamped to [1, maxFloor].
+     */
+    fun setAdventureFloor(floor: Int) {
+        val current = getCurrentMonster() ?: return
+        val maxFloor = getMaxFloorForCard(current.cardName).coerceAtLeast(1)
+        val target = floor.coerceIn(1, maxFloor)
+        prefs.edit()
+            .putInt("current_adv_level", target - 1)
             .putInt("current_adv_steps", 0)
             .apply()
     }

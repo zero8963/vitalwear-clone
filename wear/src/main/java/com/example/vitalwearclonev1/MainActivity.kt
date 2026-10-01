@@ -392,7 +392,30 @@ fun VitalWearApp(service: VitalForegroundService?, isBound: Boolean, isAmbient: 
                     }
                     "com.example.vitalwearclonev1.TRIGGER_BATTLE" -> {
                         if (monsterState.value != null && currentScreen.value == "GAME") {
-                            activeOpponent.value = null 
+                            activeOpponent.value = null
+                            currentScreen.value = "BATTLE"
+                        }
+                    }
+                    "com.example.vitalwearclonev1.TRIGGER_BOSS_BATTLE" -> {
+                        // 2026-10-01: floor boss — scaled by adventure level.
+                        val ms = monsterState.value
+                        if (ms != null && currentScreen.value == "GAME") {
+                            val floor = ms.adventureLevel + 1
+                            val bossHp = (400 + floor * 250).coerceAtLeast(500)
+                            val bossAtk = (30 + floor * 15).coerceAtLeast(40)
+                            activeOpponent.value = BattleOpponent(
+                                cardName = ms.cardName,
+                                characterId = ms.characterId,
+                                name = "Floor $floor Boss",
+                                atk = bossAtk,
+                                hp = bossHp,
+                                spd = 50 + floor * 5,
+                                def = 20 + floor * 8,
+                                isBoss = true,
+                                isInitiator = false,
+                                seed = System.currentTimeMillis(),
+                                dimId = 0
+                            )
                             currentScreen.value = "BATTLE"
                         }
                     }
@@ -802,6 +825,51 @@ fun MenuScreen(phoneConnected: Boolean?, monsterState: MonsterManager.MonsterSta
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 10.dp),
                 colors = ChipDefaults.primaryChipColors(backgroundColor = if (monsterState?.isAdventureMode == true) Color(0, 80, 0) else Color.DarkGray)
             )
+        }
+
+        // 2026-10-01: floor selector — revisit any floor cleared on this DIM card.
+        val advState = monsterState
+        if (advState?.isAdventureMode == true) {
+            val maxFloor = remember(advState.cardName) { monsterManager.getMaxFloorForCard(advState.cardName) }
+            if (maxFloor > 1) {
+                item {
+                    Text(
+                        text = "Floor (cleared: $maxFloor)",
+                        color = Color.Cyan, fontSize = 11.sp,
+                        modifier = Modifier.padding(top = 8.dp)
+                    )
+                }
+                item {
+                    // Chunk floors into rows of 4 for the small screen.
+                    val currentFloor = advState.adventureLevel + 1
+                    Column(Modifier.fillMaxWidth().padding(horizontal = 10.dp)) {
+                        (1..maxFloor).chunked(4).forEach { rowFloors ->
+                            Row(
+                                Modifier.fillMaxWidth().padding(vertical = 2.dp),
+                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                rowFloors.forEach { floor ->
+                                    Chip(
+                                        label = { Text("$floor", fontSize = 12.sp) },
+                                        onClick = {
+                                            monsterManager.setAdventureFloor(floor)
+                                            onNavigate("GAME", "")
+                                        },
+                                        modifier = Modifier.weight(1f),
+                                        colors = ChipDefaults.primaryChipColors(
+                                            backgroundColor = if (floor == currentFloor) Color(0, 150, 136) else Color.DarkGray
+                                        )
+                                    )
+                                }
+                                // Fill empty slots so rows align.
+                                repeat(4 - rowFloors.size) {
+                                    Spacer(Modifier.weight(1f))
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         }
 
         item {
