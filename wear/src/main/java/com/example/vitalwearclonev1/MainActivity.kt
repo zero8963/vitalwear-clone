@@ -772,6 +772,11 @@ fun MonsterScreen(background: Bitmap?, monster: Bitmap?, time: String, steps: In
 fun MenuScreen(phoneConnected: Boolean?, monsterState: MonsterManager.MonsterState?, monsterManager: MonsterManager, onNavigate: (String, String) -> Unit, onDevJump: (Boolean) -> Unit) {
     val context = androidx.compose.ui.platform.LocalContext.current
     val scope = rememberCoroutineScope()
+    // 2026-10-01: floor selector data — hoisted out of the LazyColumn scope.
+    val advCardName = monsterState?.takeIf { it.isAdventureMode }?.cardName
+    val maxFloor = remember(advCardName) {
+        if (advCardName != null) monsterManager.getMaxFloorForCard(advCardName) else 0
+    }
     ScalingLazyColumn(Modifier.fillMaxSize().background(Color.Black), horizontalAlignment = Alignment.CenterHorizontally) {
         item { Text("MENU", Modifier.padding(vertical = 10.dp), Color.Cyan, fontWeight = FontWeight.Bold) }
         
@@ -828,43 +833,39 @@ fun MenuScreen(phoneConnected: Boolean?, monsterState: MonsterManager.MonsterSta
         }
 
         // 2026-10-01: floor selector — revisit any floor cleared on this DIM card.
-        val advState = monsterState
-        if (advState?.isAdventureMode == true) {
-            val maxFloor = remember(advState.cardName) { monsterManager.getMaxFloorForCard(advState.cardName) }
-            if (maxFloor > 1) {
-                item {
-                    Text(
-                        text = "Floor (cleared: $maxFloor)",
-                        color = Color.Cyan, fontSize = 11.sp,
-                        modifier = Modifier.padding(top = 8.dp)
-                    )
-                }
-                item {
-                    // Chunk floors into rows of 4 for the small screen.
-                    val currentFloor = advState.adventureLevel + 1
-                    Column(Modifier.fillMaxWidth().padding(horizontal = 10.dp)) {
-                        (1..maxFloor).chunked(4).forEach { rowFloors ->
-                            Row(
-                                Modifier.fillMaxWidth().padding(vertical = 2.dp),
-                                horizontalArrangement = Arrangement.spacedBy(4.dp)
-                            ) {
-                                rowFloors.forEach { floor ->
-                                    Chip(
-                                        label = { Text("$floor", fontSize = 12.sp) },
-                                        onClick = {
-                                            monsterManager.setAdventureFloor(floor)
-                                            onNavigate("GAME", "")
-                                        },
-                                        modifier = Modifier.weight(1f),
-                                        colors = ChipDefaults.primaryChipColors(
-                                            backgroundColor = if (floor == currentFloor) Color(0, 150, 136) else Color.DarkGray
-                                        )
+        if (monsterState?.isAdventureMode == true && maxFloor > 1) {
+            val currentFloor = monsterState.adventureLevel + 1
+            item {
+                Text(
+                    text = "Floor (cleared: $maxFloor)",
+                    color = Color.Cyan, fontSize = 11.sp,
+                    modifier = Modifier.padding(top = 8.dp)
+                )
+            }
+            item {
+                // Chunk floors into rows of 4 for the small screen.
+                Column(Modifier.fillMaxWidth().padding(horizontal = 10.dp)) {
+                    (1..maxFloor).chunked(4).forEach { rowFloors ->
+                        Row(
+                            Modifier.fillMaxWidth().padding(vertical = 2.dp),
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            rowFloors.forEach { floor ->
+                                Chip(
+                                    label = { Text("$floor", fontSize = 12.sp) },
+                                    onClick = {
+                                        monsterManager.setAdventureFloor(floor)
+                                        onNavigate("GAME", "")
+                                    },
+                                    modifier = Modifier.weight(1f),
+                                    colors = ChipDefaults.primaryChipColors(
+                                        backgroundColor = if (floor == currentFloor) Color(0, 150, 136) else Color.DarkGray
                                     )
-                                }
-                                // Fill empty slots so rows align.
-                                repeat(4 - rowFloors.size) {
-                                    Spacer(Modifier.weight(1f))
-                                }
+                                )
+                            }
+                            // Fill empty slots so rows align.
+                            repeat(4 - rowFloors.size) {
+                                Spacer(Modifier.weight(1f))
                             }
                         }
                     }
