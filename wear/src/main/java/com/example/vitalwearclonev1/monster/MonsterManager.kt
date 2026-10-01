@@ -729,6 +729,13 @@ class MonsterManager(private val context: Context) {
 
     fun evolveTo(toIndex: Int, hoursUntilEvolution: Int): Boolean {
         val current = getCurrentMonster() ?: return false
+        // End-of-tree lock (2026-10-01): mirrors the phone. A final-form
+        // Digimon has no onward paths — evolving anyway writes a bogus
+        // characterId and breaks the sprite index with no way back.
+        if (isAtMaxEvolution()) {
+            Timber.w("evolveTo() blocked: ${current.cardName}#${current.characterId} is at max evolution")
+            return false
+        }
         val today = System.currentTimeMillis() / 86400000L
         persistCare("current_", CareManager.initialForStage(current.stage + 1, today))
 
@@ -846,6 +853,27 @@ class MonsterManager(private val context: Context) {
     }
 
     /**
+     * True when the current monster has no onward evolution paths — it's at
+     * the end of its tree. Mirrors the phone (2026-09-29 end-of-tree lock):
+     * the evolve functions refuse to write past the final form, which would
+     * break the sprite index with no way back.
+     */
+    fun isAtMaxEvolution(): Boolean {
+        val current = getCurrentMonster() ?: return true
+        val card = try {
+            CardManager(context).getCard(current.cardName)
+        } catch (t: Throwable) {
+            null
+        } ?: return true
+        val paths = try {
+            DimCardAdapter.getEvolutionPaths(card, current.characterId)
+        } catch (t: Throwable) {
+            emptyList()
+        }
+        return EvolutionEngine.isAtMaxEvolution(paths)
+    }
+
+    /**
      * Reads the DIM-baked base stats for [characterId] on [cardName] and stores
      * them on the monster so battles use the card's real HP/AP.
      */
@@ -952,6 +980,11 @@ class MonsterManager(private val context: Context) {
 
     fun evolve(nextCharacterId: Int) {
         val current = getCurrentMonster() ?: return
+        // End-of-tree lock (2026-10-01): mirrors the phone and evolveTo().
+        if (isAtMaxEvolution()) {
+            Timber.w("evolve() blocked: ${current.cardName}#${current.characterId} is at max evolution")
+            return
+        }
         if (nextCharacterId >= 16) {
             Timber.d("Reached max evolution for this version")
             return

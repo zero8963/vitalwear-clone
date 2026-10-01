@@ -191,6 +191,13 @@ class VitalForegroundService : Service() {
                             if (now - lastEvoCheck >= 60000) {
                                 lastEvoCheck = now
                                 scope.launch(Dispatchers.IO) {
+                                    // End-of-tree lock (2026-10-01): never auto-evolve
+                                    // a final-form Digimon. evolveTo() also guards,
+                                    // but skip the work entirely here.
+                                    if (monsterManager.isAtMaxEvolution()) {
+                                        Timber.d("Auto-evolve skipped: at max evolution")
+                                        return@launch
+                                    }
                                     val available = monsterManager.getEvolutionCandidates()
                                         .filter { it.requirementsMet }
                                     if (available.isNotEmpty()) {
