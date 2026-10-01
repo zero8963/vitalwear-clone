@@ -282,6 +282,31 @@ fun VitalWearApp(service: VitalForegroundService?, isBound: Boolean, isAmbient: 
             }
         }
 
+    // 2026-10-01: spawns the adventure floor boss. Called by the background
+    // TRIGGER_BOSS_BATTLE broadcast AND the menu START BOSS button (the
+    // reliable path — the broadcast is missed when not on the GAME screen).
+    fun spawnAdventureBoss() {
+        val ms = monsterState.value ?: return
+        if (!ms.isAdventureMode || ms.adventureSteps < 500) return
+        val floor = ms.adventureLevel + 1
+        val bossHp = (400 + floor * 250).coerceAtLeast(500)
+        val bossAtk = (30 + floor * 15).coerceAtLeast(40)
+        activeOpponent.value = BattleOpponent(
+            cardName = ms.cardName,
+            characterId = ms.characterId,
+            name = "Floor $floor Boss",
+            atk = bossAtk,
+            hp = bossHp,
+            spd = 50 + floor * 5,
+            def = 20 + floor * 8,
+            isBoss = true,
+            isInitiator = false,
+            seed = System.currentTimeMillis(),
+            dimId = 0
+        )
+        currentScreen.value = "BATTLE"
+    }
+
     // Plays the evolution sequence for an explicit form change (dev chips).
     // Prefers the cached frames for the old form, loading from the card if needed.
     suspend fun playEvolutionSequence(oldCharId: Int, newCharId: Int, cardName: String) {
@@ -397,27 +422,10 @@ fun VitalWearApp(service: VitalForegroundService?, isBound: Boolean, isAmbient: 
                         }
                     }
                     "com.example.vitalwearclonev1.TRIGGER_BOSS_BATTLE" -> {
-                        // 2026-10-01: floor boss — scaled by adventure level.
-                        val ms = monsterState.value
-                        if (ms != null && currentScreen.value == "GAME") {
-                            val floor = ms.adventureLevel + 1
-                            val bossHp = (400 + floor * 250).coerceAtLeast(500)
-                            val bossAtk = (30 + floor * 15).coerceAtLeast(40)
-                            activeOpponent.value = BattleOpponent(
-                                cardName = ms.cardName,
-                                characterId = ms.characterId,
-                                name = "Floor $floor Boss",
-                                atk = bossAtk,
-                                hp = bossHp,
-                                spd = 50 + floor * 5,
-                                def = 20 + floor * 8,
-                                isBoss = true,
-                                isInitiator = false,
-                                seed = System.currentTimeMillis(),
-                                dimId = 0
-                            )
-                            currentScreen.value = "BATTLE"
-                        }
+                        // 2026-10-01: background boss trigger (missable if not
+                        // on GAME screen — the menu START BOSS button is the
+                        // reliable path).
+                        spawnAdventureBoss()
                     }
                     "com.example.vitalwearclonev1.TRIGGER_P2P_BATTLE" -> {
                         val opponent = BattleOpponent(
@@ -595,6 +603,9 @@ fun VitalWearApp(service: VitalForegroundService?, isBound: Boolean, isAmbient: 
                                             }
                                             currentScreen.value = "GAME"
                                         }
+                                    },
+                                    onStartBoss = {
+                                        spawnAdventureBoss()
                                     }
                                 )
                                 }
@@ -818,7 +829,7 @@ fun DevScreen(onNavigate: (String) -> Unit, onDevJump: (Boolean) -> Unit) {
 }
 
 @Composable
-fun MenuScreen(phoneConnected: Boolean?, monsterState: MonsterManager.MonsterState?, monsterManager: MonsterManager, onNavigate: (String, String) -> Unit, onDevJump: (Boolean) -> Unit) {
+fun MenuScreen(phoneConnected: Boolean?, monsterState: MonsterManager.MonsterState?, monsterManager: MonsterManager, onNavigate: (String, String) -> Unit, onDevJump: (Boolean) -> Unit, onStartBoss: () -> Unit = {}) {
     val context = androidx.compose.ui.platform.LocalContext.current
     val scope = rememberCoroutineScope()
     // 2026-10-01: floor selector data — hoisted out of the LazyColumn scope.
@@ -914,6 +925,21 @@ fun MenuScreen(phoneConnected: Boolean?, monsterState: MonsterManager.MonsterSta
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 10.dp),
                 colors = ChipDefaults.primaryChipColors(backgroundColor = if (monsterState?.isAdventureMode == true) Color(0, 80, 0) else Color.DarkGray)
             )
+        }
+
+        // 2026-10-01: manual boss trigger. The background broadcast is missed
+        // when the player isn't on the GAME screen — this button is the
+        // reliable path. Appears when the 500-step counter is hit.
+        if (monsterState?.isAdventureMode == true && (monsterState.adventureSteps >= 500)) {
+            item {
+                Chip(
+                    label = { Text("START BOSS", fontWeight = FontWeight.Bold) },
+                    secondaryLabel = { Text("Floor ${monsterState.adventureLevel + 1} — ${monsterState.adventureSteps} steps") },
+                    onClick = { onStartBoss() },
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 10.dp),
+                    colors = ChipDefaults.primaryChipColors(backgroundColor = Color(180, 30, 30))
+                )
+            }
         }
 
         // 2026-10-01: floor selector — revisit any floor cleared on this DIM card.
