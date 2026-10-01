@@ -796,6 +796,7 @@ fun MonsterScreen(background: Bitmap?, monster: Bitmap?, time: String, steps: In
 @Composable
 // 2026-10-01: hidden dev tools screen — keeps Dev:Prev/Dev:Next out of the
 // main menu. Reached via the subtle "Dev Tools" entry at the bottom of MENU.
+@Composable
 fun DevScreen(onNavigate: (String) -> Unit, onDevJump: (Boolean) -> Unit) {
     ScalingLazyColumn(Modifier.fillMaxSize().background(Color.Black), horizontalAlignment = Alignment.CenterHorizontally) {
         item { Text("DEV TOOLS", Modifier.padding(vertical = 10.dp), Color.Gray, fontWeight = FontWeight.Bold, fontSize = 12.sp) }
