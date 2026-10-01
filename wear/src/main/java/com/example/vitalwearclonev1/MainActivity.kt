@@ -817,6 +817,7 @@ fun DevScreen(onNavigate: (String) -> Unit, onDevJump: (Boolean) -> Unit) {
     }
 }
 
+@Composable
 fun MenuScreen(phoneConnected: Boolean?, monsterState: MonsterManager.MonsterState?, monsterManager: MonsterManager, onNavigate: (String, String) -> Unit, onDevJump: (Boolean) -> Unit) {
     val context = androidx.compose.ui.platform.LocalContext.current
     val scope = rememberCoroutineScope()
