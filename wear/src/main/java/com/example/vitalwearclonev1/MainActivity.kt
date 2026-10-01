@@ -953,8 +953,8 @@ fun StatusScreen(monsterManager: MonsterManager, cardManager: CardManager, onExi
             val pct = if (total > 0) (s.currentWins * 100 / total) else 0
             item {
                 Text(
-                    "W ${s.currentWins} / L ${s.losses}  ($pct%)",
-                    Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp,
+                    text = "W ${s.currentWins} / L ${s.losses}  ($pct%)",
+                    color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp,
                     modifier = Modifier.padding(top = 8.dp)
                 )
             }
@@ -965,13 +965,13 @@ fun StatusScreen(monsterManager: MonsterManager, cardManager: CardManager, onExi
                 ) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Text("🏆", fontSize = 18.sp)
-                        Text("${s.trophies}", Color(0xFFFFD700), fontWeight = FontWeight.Bold)
-                        Text("Trophies", Color.Gray, fontSize = 10.sp)
+                        Text(text = "${s.trophies}", color = Color(0xFFFFD700), fontWeight = FontWeight.Bold)
+                        Text(text = "Trophies", color = Color.Gray, fontSize = 10.sp)
                     }
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Text("⚡", fontSize = 18.sp)
-                        Text("${s.vitalPoints}", Color(0xFF00FF88), fontWeight = FontWeight.Bold)
-                        Text("VP", Color.Gray, fontSize = 10.sp)
+                        Text(text = "${s.vitalPoints}", color = Color(0xFF00FF88), fontWeight = FontWeight.Bold)
+                        Text(text = "VP", color = Color.Gray, fontSize = 10.sp)
                     }
                 }
             }
@@ -982,13 +982,13 @@ fun StatusScreen(monsterManager: MonsterManager, cardManager: CardManager, onExi
             }
             val hist = history.value
             if (hist.isEmpty()) {
-                item { Text("—", Color.Gray, fontSize = 12.sp) }
+                item { Text(text = "—", color = Color.Gray, fontSize = 12.sp) }
             } else {
                 items(hist.size) { i ->
                     val name = speciesName(s.cardName, hist[i])
                     Text(
-                        (if (i == hist.size - 1) "→ " else "  ") + name,
-                        Color(if (i == hist.size - 1) Color.White else Color.Gray),
+                        text = (if (i == hist.size - 1) "→ " else "  ") + name,
+                        color = if (i == hist.size - 1) Color.White else Color.Gray,
                         fontSize = 12.sp,
                         fontWeight = if (i == hist.size - 1) FontWeight.Bold else FontWeight.Normal
                     )
@@ -1001,7 +1001,7 @@ fun StatusScreen(monsterManager: MonsterManager, cardManager: CardManager, onExi
             }
             val cands = candidates.value
             if (cands.isEmpty()) {
-                item { Text("Max evolution", Color.Gray, fontSize = 12.sp) }
+                item { Text(text = "Max evolution", color = Color.Gray, fontSize = 12.sp) }
             } else {
                 items(cands.size) { i ->
                     val c = cands[i]
@@ -1012,15 +1012,15 @@ fun StatusScreen(monsterManager: MonsterManager, cardManager: CardManager, onExi
                             .padding(8.dp)
                     ) {
                         Text(
-                            targetName + if (c.requirementsMet) " ✓" else "",
-                            Color(if (c.requirementsMet) Color(0xFF00FF88) else Color.White),
+                            text = targetName + if (c.requirementsMet) " ✓" else "",
+                            color = if (c.requirementsMet) Color(0xFF00FF88) else Color.White,
                             fontWeight = FontWeight.Bold, fontSize = 13.sp
                         )
                         c.progress.forEach { req ->
                             val met = req.met
                             Text(
-                                "${req.label}: ${req.current}/${req.required}${req.unit}",
-                                Color(if (met) Color(0xFF88FFAA) else Color(0xFFFFAA88)),
+                                text = "${req.label}: ${req.current}/${req.required}${req.unit}",
+                                color = if (met) Color(0xFF88FFAA) else Color(0xFFFFAA88),
                                 fontSize = 11.sp
                             )
                         }
