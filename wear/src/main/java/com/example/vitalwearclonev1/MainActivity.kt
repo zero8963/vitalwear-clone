@@ -1005,7 +1005,7 @@ fun StatusScreen(monsterManager: MonsterManager, cardManager: CardManager, onExi
             } else {
                 items(cands.size) { i ->
                     val c = cands[i]
-                    val targetName = speciesName(s.cardName, c.path.toCharacterIndex)
+                    val targetName = speciesName(s.cardName, c.path.toIndex)
                     Column(
                         Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp)
                             .background(Color(0xFF1A2332), RoundedCornerShape(8.dp))
