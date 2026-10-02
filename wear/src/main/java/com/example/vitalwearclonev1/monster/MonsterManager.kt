@@ -411,6 +411,14 @@ class MonsterManager(private val context: Context) {
             .apply()
     }
 
+    // 2026-10-01: dev tools hide behind the 10-tap version easter egg
+    // (mirrors the phone app). Persisted so it survives restarts.
+    fun isDevModeUnlocked(): Boolean = prefs.getBoolean("dev_mode_unlocked", false)
+
+    fun setDevModeUnlocked(unlocked: Boolean) {
+        prefs.edit().putBoolean("dev_mode_unlocked", unlocked).apply()
+    }
+
     fun toggleAdventureMode() {
         val current = getCurrentMonster() ?: return
         prefs.edit()

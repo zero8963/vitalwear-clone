@@ -35,6 +35,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.runtime.Composable
+import androidx.compose.foundation.clickable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -832,6 +833,10 @@ fun DevScreen(onNavigate: (String) -> Unit, onDevJump: (Boolean) -> Unit) {
 fun MenuScreen(phoneConnected: Boolean?, monsterState: MonsterManager.MonsterState?, monsterManager: MonsterManager, onNavigate: (String, String) -> Unit, onDevJump: (Boolean) -> Unit, onStartBoss: () -> Unit = {}) {
     val context = androidx.compose.ui.platform.LocalContext.current
     val scope = rememberCoroutineScope()
+    // 2026-10-01: dev tools easter egg — tap the version line 10 times
+    // (mirrors the phone app). Persisted in prefs.
+    var devModeUnlocked by remember { mutableStateOf(monsterManager.isDevModeUnlocked()) }
+    var versionTapCount by remember { mutableIntStateOf(0) }
     // 2026-10-01: floor selector data — hoisted out of the LazyColumn scope.
     val advCardName = monsterState?.takeIf { it.isAdventureMode }?.cardName
     val maxFloor = remember(advCardName) {
@@ -892,14 +897,17 @@ fun MenuScreen(phoneConnected: Boolean?, monsterState: MonsterManager.MonsterSta
             )
         }
 
-        // 2026-10-01: dev tools moved to a separate hidden screen.
-        item {
-            Chip(
-                label = { Text("Dev Tools", fontSize = 10.sp, color = Color.Gray) },
-                onClick = { onNavigate("DEV", "") },
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 40.dp),
-                colors = ChipDefaults.primaryChipColors(backgroundColor = Color(30, 30, 30))
-            )
+        // 2026-10-01: dev tools hide behind the 10-tap version easter egg
+        // (mirrors the phone app). Only shown once unlocked.
+        if (devModeUnlocked) {
+            item {
+                Chip(
+                    label = { Text("Dev Tools", fontSize = 10.sp, color = Color.Gray) },
+                    onClick = { onNavigate("DEV", "") },
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 40.dp),
+                    colors = ChipDefaults.primaryChipColors(backgroundColor = Color(30, 30, 30))
+                )
+            }
         }
 
         item {
@@ -1055,6 +1063,27 @@ fun MenuScreen(phoneConnected: Boolean?, monsterState: MonsterManager.MonsterSta
                 onClick = { }, 
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 10.dp), 
                 colors = ChipDefaults.primaryChipColors(backgroundColor = Color.DarkGray)
+            )
+        }
+
+        // 2026-10-01: version easter egg — 10 taps unlocks dev tools,
+        // same as the phone app.
+        item {
+            Text(
+                "Digital Masters v1.0",
+                modifier = Modifier
+                    .padding(vertical = 10.dp)
+                    .clickable {
+                        versionTapCount++
+                        if (versionTapCount >= 10 && !devModeUnlocked) {
+                            monsterManager.setDevModeUnlocked(true)
+                            devModeUnlocked = true
+                            Toast.makeText(context, "Developer Mode Unlocked!", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                    .padding(8.dp),
+                color = Color.Gray,
+                fontSize = 10.sp
             )
         }
     }
