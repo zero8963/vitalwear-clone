@@ -12,6 +12,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.Button
+import androidx.compose.material.ButtonDefaults
 import androidx.compose.material.Card
 import androidx.compose.material.Icon
 import androidx.compose.material.Text
@@ -45,14 +47,20 @@ import java.time.Instant
  * failure-safe; empty states explain what's missing instead of crashing.
  */
 @Composable
-fun VitalsTab(syncManager: PhoneHealthSyncManager) {
+fun VitalsTab(
+    syncManager: PhoneHealthSyncManager,
+    permsGranted: Boolean?,
+    onGrantPermissions: () -> Unit
+) {
     var samples by remember { mutableStateOf<List<Pair<Instant, Int>>>(emptyList()) }
     var steps by remember { mutableLongStateOf(0L) }
     var calories by remember { mutableStateOf(0) }
     var sleepHours by remember { mutableStateOf<Double?>(null) }
     var loaded by remember { mutableStateOf(false) }
 
-    LaunchedEffect(Unit) {
+    // Keyed on permsGranted so data reloads right after the user grants —
+    // the first pass (null) loads with whatever was already granted.
+    LaunchedEffect(permsGranted) {
         try {
             samples = syncManager.getHeartRateToday()
         } catch (e: Exception) { samples = emptyList() }
@@ -71,6 +79,40 @@ fun VitalsTab(syncManager: PhoneHealthSyncManager) {
         modifier = Modifier.fillMaxSize().padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
+        // 2026-10-07: Health Connect only lists permission types the app has
+        // requested at least once, so until the user taps this, heart rate /
+        // sleep can't be granted at all — this button is the way in.
+        if (permsGranted == false) {
+            item {
+                Card(
+                    backgroundColor = Color(0, 60, 100),
+                    shape = RoundedCornerShape(16.dp),
+                    elevation = 8.dp
+                ) {
+                    Column(modifier = Modifier.padding(16.dp).fillMaxWidth()) {
+                        Text(
+                            "Heart rate + sleep need permission",
+                            color = Color.Cyan, fontSize = 16.sp, fontWeight = FontWeight.Bold
+                        )
+                        Spacer(Modifier.height(8.dp))
+                        Text(
+                            "Steps and workouts are syncing, but the new heart-rate " +
+                                "and sleep permissions haven't been granted yet. " +
+                                "Tap below to allow them in Health Connect.",
+                            color = Color.LightGray, fontSize = 13.sp
+                        )
+                        Spacer(Modifier.height(12.dp))
+                        Button(
+                            onClick = onGrantPermissions,
+                            colors = ButtonDefaults.buttonColors(backgroundColor = Color(0, 150, 100)),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text("Grant health permissions", color = Color.White, fontSize = 15.sp)
+                        }
+                    }
+                }
+            }
+        }
         item {
             HeartRateCard(samples, loaded)
         }

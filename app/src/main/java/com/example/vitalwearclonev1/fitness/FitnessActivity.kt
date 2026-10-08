@@ -3,6 +3,7 @@ package com.example.vitalwearclonev1.fitness
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -21,16 +22,20 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.health.connect.client.PermissionController
 import com.example.vitalwearclonev1.communication.PhoneHealthSyncManager
 import java.time.LocalDate
+import kotlinx.coroutines.launch
 
 /**
  * Fitness (2026-10-07): the Training section's home — three tabs:
@@ -57,6 +62,25 @@ fun FitnessRoot() {
     var showLogSheet by remember { mutableStateOf(false) }
     // Bumped every time a workout is saved so the map + coach recompute.
     var logVersion by remember { mutableIntStateOf(0) }
+
+    // 2026-10-07: explicit Health Connect permission request for the Fitness
+    // section. The home screen's auto-request never fired for the newly added
+    // heart-rate/sleep permissions, and Health Connect won't list a permission
+    // type until the app has requested it at least once — so this button is
+    // currently the ONLY way to grant them. null = still checking.
+    val scope = rememberCoroutineScope()
+    var permsGranted by remember { mutableStateOf<Boolean?>(null) }
+    val healthPermissionLauncher = rememberLauncherForActivityResult(
+        PermissionController.createRequestPermissionResultContract()
+    ) {
+        // Contract result is unreliable for partial grants; re-read the truth.
+        scope.launch { permsGranted = syncManager.hasAllPermissions() }
+    }
+    // Re-check on launch and every time the Vitals tab opens — this also
+    // picks up grants the user made manually in Health Connect settings.
+    LaunchedEffect(tab) {
+        permsGranted = syncManager.hasAllPermissions()
+    }
 
     Scaffold(
         topBar = {
@@ -101,7 +125,13 @@ fun FitnessRoot() {
             }
             Box(modifier = Modifier.fillMaxSize()) {
                 when (tab) {
-                    0 -> VitalsTab(syncManager)
+                    0 -> VitalsTab(
+                        syncManager,
+                        permsGranted = permsGranted,
+                        onGrantPermissions = {
+                            healthPermissionLauncher.launch(syncManager.permissions)
+                        }
+                    )
                     1 -> BodyMapTabContent(logStore, logVersion)
                     2 -> CoachTabContent(logStore, logVersion)
                 }
