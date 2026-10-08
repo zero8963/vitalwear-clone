@@ -1018,6 +1018,18 @@ fun HomeScreen(monsterManager: PhoneMonsterManager, isWatchConnected: Boolean?) 
                     ) {
                         Text("Workouts", color = Color.White, fontSize = 10.sp)
                     }
+                    // 2026-10-07: Fitness section — vitals timeline, body-map
+                    // muscle logging, rest-day coach. Own menu space.
+                    Spacer(Modifier.height(8.dp))
+                    Button(
+                        modifier = Modifier.fillMaxWidth().height(48.dp),
+                        onClick = {
+                            context.startActivity(Intent(context, com.example.vitalwearclonev1.fitness.FitnessActivity::class.java))
+                        },
+                        colors = ButtonDefaults.buttonColors(backgroundColor = Color(0, 150, 100))
+                    ) {
+                        Text("Fitness", color = Color.White, fontSize = 10.sp)
+                    }
                     // 2026-09-30: chip Folder + Digi-Custom get their own
                     // compact buttons under Workouts — side by side, small but
                     // tappable. Deep-link into the battle activity's screens.

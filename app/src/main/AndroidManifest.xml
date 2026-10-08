@@ -116,6 +116,14 @@
             android:label="Vital Workout"
             android:theme="@style/Theme.VitalwearCloneV1" />
 
+        <!-- Fitness section (2026-10-07): vitals timeline, body-map muscle
+             logging, rest-day coach. -->
+        <activity
+            android:name=".fitness.FitnessActivity"
+            android:exported="true"
+            android:label="Fitness"
+            android:theme="@style/Theme.VitalwearCloneV1" />
+
         <activity
             android:name=".communication.VBSyncActivity"
             android:exported="true"

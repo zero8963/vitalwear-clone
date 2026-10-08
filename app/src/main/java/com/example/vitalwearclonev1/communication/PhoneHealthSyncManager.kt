@@ -5,6 +5,8 @@ import androidx.health.connect.client.HealthConnectClient
 import androidx.health.connect.client.permission.HealthPermission
 import androidx.health.connect.client.records.ActiveCaloriesBurnedRecord
 import androidx.health.connect.client.records.ExerciseSessionRecord
+import androidx.health.connect.client.records.HeartRateRecord
+import androidx.health.connect.client.records.SleepSessionRecord
 import androidx.health.connect.client.records.StepsRecord
 import androidx.health.connect.client.records.TotalCaloriesBurnedRecord
 import androidx.health.connect.client.records.WeightRecord
@@ -36,7 +38,13 @@ class PhoneHealthSyncManager(private val context: Context) {
         HealthPermission.getReadPermission(ActiveCaloriesBurnedRecord::class),
         HealthPermission.getReadPermission(TotalCaloriesBurnedRecord::class),
         HealthPermission.getReadPermission(ExerciseSessionRecord::class),
-        HealthPermission.getReadPermission(WeightRecord::class)
+        HealthPermission.getReadPermission(WeightRecord::class),
+        // Fitness section (2026-10-07): vitals timeline needs heart rate +
+        // sleep. Flows through the existing permission launcher in
+        // PhoneMainActivity (the set is the source of truth); existing
+        // users get prompted for the new ones on next launch.
+        HealthPermission.getReadPermission(HeartRateRecord::class),
+        HealthPermission.getReadPermission(SleepSessionRecord::class)
     )
 
     fun getSdkStatus(): Int {
@@ -345,6 +353,71 @@ class PhoneHealthSyncManager(private val context: Context) {
         } catch (e: Exception) {
             Timber.w(e, "Samsung workout summary read failed")
             SamsungWorkoutSummary(0, 0, "samsung workouts: read failed (${e.message})", 0)
+        }
+    }
+
+    /**
+     * Fitness (2026-10-07): today's heart-rate samples from the watch,
+     * flattened across records and sorted oldest-first. Never throws —
+     * empty list when Health Connect is unavailable or permission denied.
+     */
+    suspend fun getHeartRateToday(): List<Pair<Instant, Int>> {
+        return try {
+            val client = getClient() ?: return emptyList()
+            val startOfDay = ZonedDateTime.now().truncatedTo(ChronoUnit.DAYS).toInstant()
+            val out = mutableListOf<Pair<Instant, Int>>()
+            var pageToken: String? = null
+            do {
+                val page = client.readRecords(
+                    ReadRecordsRequest(
+                        HeartRateRecord::class,
+                        timeRangeFilter = TimeRangeFilter.between(startOfDay, Instant.now()),
+                        pageToken = pageToken
+                    )
+                )
+                for (rec in page.records) {
+                    for (s in rec.samples) {
+                        out.add(s.time to s.beatsPerMinute.toInt())
+                    }
+                }
+                pageToken = page.pageToken
+            } while (pageToken != null)
+            out.sortedBy { it.first }
+        } catch (e: Exception) {
+            Timber.w(e, "Heart rate read failed")
+            emptyList()
+        }
+    }
+
+    /**
+     * Fitness (2026-10-07): most recent sleep session ending in the last
+     * 36h, duration in hours. Null when none found or on any failure.
+     */
+    suspend fun getSleepLastNightHours(): Double? {
+        return try {
+            val client = getClient() ?: return null
+            val now = Instant.now()
+            var best: SleepSessionRecord? = null
+            var pageToken: String? = null
+            do {
+                val page = client.readRecords(
+                    ReadRecordsRequest(
+                        SleepSessionRecord::class,
+                        timeRangeFilter = TimeRangeFilter.between(
+                            now.minus(36, ChronoUnit.HOURS), now
+                        ),
+                        pageToken = pageToken
+                    )
+                )
+                for (rec in page.records) {
+                    if (best == null || rec.endTime.isAfter(best.endTime)) best = rec
+                }
+                pageToken = page.pageToken
+            } while (pageToken != null)
+            best?.let { ChronoUnit.MINUTES.between(it.startTime, it.endTime) / 60.0 }
+        } catch (e: Exception) {
+            Timber.w(e, "Sleep read failed")
+            null
         }
     }
 
