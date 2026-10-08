@@ -33,6 +33,11 @@
     <uses-permission android:name="android.permission.health.READ_TOTAL_CALORIES_BURNED" />
     <uses-permission android:name="android.permission.health.READ_EXERCISE" />
     <uses-permission android:name="android.permission.health.READ_WEIGHT" />
+    <!-- 2026-10-07: Fitness section needs these too — without the manifest
+         declaration the Health Connect permission contract silently drops
+         them: no prompt, and they don't even appear in App access. -->
+    <uses-permission android:name="android.permission.health.READ_HEART_RATE" />
+    <uses-permission android:name="android.permission.health.READ_SLEEP" />
 
     <application
         android:allowBackup="true"
