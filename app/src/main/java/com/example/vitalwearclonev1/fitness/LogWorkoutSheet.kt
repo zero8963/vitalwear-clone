@@ -46,7 +46,7 @@ import androidx.compose.ui.window.DialogProperties
 @Composable
 fun LogWorkoutSheet(
     onDismiss: () -> Unit,
-    onSave: (templateName: String, muscles: Set<MuscleGroup>) -> Unit
+    onSave: (templateName: String, muscles: Set<MuscleGroup>, exerciseCount: Int) -> Unit
 ) {
     var pickedTemplate by remember { mutableStateOf<WorkoutTemplate?>(null) }
     var pickedExercises by remember { mutableStateOf<Set<Exercise>>(emptySet()) }
@@ -309,7 +309,7 @@ fun LogWorkoutSheet(
                             onClick = {
                                 val name = if (selected == pickedTemplate?.muscles && pickedTemplate != null)
                                     pickedTemplate!!.displayName else "Custom"
-                                onSave(name, selected)
+                                onSave(name, selected, pickedExercises.size)
                             },
                             enabled = selected.isNotEmpty(),
                             modifier = Modifier.weight(1f),

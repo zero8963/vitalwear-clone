@@ -14,6 +14,7 @@ import androidx.health.connect.client.records.metadata.DataOrigin
 import androidx.health.connect.client.request.AggregateRequest
 import androidx.health.connect.client.request.ReadRecordsRequest
 import androidx.health.connect.client.time.TimeRangeFilter
+import com.example.vitalwearclonev1.fitness.WorkoutLogStore
 import com.example.vitalwearclonev1.monster.PhoneMonsterManager
 import com.google.android.gms.wearable.Wearable
 import kotlinx.coroutines.CoroutineScope
@@ -26,6 +27,8 @@ import timber.log.Timber
 import java.io.ByteArrayOutputStream
 import java.io.DataOutputStream
 import java.time.Instant
+import java.time.LocalDate
+import java.time.ZoneId
 import java.time.ZonedDateTime
 import java.time.temporal.ChronoUnit
 
@@ -234,14 +237,34 @@ class PhoneHealthSyncManager(private val context: Context) {
             var maxBonusStart = lastBonusStart
             var newlyCredited = 0
             val monsterManager = PhoneMonsterManager(context)
+            val logStore = WorkoutLogStore(context)
+            val creditedRanges =
+                prefs.getStringSet(PREF_CREDITED_RANGES, emptySet())?.toMutableSet()
+                    ?: mutableSetOf()
             for (block in clusterSessions(response.records)) {
                 val startMs = block.startTime.toEpochMilli()
                 if (!block.isRealWorkout()) continue
                 if (startMs > lastCreditedStart) {
-                    val fullyHealed = monsterManager.recordExerciseCompleted()
-                    newlyCredited++
-                    Timber.i("Credited ${block.activeSeconds / 60}min Health Connect workout block " +
-                        "(${block.sessions.size} sessions, +1 trophy, fully healed out of critical: $fullyHealed)")
+                    // 2026-10-08: no double-counting — if in-app exercises
+                    // were logged that day (picker or import card), the
+                    // in-app log takes precedence and this block grants no
+                    // trophy/VP credit. Training stat bonuses below are
+                    // untouched (the in-app log doesn't grant those).
+                    val blockDate =
+                        LocalDate.ofInstant(block.startTime, ZoneId.systemDefault())
+                    if (logStore.hasInAppExercises(blockDate)) {
+                        Timber.i("Skipping Health Connect workout credit for " +
+                            "${block.activeSeconds / 60}min block on $blockDate — " +
+                            "in-app exercises already logged that day")
+                    } else {
+                        val fullyHealed = monsterManager.recordExerciseCompleted()
+                        newlyCredited++
+                        creditedRanges.add(
+                            "${block.startTime.toEpochMilli()}-${block.endTime.toEpochMilli()}"
+                        )
+                        Timber.i("Credited ${block.activeSeconds / 60}min Health Connect workout block " +
+                            "(${block.sessions.size} sessions, +1 trophy, fully healed out of critical: $fullyHealed)")
+                    }
                     if (startMs > maxCreditedStart) maxCreditedStart = startMs
                 }
                 if (startMs > lastBonusStart) {
@@ -260,6 +283,7 @@ class PhoneHealthSyncManager(private val context: Context) {
             prefs.edit()
                 .putLong("last_credited_block_start", maxCreditedStart)
                 .putLong("last_bonus_block_start", maxBonusStart)
+                .putStringSet(PREF_CREDITED_RANGES, creditedRanges)
                 .apply()
             return newlyCredited
         } catch (e: Exception) {
@@ -357,6 +381,60 @@ class PhoneHealthSyncManager(private val context: Context) {
     }
 
     /**
+     * Fitness (2026-10-08): workout auto-import reads recent exercise
+     * sessions so the Body Map tab can suggest them for muscle logging.
+     * Never throws — empty list when Health Connect is unavailable or
+     * permission denied.
+     */
+    suspend fun getRecentExerciseSessions(days: Int = 7): List<ExerciseSessionRecord> {
+        val client = getClient() ?: return emptyList()
+        return try {
+            val now = Instant.now()
+            val start = now.minus(days.toLong(), ChronoUnit.DAYS)
+            val sessions = mutableListOf<ExerciseSessionRecord>()
+            var pageToken: String? = null
+            do {
+                val page = client.readRecords(
+                    ReadRecordsRequest(
+                        ExerciseSessionRecord::class,
+                        timeRangeFilter = TimeRangeFilter.between(start, now),
+                        pageToken = pageToken
+                    )
+                )
+                sessions += page.records
+                pageToken = page.pageToken
+            } while (pageToken != null)
+            sessions.sortedByDescending { it.startTime }
+        } catch (e: Exception) {
+            Timber.w(e, "getRecentExerciseSessions failed")
+            emptyList()
+        }
+    }
+
+    /**
+     * Fitness (2026-10-08): true if the workout block containing
+     * [sessionStart] already received its trophy/VP credit from
+     * creditNewExerciseSessions(). Import-card confirms use this so a
+     * confirmed import never double-credits a session the auto path
+     * already rewarded. Prefers recorded block ranges; falls back to the
+     * credited-start watermark for blocks credited by older builds.
+     */
+    fun wasSessionCredited(sessionStart: Instant): Boolean {
+        val prefs = context.getSharedPreferences("workout_heal_prefs", Context.MODE_PRIVATE)
+        val ms = sessionStart.toEpochMilli()
+        val ranges = prefs.getStringSet(PREF_CREDITED_RANGES, null)
+        if (ranges != null) {
+            return ranges.any { r ->
+                val parts = r.split("-")
+                parts.size == 2 &&
+                    ms >= (parts[0].toLongOrNull() ?: 0L) &&
+                    ms <= (parts[1].toLongOrNull() ?: Long.MAX_VALUE)
+            }
+        }
+        return ms <= prefs.getLong("last_credited_block_start", 0L)
+    }
+
+    /**
      * Fitness (2026-10-07): today's heart-rate samples from the watch,
      * flattened across records and sorted oldest-first. Never throws —
      * empty list when Health Connect is unavailable or permission denied.
@@ -441,6 +519,11 @@ class PhoneHealthSyncManager(private val context: Context) {
          *  bonus of a completed in-app routine; shorter qualifying blocks
          *  scale down proportionally (2026-09-26). */
         private const val FULL_BONUS_MINUTES = 20L
+
+        /** Time ranges ("startMs-endMs") of blocks that received the
+         *  trophy/VP workout credit, so import-card confirms can check for
+         *  double-crediting (2026-10-08). */
+        private const val PREF_CREDITED_RANGES = "credited_block_ranges"
     }
 
     // TEMP DIAGNOSTIC (2026-09-24): one-line summary of where today's step

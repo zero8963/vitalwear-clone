@@ -34,6 +34,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.health.connect.client.PermissionController
 import com.example.vitalwearclonev1.communication.PhoneHealthSyncManager
+import com.example.vitalwearclonev1.monster.PhoneMonsterManager
 import java.time.LocalDate
 import kotlinx.coroutines.launch
 
@@ -132,7 +133,7 @@ fun FitnessRoot() {
                             healthPermissionLauncher.launch(syncManager.permissions)
                         }
                     )
-                    1 -> BodyMapTabContent(logStore, logVersion)
+                    1 -> BodyMapTabContent(logStore, logVersion, syncManager) { logVersion++ }
                     2 -> CoachTabContent(logStore, logVersion)
                 }
             }
@@ -142,13 +143,25 @@ fun FitnessRoot() {
     if (showLogSheet) {
         LogWorkoutSheet(
             onDismiss = { showLogSheet = false },
-            onSave = { templateName, muscles ->
+            onSave = { templateName, muscles, exerciseCount ->
                 logStore.logWorkout(LocalDate.now(), templateName, muscles)
+                if (exerciseCount > 0) {
+                    // 2026-10-08: per-exercise workout credit — every
+                    // exercise logged via the picker earns the same
+                    // trophy/VP credit as a Health Connect session, through
+                    // the exact same recordExerciseCompleted() path (no
+                    // rebalancing). The Health Connect auto-credit skips
+                    // days with in-app logs, so nothing double-counts.
+                    val monsterManager = PhoneMonsterManager(context)
+                    repeat(exerciseCount) { monsterManager.recordExerciseCompleted() }
+                    logStore.markInAppExercisesLogged(LocalDate.now())
+                }
                 logVersion++
                 showLogSheet = false
                 Toast.makeText(
                     context,
-                    "Workout logged: ${muscles.size} muscle groups",
+                    "Workout logged: ${muscles.size} muscle groups" +
+                        if (exerciseCount > 0) " (+$exerciseCount trophies)" else "",
                     Toast.LENGTH_SHORT
                 ).show()
             }

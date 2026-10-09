@@ -56,6 +56,39 @@ class WorkoutLogStore(private val context: Context) {
         return best
     }
 
+    /**
+     * Fitness (2026-10-08): Health Connect auto-import bookkeeping.
+     * Imported session keys ("startMs_exerciseType") so re-opening the
+     * tab never re-suggests an already-imported session.
+     */
+    fun isSessionImported(sessionKey: String): Boolean =
+        prefs().getStringSet(IMPORTED_SESSIONS_KEY, emptySet()).orEmpty()
+            .contains(sessionKey)
+
+    fun markSessionImported(sessionKey: String) {
+        val cur = prefs().getStringSet(IMPORTED_SESSIONS_KEY, emptySet())
+            .orEmpty().toMutableSet()
+        cur.add(sessionKey)
+        prefs().edit().putStringSet(IMPORTED_SESSIONS_KEY, cur).apply()
+    }
+
+    /**
+     * Fitness (2026-10-08): dates on which in-app exercises were logged
+     * (workout picker or import card). The Health Connect auto-credit
+     * path skips these days — the in-app log takes precedence, so the
+     * same workout is never credited twice.
+     */
+    fun markInAppExercisesLogged(date: LocalDate) {
+        val cur = prefs().getStringSet(IN_APP_EXERCISE_DATES_KEY, emptySet())
+            .orEmpty().toMutableSet()
+        cur.add(date.format(dateFmt))
+        prefs().edit().putStringSet(IN_APP_EXERCISE_DATES_KEY, cur).apply()
+    }
+
+    fun hasInAppExercises(date: LocalDate): Boolean =
+        prefs().getStringSet(IN_APP_EXERCISE_DATES_KEY, emptySet()).orEmpty()
+            .contains(date.format(dateFmt))
+
     private fun encode(list: List<LoggedWorkout>): String =
         list.joinToString(";") { w ->
             // template names are app-controlled; strip delimiters defensively
@@ -79,5 +112,7 @@ class WorkoutLogStore(private val context: Context) {
     companion object {
         private const val PREFS_NAME = "fitness_log_prefs"
         private const val INDEX_KEY = "logged_dates_index"
+        private const val IMPORTED_SESSIONS_KEY = "imported_hc_sessions"
+        private const val IN_APP_EXERCISE_DATES_KEY = "in_app_exercise_dates"
     }
 }
