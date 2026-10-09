@@ -67,10 +67,8 @@ fun exerciseTypeDisplayName(type: Int): String = when (type) {
     ExerciseSessionRecord.EXERCISE_TYPE_RUNNING_TREADMILL -> "Run"
     ExerciseSessionRecord.EXERCISE_TYPE_WALKING -> "Walk"
     ExerciseSessionRecord.EXERCISE_TYPE_HIKING -> "Hike"
-    ExerciseSessionRecord.EXERCISE_TYPE_CYCLING,
     ExerciseSessionRecord.EXERCISE_TYPE_BIKING,
     ExerciseSessionRecord.EXERCISE_TYPE_BIKING_STATIONARY -> "Bike"
-    ExerciseSessionRecord.EXERCISE_TYPE_SWIMMING,
     ExerciseSessionRecord.EXERCISE_TYPE_SWIMMING_POOL,
     ExerciseSessionRecord.EXERCISE_TYPE_SWIMMING_OPEN_WATER -> "Swim"
     ExerciseSessionRecord.EXERCISE_TYPE_ROWING,
@@ -103,13 +101,11 @@ fun guessMusclesForSession(exerciseType: Int, title: String?): Set<MuscleGroup>?
             )
         ExerciseSessionRecord.EXERCISE_TYPE_WALKING,
         ExerciseSessionRecord.EXERCISE_TYPE_HIKING,
-        ExerciseSessionRecord.EXERCISE_TYPE_CYCLING,
         ExerciseSessionRecord.EXERCISE_TYPE_BIKING,
         ExerciseSessionRecord.EXERCISE_TYPE_BIKING_STATIONARY,
         ExerciseSessionRecord.EXERCISE_TYPE_ELLIPTICAL,
         ExerciseSessionRecord.EXERCISE_TYPE_STAIR_CLIMBING ->
             return setOf(MuscleGroup.QUADS, MuscleGroup.CALVES, MuscleGroup.GLUTES)
-        ExerciseSessionRecord.EXERCISE_TYPE_SWIMMING,
         ExerciseSessionRecord.EXERCISE_TYPE_SWIMMING_POOL,
         ExerciseSessionRecord.EXERCISE_TYPE_SWIMMING_OPEN_WATER ->
             return setOf(MuscleGroup.SHOULDERS, MuscleGroup.BACK, MuscleGroup.CHEST)
