@@ -150,11 +150,13 @@ fun FitnessRoot() {
                     // exercise logged via the picker earns the same
                     // trophy/VP credit as a Health Connect session, through
                     // the exact same recordExerciseCompleted() path (no
-                    // rebalancing). The Health Connect auto-credit skips
-                    // days with in-app logs, so nothing double-counts.
+                    // rebalancing). The Health Connect auto-credit denies
+                    // sessions overlapping this log's 2h window, so the
+                    // same workout never double-counts — while separate
+                    // sessions (morning run vs afternoon gym) each count.
                     val monsterManager = PhoneMonsterManager(context)
                     repeat(exerciseCount) { monsterManager.recordExerciseCompleted() }
-                    logStore.markInAppExercisesLogged(LocalDate.now())
+                    logStore.markInAppExerciseLog()
                 }
                 logVersion++
                 showLogSheet = false

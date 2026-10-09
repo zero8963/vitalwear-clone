@@ -278,19 +278,28 @@ private fun SessionSuggestionCard(
             }
             Button(
                 onClick = {
-                    // Per-exercise workout credit (2026-10-08): a confirmed
-                    // import earns the same trophy/VP credit as a Health
-                    // Connect session — unless the auto path already
-                    // credited it (no double-counting).
-                    if (!syncManager.wasSessionCredited(suggestion.startTime)) {
+                    // Per-exercise workout credit (2026-10-08, time-overlap
+                    // matching): a confirmed import earns the same trophy/VP
+                    // credit as a Health Connect session — unless the auto
+                    // path already credited it, or the session overlaps an
+                    // in-app log window (same workout, already counted via
+                    // the picker). Muscles always log; credit never doubles.
+                    val startMs = suggestion.startTime.toEpochMilli()
+                    val endMs = suggestion.endTime.toEpochMilli()
+                    val alreadyCredited =
+                        syncManager.wasSessionCredited(suggestion.startTime)
+                    val overlapsInApp =
+                        store.hasOverlappingInAppLog(startMs, endMs)
+                    if (!alreadyCredited && !overlapsInApp) {
                         PhoneMonsterManager(context).recordExerciseCompleted()
+                        syncManager.markSessionCredited(startMs, endMs)
                     }
                     val name = WorkoutTemplate.values()
                         .firstOrNull { it.muscles == muscles }?.displayName
                         ?: "Custom"
                     store.logWorkout(date, name, muscles)
                     store.markSessionImported(suggestion.key)
-                    store.markInAppExercisesLogged(date)
+                    store.markInAppExerciseLog()
                     onConfirmed()
                 },
                 enabled = muscles.isNotEmpty(),

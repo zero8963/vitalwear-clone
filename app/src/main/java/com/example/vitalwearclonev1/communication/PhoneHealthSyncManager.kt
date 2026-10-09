@@ -27,8 +27,6 @@ import timber.log.Timber
 import java.io.ByteArrayOutputStream
 import java.io.DataOutputStream
 import java.time.Instant
-import java.time.LocalDate
-import java.time.ZoneId
 import java.time.ZonedDateTime
 import java.time.temporal.ChronoUnit
 
@@ -245,17 +243,23 @@ class PhoneHealthSyncManager(private val context: Context) {
                 val startMs = block.startTime.toEpochMilli()
                 if (!block.isRealWorkout()) continue
                 if (startMs > lastCreditedStart) {
-                    // 2026-10-08: no double-counting — if in-app exercises
-                    // were logged that day (picker or import card), the
-                    // in-app log takes precedence and this block grants no
-                    // trophy/VP credit. Training stat bonuses below are
+                    // 2026-10-08: no double-counting via time-overlap
+                    // matching — a block overlapping an in-app log window
+                    // is the same workout the user already logged (picker
+                    // or import confirm), so it grants no trophy/VP
+                    // credit. Non-overlapping blocks (e.g. a morning run
+                    // vs an afternoon in-app gym log) each get full
+                    // credit. Also skip blocks the import-card path
+                    // already credited. Training stat bonuses below are
                     // untouched (the in-app log doesn't grant those).
-                    val blockDate =
-                        LocalDate.ofInstant(block.startTime, ZoneId.systemDefault())
-                    if (logStore.hasInAppExercises(blockDate)) {
+                    val overlapsInAppLog = logStore.hasOverlappingInAppLog(
+                        block.startTime.toEpochMilli(),
+                        block.endTime.toEpochMilli()
+                    )
+                    if (overlapsInAppLog || wasSessionCredited(block.startTime)) {
                         Timber.i("Skipping Health Connect workout credit for " +
-                            "${block.activeSeconds / 60}min block on $blockDate — " +
-                            "in-app exercises already logged that day")
+                            "${block.activeSeconds / 60}min block — overlaps an " +
+                            "in-app log or was already credited")
                     } else {
                         val fullyHealed = monsterManager.recordExerciseCompleted()
                         newlyCredited++
@@ -432,6 +436,21 @@ class PhoneHealthSyncManager(private val context: Context) {
             }
         }
         return ms <= prefs.getLong("last_credited_block_start", 0L)
+    }
+
+    /**
+     * Fitness (2026-10-08): records that [sessionStartMs, sessionEndMs]
+     * received its trophy/VP credit outside the auto path (import-card
+     * confirm). The auto path checks wasSessionCredited() before granting,
+     * so a confirmed import is never credited twice — even when the
+     * confirm happens before the auto path ever sees the session.
+     */
+    fun markSessionCredited(sessionStartMs: Long, sessionEndMs: Long) {
+        val prefs = context.getSharedPreferences("workout_heal_prefs", Context.MODE_PRIVATE)
+        val cur = prefs.getStringSet(PREF_CREDITED_RANGES, emptySet())
+            .orEmpty().toMutableSet()
+        cur.add("$sessionStartMs-$sessionEndMs")
+        prefs.edit().putStringSet(PREF_CREDITED_RANGES, cur).apply()
     }
 
     /**

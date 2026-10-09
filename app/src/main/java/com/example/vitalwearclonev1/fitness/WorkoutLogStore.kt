@@ -73,21 +73,43 @@ class WorkoutLogStore(private val context: Context) {
     }
 
     /**
-     * Fitness (2026-10-08): dates on which in-app exercises were logged
-     * (workout picker or import card). The Health Connect auto-credit
-     * path skips these days — the in-app log takes precedence, so the
-     * same workout is never credited twice.
+     * Fitness (2026-10-08, time-overlap matching): timestamps (epoch ms)
+     * of in-app logs that granted workout credit (exercise picker saves,
+     * import-card confirms). Each one covers a session window
+     * [timestamp - IN_APP_LOG_WINDOW_MS, timestamp]. The Health Connect
+     * auto-credit path denies credit to sessions overlapping one of these
+     * windows — same workout, already counted — while non-overlapping
+     * sessions (e.g. a morning run vs an afternoon in-app gym log) each
+     * get their full credit. Replaces the old day-granularity mark, which
+     * wrongly suppressed a whole day's sessions.
      */
-    fun markInAppExercisesLogged(date: LocalDate) {
-        val cur = prefs().getStringSet(IN_APP_EXERCISE_DATES_KEY, emptySet())
+    fun markInAppExerciseLog(timestampMs: Long = System.currentTimeMillis()) {
+        val cur = prefs().getStringSet(IN_APP_LOG_TIMESTAMPS_KEY, emptySet())
             .orEmpty().toMutableSet()
-        cur.add(date.format(dateFmt))
-        prefs().edit().putStringSet(IN_APP_EXERCISE_DATES_KEY, cur).apply()
+        cur.add(timestampMs.toString())
+        // Bound the set so it can't grow forever; windows only matter
+        // for recent sessions anyway (auto-credit scans 48h).
+        val trimmed = cur.mapNotNull { it.toLongOrNull() }
+            .sortedDescending().take(200).map { it.toString() }.toSet()
+        prefs().edit().putStringSet(IN_APP_LOG_TIMESTAMPS_KEY, trimmed).apply()
     }
 
-    fun hasInAppExercises(date: LocalDate): Boolean =
-        prefs().getStringSet(IN_APP_EXERCISE_DATES_KEY, emptySet()).orEmpty()
-            .contains(date.format(dateFmt))
+    /** All recorded in-app credit-granting log timestamps (epoch ms). */
+    fun getInAppExerciseLogTimestamps(): List<Long> =
+        prefs().getStringSet(IN_APP_LOG_TIMESTAMPS_KEY, emptySet()).orEmpty()
+            .mapNotNull { it.toLongOrNull() }
+
+    /**
+     * True when [sessionStartMs, sessionEndMs] overlaps any in-app log
+     * window — i.e. the session is (probably) the same workout the user
+     * already logged in the app. Overlap test: sessionStart <= winEnd &&
+     * sessionEnd >= winStart.
+     */
+    fun hasOverlappingInAppLog(sessionStartMs: Long, sessionEndMs: Long): Boolean =
+        getInAppExerciseLogTimestamps().any { ts ->
+            val winStart = ts - IN_APP_LOG_WINDOW_MS
+            sessionStartMs <= ts && sessionEndMs >= winStart
+        }
 
     private fun encode(list: List<LoggedWorkout>): String =
         list.joinToString(";") { w ->
@@ -113,6 +135,14 @@ class WorkoutLogStore(private val context: Context) {
         private const val PREFS_NAME = "fitness_log_prefs"
         private const val INDEX_KEY = "logged_dates_index"
         private const val IMPORTED_SESSIONS_KEY = "imported_hc_sessions"
-        private const val IN_APP_EXERCISE_DATES_KEY = "in_app_exercise_dates"
+        private const val IN_APP_LOG_TIMESTAMPS_KEY = "in_app_exercise_log_timestamps"
+
+        /**
+         * Fitness (2026-10-08): every credit-granting in-app log is treated
+         * as covering a workout session window of this length ending at the
+         * moment it was logged. 2h comfortably covers a gym session logged
+         * right after (or during) the workout.
+         */
+        const val IN_APP_LOG_WINDOW_MS = 2L * 60L * 60L * 1000L
     }
 }
