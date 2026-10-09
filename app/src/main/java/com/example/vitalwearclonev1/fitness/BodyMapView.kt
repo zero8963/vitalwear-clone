@@ -76,6 +76,10 @@ private val RECOVERING_COLOR = Color(0xFFFFA000)
 private val RESTED_COLOR = Color(0xFF3D5A4C)
 private val UNSELECTED_COLOR = Color(0xFF2A3A4A)
 private val SELECTED_COLOR = Color(0xFF00BCD4)
+// 2026-10-08: exercise auto-fill marks primary muscles SELECTED_COLOR and
+// secondary-only muscles with this lighter cyan, so the user can see what
+// the exercise picker contributed vs. what they tapped themselves.
+private val SECONDARY_SELECTED_COLOR = Color(0xFF80DEEA)
 
 private fun DrawScope.drawSilhouette(w: Float, h: Float) {
     // head
@@ -118,7 +122,10 @@ fun BodyMapView(
     selected: Set<MuscleGroup>,
     showFront: Boolean,
     onMuscleTap: (MuscleGroup) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    // 2026-10-08: subset of `selected` that came in only as secondary
+    // muscles from the exercise picker — drawn in a lighter shade.
+    secondarySelected: Set<MuscleGroup> = emptySet()
 ) {
     var canvasSize by remember { mutableStateOf(Size.Zero) }
     val regions = remember(showFront) { if (showFront) frontRegions() else backRegions() }
@@ -152,8 +159,12 @@ fun BodyMapView(
             )
             val fill = when (mode) {
                 BodyMapMode.VIEW -> recoveryColor(statuses[region.muscle])
-                BodyMapMode.LOG ->
-                    if (selected.contains(region.muscle)) SELECTED_COLOR else UNSELECTED_COLOR
+                BodyMapMode.LOG -> when {
+                    selected.contains(region.muscle) &&
+                        secondarySelected.contains(region.muscle) -> SECONDARY_SELECTED_COLOR
+                    selected.contains(region.muscle) -> SELECTED_COLOR
+                    else -> UNSELECTED_COLOR
+                }
             }
             drawRoundRect(fill, topLeft = px.topLeft, size = px.size, cornerRadius = corner)
             if (mode == BodyMapMode.LOG && selected.contains(region.muscle)) {

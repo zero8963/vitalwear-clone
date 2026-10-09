@@ -15,6 +15,8 @@ import androidx.compose.material.ButtonDefaults
 import androidx.compose.material.Card
 import androidx.compose.material.Text
 import androidx.compose.material.TextButton
+import androidx.compose.material.TextField
+import androidx.compose.material.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -33,6 +35,13 @@ import androidx.compose.ui.window.DialogProperties
  * Fitness (2026-10-07): the workout logging flow — pick a template chip
  * (pre-fills the body map), tap the map to fine-tune, Save writes to the
  * log. "Custom" starts from an empty map.
+ *
+ * Fitness (2026-10-08): exercise picker added. Searching and tapping an
+ * exercise auto-selects its muscles (primary = full cyan, secondary-only =
+ * lighter shade). Manual map taps override the auto-fill afterwards:
+ * tapping a selected muscle removes it, tapping an empty one adds it.
+ * Templates behave exactly as before (a template pick clears exercises and
+ * pre-fills the template's muscles).
  */
 @Composable
 fun LogWorkoutSheet(
@@ -40,8 +49,38 @@ fun LogWorkoutSheet(
     onSave: (templateName: String, muscles: Set<MuscleGroup>) -> Unit
 ) {
     var pickedTemplate by remember { mutableStateOf<WorkoutTemplate?>(null) }
-    var selected by remember { mutableStateOf<Set<MuscleGroup>>(emptySet()) }
+    var pickedExercises by remember { mutableStateOf<Set<Exercise>>(emptySet()) }
+    // Manual layer: muscles the user tapped on/off themselves.
+    var manual by remember { mutableStateOf<Set<MuscleGroup>>(emptySet()) }
+    // Muscles the user explicitly tapped OFF (overrides the auto-fill).
+    var excluded by remember { mutableStateOf<Set<MuscleGroup>>(emptySet()) }
+    var exerciseQuery by remember { mutableStateOf("") }
     var showFront by remember { mutableStateOf(true) }
+
+    // Muscles contributed by the picked exercises (recomputed on add/remove).
+    val exerciseDerived: Set<MuscleGroup> = remember(pickedExercises) {
+        pickedExercises.flatMap { it.primary + it.secondary }.toSet()
+    }
+    val exercisePrimary: Set<MuscleGroup> = remember(pickedExercises) {
+        pickedExercises.flatMap { it.primary }.toSet()
+    }
+    val exerciseSecondaryOnly: Set<MuscleGroup> = remember(pickedExercises) {
+        pickedExercises.flatMap { it.secondary }.toSet() - exercisePrimary
+    }
+
+    // The effective selection shown on the map and saved to the log.
+    val selected: Set<MuscleGroup> = (exerciseDerived - excluded) + manual
+    // Secondary-only muscles that are currently selected → lighter shade.
+    val secondarySelected: Set<MuscleGroup> = exerciseSecondaryOnly.intersect(selected)
+
+    fun addExercise(e: Exercise) {
+        if (!pickedExercises.contains(e)) pickedExercises = pickedExercises + e
+        exerciseQuery = ""
+    }
+
+    fun removeExercise(e: Exercise) {
+        pickedExercises = pickedExercises - e
+    }
 
     Dialog(
         onDismissRequest = onDismiss,
@@ -61,7 +100,7 @@ fun LogWorkoutSheet(
                 item {
                     Text("Log Workout", color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.ExtraBold)
                     Text(
-                        "Pick a template, then tap the map to fine-tune.",
+                        "Pick a template or search exercises, then tap the map to fine-tune.",
                         color = Color.Gray, fontSize = 12.sp
                     )
                 }
@@ -78,7 +117,9 @@ fun LogWorkoutSheet(
                                     Button(
                                         onClick = {
                                             pickedTemplate = t
-                                            selected = t.muscles.toSet()
+                                            pickedExercises = emptySet()
+                                            manual = t.muscles.toSet()
+                                            excluded = emptySet()
                                         },
                                         modifier = Modifier.weight(1f),
                                         shape = RoundedCornerShape(12.dp),
@@ -105,7 +146,9 @@ fun LogWorkoutSheet(
                             Button(
                                 onClick = {
                                     pickedTemplate = null
-                                    selected = emptySet()
+                                    pickedExercises = emptySet()
+                                    manual = emptySet()
+                                    excluded = emptySet()
                                 },
                                 modifier = Modifier.weight(1f),
                                 shape = RoundedCornerShape(12.dp),
@@ -126,6 +169,91 @@ fun LogWorkoutSheet(
                         }
                     }
                 }
+                // Exercise picker: searchable, tap to add as a removable chip.
+                item {
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Text(
+                            "Exercises — auto-fill muscles",
+                            color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Bold
+                        )
+                        TextField(
+                            value = exerciseQuery,
+                            onValueChange = { exerciseQuery = it },
+                            placeholder = {
+                                Text(
+                                    "Search ${EXERCISES.size} exercises…",
+                                    color = Color.Gray, fontSize = 13.sp
+                                )
+                            },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = TextFieldDefaults.textFieldColors(
+                                backgroundColor = Color(20, 60, 100),
+                                textColor = Color.White,
+                                cursorColor = Color.Cyan,
+                                focusedIndicatorColor = Color.Cyan,
+                                unfocusedIndicatorColor = Color.Gray,
+                                placeholderColor = Color.Gray
+                            )
+                        )
+                        val matches = remember(exerciseQuery, pickedExercises) {
+                            if (exerciseQuery.isBlank()) emptyList()
+                            else EXERCISES.filter {
+                                it.name.contains(exerciseQuery, ignoreCase = true) &&
+                                    it !in pickedExercises
+                            }.take(6)
+                        }
+                        matches.forEach { e ->
+                            Button(
+                                onClick = { addExercise(e) },
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(10.dp),
+                                colors = ButtonDefaults.buttonColors(
+                                    backgroundColor = Color(0, 90, 110)
+                                )
+                            ) {
+                                Text(
+                                    "+ ${e.name}",
+                                    color = Color.White, fontSize = 13.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+                        pickedExercises.forEach { e ->
+                            Card(
+                                backgroundColor = Color(0, 100, 130),
+                                shape = RoundedCornerShape(10.dp),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Text(
+                                        e.name,
+                                        color = Color.White, fontSize = 13.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                    TextButton(onClick = { removeExercise(e) }) {
+                                        Text("✕", color = Color(255, 120, 120), fontSize = 15.sp)
+                                    }
+                                }
+                            }
+                        }
+                        if (pickedExercises.isNotEmpty()) {
+                            Text(
+                                "Dark cyan = primary muscle, light cyan = secondary. " +
+                                    "Tap the map to adjust.",
+                                color = Color.Gray, fontSize = 11.sp
+                            )
+                        }
+                    }
+                }
                 item {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         TextButton(onClick = { showFront = !showFront }) {
@@ -143,10 +271,16 @@ fun LogWorkoutSheet(
                         selected = selected,
                         showFront = showFront,
                         onMuscleTap = { muscle ->
-                            selected = if (selected.contains(muscle)) selected - muscle
-                            else selected + muscle
+                            if (selected.contains(muscle)) {
+                                manual = manual - muscle
+                                excluded = excluded + muscle
+                            } else {
+                                excluded = excluded - muscle
+                                manual = manual + muscle
+                            }
                         },
-                        modifier = Modifier.fillMaxWidth(0.9f)
+                        modifier = Modifier.fillMaxWidth(0.9f),
+                        secondarySelected = secondarySelected
                     )
                 }
                 item {
