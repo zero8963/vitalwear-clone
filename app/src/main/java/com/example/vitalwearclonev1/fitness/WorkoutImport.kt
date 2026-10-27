@@ -37,16 +37,17 @@ import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoUnit
 
 /**
- * Fitness (2026-10-08): Health Connect workout auto-import.
- * Recent exercise sessions show up as suggestion cards on the Body Map
- * tab. Cardio types map to muscles directly; strength-style sessions get
- * a keyword guess from the title when confident, otherwise a one-tap
- * split quick-pick. Confirming logs the muscles for the session's date
- * via the existing WorkoutLogStore path.
+ * RETIRED / UNWIRED (2026-10-27): Health Connect workout auto-import.
+ * The suggestion cards used to sit above the Body Map tab; confirming one
+ * wrote guessed muscles into the WorkoutLogStore. The user asked for that
+ * auto-apply to go away — manual commits are now the only writers of
+ * body-map and recovery data — so nothing calls this file anymore. It is
+ * left in place (compiling, unwired) rather than deleted, in case the
+ * feature is ever wanted back.
  *
  * Honest by design: Health Connect only shares the session type,
- * duration and title — not the per-exercise breakdown — so every card is
- * a smart guess the user confirms, same as the manual flow.
+ * duration and title — not the per-exercise breakdown — so every card was
+ * a smart guess the user confirmed, same as the manual flow.
  */
 data class SessionSuggestion(
     val key: String,

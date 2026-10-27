@@ -303,6 +303,30 @@ val EXERCISES: List<Exercise> = listOf(
         setOf(MuscleGroup.OBLIQUES, MuscleGroup.ABS),
         emptySet()
     ),
+    // ---- Core bodyweight (2026-10-27, user's request) ----
+    Exercise(
+        "Sit-Ups",
+        setOf(MuscleGroup.ABS),
+        // No hip-flexor group exists in the 12 tracked groups; the
+        // rectus femoris (part of QUADS) is a hip flexor, so QUADS is
+        // the closest tracked group. Excludable via the muscle chips.
+        setOf(MuscleGroup.QUADS)
+    ),
+    Exercise(
+        "Crunches",
+        setOf(MuscleGroup.ABS),
+        emptySet()
+    ),
+    Exercise(
+        "Russian Twists",
+        setOf(MuscleGroup.OBLIQUES),
+        setOf(MuscleGroup.ABS)
+    ),
+    Exercise(
+        "Sit-Up + Russian Twist Combo",
+        setOf(MuscleGroup.ABS, MuscleGroup.OBLIQUES),
+        emptySet()
+    ),
     Exercise(
         "Side Plank",
         setOf(MuscleGroup.OBLIQUES),

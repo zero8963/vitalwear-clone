@@ -34,22 +34,21 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.vitalwearclonev1.communication.PhoneHealthSyncManager
 
 /**
  * Fitness (2026-10-07): body-map in VIEW mode — regions color-coded by
  * recovery state. Tapping a region shows what the app knows about that
  * muscle. Front/back toggle up top.
  *
- * Fitness (2026-10-08): Health Connect workout auto-import suggestions
- * sit above the map — unimported recent sessions as confirm-to-log cards.
+ * Fitness (2026-10-27): the Health Connect workout auto-import suggestion
+ * cards were removed from this tab at the user's request — manual commits
+ * (Exercises tab / log sheet) are the only writers of body-map and
+ * recovery data. The unwired import UI remains in WorkoutImport.kt.
  */
 @Composable
 fun BodyMapTabContent(
     store: WorkoutLogStore,
-    logVersion: Int,
-    syncManager: PhoneHealthSyncManager,
-    onWorkoutLogged: () -> Unit
+    logVersion: Int
 ) {
     var showFront by remember { mutableStateOf(true) }
     // Recompute when a workout is logged (logVersion bumps).
@@ -62,13 +61,6 @@ fun BodyMapTabContent(
         verticalArrangement = Arrangement.spacedBy(12.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        item {
-            WorkoutImportSection(
-                syncManager = syncManager,
-                store = store,
-                onImported = onWorkoutLogged
-            )
-        }
         item {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Button(

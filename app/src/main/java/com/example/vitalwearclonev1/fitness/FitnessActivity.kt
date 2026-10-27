@@ -166,7 +166,7 @@ fun FitnessRoot() {
                             ).show()
                         }
                     )
-                    2 -> BodyMapTabContent(logStore, logVersion, syncManager) { logVersion++ }
+                    2 -> BodyMapTabContent(logStore, logVersion)
                     3 -> CoachTabContent(logStore, logVersion)
                 }
             }
