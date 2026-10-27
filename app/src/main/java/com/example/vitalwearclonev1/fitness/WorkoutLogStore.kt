@@ -14,8 +14,27 @@ data class LoggedWorkout(
     val date: LocalDate,
     val templateName: String,
     val muscles: Set<MuscleGroup>,
-    val timestamp: Long
-)
+    val timestamp: Long,
+    // Fitness (2026-10-27): per-exercise log detail from the Exercises
+    // tab commit flow (sets x reps x weight in lb). Null on every entry
+    // written before this change — decode keeps those readable.
+    val exerciseName: String? = null,
+    val sets: Int? = null,
+    val reps: Int? = null,
+    val weightLb: Float? = null
+) {
+    /** One-line summary of the logged effort, e.g. "3x10 @ 50 lb". */
+    fun effortText(): String? {
+        if (sets == null || reps == null) return null
+        val weight = weightLb?.let { " @ ${formatWeightLb(it)} lb" } ?: " (bodyweight)"
+        return "${sets}x$reps$weight"
+    }
+}
+
+/** Weight with no trailing ".0" — 50 lb, not 50.0 lb. */
+fun formatWeightLb(weightLb: Float): String =
+    if (weightLb == weightLb.toInt().toFloat()) weightLb.toInt().toString()
+    else weightLb.toString()
 
 class WorkoutLogStore(private val context: Context) {
 
@@ -38,6 +57,71 @@ class WorkoutLogStore(private val context: Context) {
 
     fun getWorkoutsForDate(date: LocalDate): List<LoggedWorkout> =
         decode(date, prefs().getString(keyFor(date), null))
+
+    /**
+     * Fitness (2026-10-27): per-exercise commit from the Exercises tab.
+     * One entry per committed exercise — same log, same credit path as
+     * the template/sheet flow, plus the sets x reps x weight detail.
+     */
+    fun logExercise(
+        date: LocalDate,
+        exercise: Exercise,
+        muscles: Set<MuscleGroup>,
+        sets: Int,
+        reps: Int,
+        weightLb: Float?
+    ) {
+        if (muscles.isEmpty()) return
+        val existing = getWorkoutsForDate(date).toMutableList()
+        existing.add(
+            LoggedWorkout(
+                date, exercise.name, muscles, System.currentTimeMillis(),
+                exerciseName = exercise.name, sets = sets, reps = reps,
+                weightLb = weightLb
+            )
+        )
+        prefs().edit().putString(keyFor(date), encode(existing)).apply()
+        val dates = getLoggedDateStrings().toMutableSet()
+        dates.add(date.format(dateFmt))
+        prefs().edit().putString(INDEX_KEY, dates.joinToString(",")).apply()
+    }
+
+    /** Most recent per-exercise entry that hit [muscle], or null. */
+    fun getLastLoggedWorkoutForMuscle(muscle: MuscleGroup): LoggedWorkout? {
+        var best: LoggedWorkout? = null
+        for (ds in getLoggedDateStrings()) {
+            val date = try { LocalDate.parse(ds, dateFmt) } catch (e: Exception) { continue }
+            for (w in getWorkoutsForDate(date)) {
+                if (w.muscles.contains(muscle) &&
+                    (best == null || w.timestamp > best.timestamp)
+                ) best = w
+            }
+        }
+        return best
+    }
+
+    /**
+     * Distinct exercise names logged in the last [daysBack] days, most
+     * recent first — quick re-log chips on the Exercises tab. Only
+     * per-exercise commits have names; template/sheet logs are skipped.
+     */
+    fun getRecentExerciseNames(limit: Int = 8, daysBack: Long = 14): List<String> {
+        val cutoff = LocalDate.now().minusDays(daysBack)
+        val seen = linkedSetOf<String>()
+        val dates = getLoggedDateStrings().mapNotNull { ds ->
+            try { LocalDate.parse(ds, dateFmt) } catch (e: Exception) { null }
+        }.filter { !it.isBefore(cutoff) }.sortedDescending()
+        for (date in dates) {
+            val names = getWorkoutsForDate(date)
+                .sortedByDescending { it.timestamp }
+                .mapNotNull { it.exerciseName }
+            for (name in names) {
+                seen.add(name)
+                if (seen.size >= limit) return seen.toList()
+            }
+        }
+        return seen.toList()
+    }
 
     /** Every date string (yyyy-MM-dd) that has at least one logged workout. */
     fun getLoggedDateStrings(): Set<String> {
@@ -115,19 +199,39 @@ class WorkoutLogStore(private val context: Context) {
         list.joinToString(";") { w ->
             // template names are app-controlled; strip delimiters defensively
             val safeName = w.templateName.replace("|", "").replace(";", "")
-            "$safeName|${w.muscles.joinToString(",") { it.name }}|${w.timestamp}"
+            val base = "$safeName|${w.muscles.joinToString(",") { it.name }}|${w.timestamp}"
+            // Per-exercise detail rides as extra fields; entries without
+            // detail keep the legacy 3-part shape, which decode still reads.
+            if (w.exerciseName == null) base
+            else {
+                val safeExercise = w.exerciseName.replace("|", "").replace(";", "")
+                val sets = w.sets?.toString().orEmpty()
+                val reps = w.reps?.toString().orEmpty()
+                val weight = w.weightLb?.toString().orEmpty()
+                "$base|$safeExercise|$sets|$reps|$weight"
+            }
         }
 
     private fun decode(date: LocalDate, raw: String?): List<LoggedWorkout> {
         if (raw.isNullOrBlank()) return emptyList()
         return raw.split(";").mapNotNull { entry ->
             val parts = entry.split("|")
-            if (parts.size != 3) return@mapNotNull null
+            if (parts.size != 3 && parts.size != 7) return@mapNotNull null
             val muscles = parts[1].split(",").mapNotNull { name ->
                 try { MuscleGroup.valueOf(name) } catch (e: Exception) { null }
             }.toSet()
             if (muscles.isEmpty()) return@mapNotNull null
-            LoggedWorkout(date, parts[0], muscles, parts[2].toLongOrNull() ?: 0L)
+            if (parts.size == 3) {
+                LoggedWorkout(date, parts[0], muscles, parts[2].toLongOrNull() ?: 0L)
+            } else {
+                LoggedWorkout(
+                    date, parts[0], muscles, parts[2].toLongOrNull() ?: 0L,
+                    exerciseName = parts[3].ifBlank { null },
+                    sets = parts[4].toIntOrNull(),
+                    reps = parts[5].toIntOrNull(),
+                    weightLb = parts[6].toFloatOrNull()
+                )
+            }
         }
     }
 

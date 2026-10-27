@@ -42,6 +42,11 @@ import kotlinx.coroutines.launch
  * Fitness (2026-10-07): the Training section's home — three tabs:
  * Vitals (watch data via Health Connect), Body Map (muscle recovery +
  * tap-to-log), Coach (rest-day suggestions).
+ *
+ * Fitness (2026-10-27): four tabs. Exercises is the manual log's home —
+ * the searchable exercise list with the sets x reps x weight commit
+ * form; Body Map is now purely the recovery viewer (the old log sheet
+ * still opens from its + button, templates and map fine-tune intact).
  */
 class FitnessActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -97,7 +102,9 @@ fun FitnessRoot() {
             )
         },
         floatingActionButton = {
-            if (tab == 1) {
+            // 2026-10-27: the + button lives on the Body Map viewer tab
+            // (now index 2) and still opens the template/map log sheet.
+            if (tab == 2) {
                 FloatingActionButton(
                     onClick = { showLogSheet = true },
                     backgroundColor = Color(0, 150, 100)
@@ -116,7 +123,7 @@ fun FitnessRoot() {
                 backgroundColor = Color(0, 40, 80),
                 contentColor = Color.Cyan
             ) {
-                listOf("Vitals", "Body Map", "Coach").forEachIndexed { i, title ->
+                listOf("Vitals", "Exercises", "Body Map", "Coach").forEachIndexed { i, title ->
                     Tab(
                         selected = tab == i,
                         onClick = { tab = i },
@@ -133,8 +140,34 @@ fun FitnessRoot() {
                             healthPermissionLauncher.launch(syncManager.permissions)
                         }
                     )
-                    1 -> BodyMapTabContent(logStore, logVersion, syncManager) { logVersion++ }
-                    2 -> CoachTabContent(logStore, logVersion)
+                    1 -> ExercisesTabContent(
+                        store = logStore,
+                        logVersion = logVersion,
+                        onCommit = { exercise, muscles, sets, reps, weightLb ->
+                            // 2026-10-27: per-exercise commit — the same
+                            // log + credit path as the sheet save (one
+                            // trophy/VP per exercise, 2h dedup window via
+                            // markInAppExerciseLog), plus the sets x reps
+                            // x weight detail in the stored entry.
+                            logStore.logExercise(
+                                LocalDate.now(), exercise, muscles,
+                                sets, reps, weightLb
+                            )
+                            logStore.markInAppExerciseLog()
+                            PhoneMonsterManager(context).recordExerciseCompleted()
+                            logVersion++
+                            val effort = "$sets x $reps" +
+                                (weightLb?.let { " @ ${formatWeightLb(it)} lb" }
+                                    ?: " (bodyweight)")
+                            Toast.makeText(
+                                context,
+                                "Logged: ${exercise.name} $effort (+1 trophy)",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                        }
+                    )
+                    2 -> BodyMapTabContent(logStore, logVersion, syncManager) { logVersion++ }
+                    3 -> CoachTabContent(logStore, logVersion)
                 }
             }
         }

@@ -14,7 +14,12 @@ data class MuscleStatus(
     val muscle: MuscleGroup,
     val state: RecoveryState,
     val hoursSinceTrained: Long?,
-    val daysSinceTrained: Long?
+    val daysSinceTrained: Long?,
+    // Fitness (2026-10-27): hours of rest still needed before the muscle
+    // counts as recovered (RECOVERED_HOURS since last trained). Null when
+    // never trained, 0 when already recovered. Same date-granularity
+    // hours as hoursSinceTrained — shown as "about Xh" in the viewer.
+    val restHoursRemaining: Long? = null
 )
 
 data class CoachSuggestion(val title: String, val detail: String)
@@ -47,7 +52,12 @@ object RecoveryEngine {
                     hours < RECOVERED_HOURS -> RecoveryState.RECOVERING
                     else -> RecoveryState.READY
                 }
-                MuscleStatus(muscle, state, hours, days)
+                val restRemaining = when (state) {
+                    RecoveryState.READY -> 0L
+                    RecoveryState.NEVER -> null
+                    else -> (RECOVERED_HOURS - hours).coerceAtLeast(0L)
+                }
+                MuscleStatus(muscle, state, hours, days, restRemaining)
             }
         }
     }

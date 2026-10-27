@@ -108,10 +108,35 @@ fun BodyMapTabContent(
                     RecoveryState.READY -> "ready to train"
                     RecoveryState.NEVER -> "not trained yet"
                 }
-                Text(
-                    "${s.muscle.displayName}: last trained $whenText ($stateText)",
-                    color = Color.Cyan, fontSize = 14.sp, fontWeight = FontWeight.Bold
-                )
+                // 2026-10-27: rest still needed, from the same
+                // date-granularity hours as the recovery state.
+                val restText = when (val remaining = s.restHoursRemaining) {
+                    null -> null
+                    0L -> "recovered — good to go"
+                    else -> "rest about ${remaining}h more"
+                }
+                val lastWorkout = store.getLastLoggedWorkoutForMuscle(s.muscle)
+                val lastDetail = lastWorkout?.let { w ->
+                    val effort = w.effortText()?.let { " — $it" }.orEmpty()
+                    val name = w.exerciseName ?: w.templateName
+                    "Last: $name$effort"
+                }
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(
+                        "${s.muscle.displayName}: last trained $whenText ($stateText)",
+                        color = Color.Cyan, fontSize = 14.sp, fontWeight = FontWeight.Bold
+                    )
+                    restText?.let {
+                        Text(
+                            it,
+                            color = Color.White, fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                    lastDetail?.let {
+                        Text(it, color = Color.Gray, fontSize = 12.sp)
+                    }
+                }
             } ?: Text(
                 "Tap a muscle to see its status",
                 color = Color.Gray, fontSize = 12.sp
