@@ -26,6 +26,26 @@ fun spellingCardToLesson(card: SpellingCard, typed: Boolean): Lesson = Lesson(
     solveSteps = listOf(card.exampleSentence, "Memory trick: ${card.memoryTrick}")
 )
 
+/**
+ * Convert a HistoryCard into a Lesson the existing lesson screen can
+ * render unchanged. [form] picks the practice path: NAME asks the
+ * event from its description, DATE asks the date/era from the event
+ * — both options-based. The lesson screen records lesson NAME/DATE
+ * correct as last-seen refresh only (mirroring formula NAME), so
+ * units are mastered through battles (ORDER/CAUSE), not re-reading.
+ */
+fun historyCardToLesson(card: HistoryCard, form: HistoryForm): Lesson = Lesson(
+    title = card.eventName,
+    explanation = "${card.eraLabel}. ${card.dateLabel}. ${card.description} Why it mattered: ${card.whyItMattered}",
+    steps = listOf(card.description, "Why it mattered: ${card.whyItMattered}"),
+    example = "Date: ${card.dateLabel}. Era: ${card.eraLabel}.",
+    type = LessonType.SCIENCE_FACTS,
+    practiceQuestion = if (form == HistoryForm.DATE) "When did this happen? ${card.eventName}" else "Which event is this? ${card.description}",
+    practiceAnswer = if (form == HistoryForm.DATE) card.dateLabel else card.eventName,
+    practiceOptions = if (form == HistoryForm.DATE) (listOf(card.dateLabel) + card.dateDistractors).shuffled() else (listOf(card.eventName) + ALL_HISTORY_CARDS.filter { it.band == card.band && it.id != card.id }.map { it.eventName }).shuffled(),
+    solveSteps = listOf("Date: ${card.dateLabel}.", "Memory hook: ${card.memoryHook}")
+)
+
 /** Convert a FormulaCard into a Lesson the existing lesson screen can render unchanged. */
 fun formulaCardToLesson(card: FormulaCard): Lesson = Lesson(
     title = card.name,
@@ -65,6 +85,15 @@ class OfflineProblemProvider(
                 SpellingProblemGenerator(isAdjusted)
                     .generateSpellingProblem(cards.first(), SpellingForm.PICK)
             }
+            // History Card battles use HistoryCardProblemGenerator
+            // directly with a unit deck; this path only serves callers
+            // that ask the repository for a plain history problem.
+            // Mode is HISTORY_CARDS, not HISTORY (already the old subject).
+            "HISTORY_CARDS" -> {
+                val cards = historyCardsForBand(historyBandForGrade(grade))
+                HistoryCardProblemGenerator(isAdjusted)
+                    .generateHistoryProblem(cards.first(), HistoryForm.NAME, cards)
+            }
             "MATH" -> mathGen.generate()
             "READING" -> readingGen.generate()
             "HISTORY" -> historyGen.generate()
@@ -88,6 +117,14 @@ class OfflineProblemProvider(
                 // Alternate practice paths across lessons so learners get
                 // both typed SPELL practice and multiple-choice PICK practice.
                 spellingCardToLesson(card, typed = seenTitles.size % 2 == 0)
+            }
+            "HISTORY_CARDS" -> {
+                val cards = historyCardsForBand(historyBandForGrade(grade))
+                val unseen = cards.filter { it.eventName !in seenTitles }
+                val card = unseen.firstOrNull() ?: cards.first()
+                // Alternate NAME and DATE practice across lessons (like
+                // spelling alternates typed/PICK).
+                historyCardToLesson(card, if (seenTitles.size % 2 == 0) HistoryForm.NAME else HistoryForm.DATE)
             }
             "MATH" -> mathGen.generateLesson(seenTitles)
             "READING" -> readingGen.generateLesson(seenTitles)
