@@ -53,6 +53,7 @@ fun EducationalGameRoot(mode: String, isLesson: Boolean) {
     var selectedGrade by remember { mutableStateOf<String?>(null) }
     var isAdjusted by remember { mutableStateOf(false) }
     var currentFloor by remember { mutableStateOf<Int?>(null) }
+    var selectedFormulaUnit by remember { mutableStateOf<FormulaUnit?>(null) }
     val context = LocalContext.current
     val progressManager = remember { MathGameProgressManager(context) }
 
@@ -63,6 +64,14 @@ fun EducationalGameRoot(mode: String, isLesson: Boolean) {
     } else if (isLesson) {
         InstructionalLessonScreen(mode, selectedGrade!!, isAdjusted) {
             selectedGrade = null
+        }
+    } else if (mode == "FORMULA" && selectedFormulaUnit == null) {
+        FormulaUnitSelectionScreen(mode, selectedGrade!!) { unit ->
+            selectedFormulaUnit = unit
+        }
+    } else if (mode == "FORMULA") {
+        GamePlayScreen(mode, selectedGrade!!, 1, isAdjusted, progressManager, formulaUnit = selectedFormulaUnit) {
+            selectedFormulaUnit = null
         }
     } else if (currentFloor == null) {
         FloorSelectionScreen(mode, selectedGrade!!, progressManager) { floor ->
@@ -95,8 +104,9 @@ fun rememberProblemRepository(grade: String, floor: Int, isAdjusted: Boolean): P
 fun InstructionalLessonScreen(mode: String, grade: String, isAdjusted: Boolean, onBack: () -> Unit) {
     val context = LocalContext.current
     val monsterManager = remember { PhoneMonsterManager(context) }
+    val formulaMasteryManager = remember { FormulaMasteryManager(context) }
     val scope = rememberCoroutineScope()
-    
+
     val repository = rememberProblemRepository(grade, 1, isAdjusted)
 
     var history by remember { mutableStateOf(listOf<Lesson>()) }
@@ -257,6 +267,13 @@ fun InstructionalLessonScreen(mode: String, grade: String, isAdjusted: Boolean, 
                                                             "Secret Crit Chance +$gain%! (total +$total%)"
                                                             else "No crit bonus - wrong answer.",
                                                             Toast.LENGTH_LONG).show()
+                                                        // Formula lessons also feed mastery (NAME form:
+                                                        // refreshes last-seen, levels only on APPLY).
+                                                        if (mode == "FORMULA") {
+                                                            formulaCardByName(targetLesson.title)?.let { card ->
+                                                                formulaMasteryManager.recordAnswer(card.id, FormulaForm.NAME, correct)
+                                                            }
+                                                        }
                                                     }
                                                 },
                                                 modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
@@ -340,8 +357,40 @@ fun InstructionalLessonScreen(mode: String, grade: String, isAdjusted: Boolean, 
                 }
             }
             
+            // Formula Card section (2026-11-01): for FORMULA lessons, show
+            // the card banner + memory trick + mastery level under the lesson
+            // card, reusing the existing lesson card UI.
+            if (mode == "FORMULA") {
+                lesson?.let { currentLesson ->
+                    formulaCardByName(currentLesson.title)?.let { card ->
+                        val masteryLevel = formulaMasteryManager.level(card.id)
+                        Spacer(Modifier.height(16.dp))
+                        Card(
+                            backgroundColor = Color(60, 50, 10),
+                            shape = RoundedCornerShape(16.dp),
+                            elevation = 8.dp,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Column(modifier = Modifier.padding(20.dp)) {
+                                Text("★ FORMULA CARD", color = Color.Yellow, fontSize = 14.sp, fontWeight = FontWeight.ExtraBold)
+                                Spacer(Modifier.height(8.dp))
+                                Text(card.formulaSymbols, color = Color.White, fontSize = 28.sp, fontWeight = FontWeight.ExtraBold)
+                                Spacer(Modifier.height(8.dp))
+                                Text("Remember: ${card.memoryTrick}", color = Color.LightGray, fontSize = 16.sp)
+                                Spacer(Modifier.height(8.dp))
+                                Text(
+                                    if (masteryLevel >= 3) "★ MASTERED" else "Mastery level $masteryLevel / 3",
+                                    color = if (masteryLevel >= 3) Color.Yellow else Color.Gray,
+                                    fontSize = 14.sp, fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
             Spacer(Modifier.height(32.dp))
-            
+
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 Button(
                     onClick = { if (currentIndex > 0) currentIndex-- },
@@ -491,6 +540,73 @@ fun FloorSelectionScreen(mode: String, grade: String, progressManager: MathGameP
 }
 
 @Composable
+fun FormulaUnitSelectionScreen(mode: String, grade: String, onUnitSelected: (FormulaUnit) -> Unit) {
+    val context = LocalContext.current
+    val masteryManager = remember { FormulaMasteryManager(context) }
+    val entryBand = formulaBandForGrade(grade)
+    val unlockedIds = masteryManager.unlockedUnits(entryBand).map { it.id }.toSet()
+
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("Formula Cards (Grade $grade)") },
+                backgroundColor = Color(0, 50, 100),
+                contentColor = Color.White
+            )
+        }
+    ) { padding ->
+        Column(Modifier.padding(padding).fillMaxSize().background(Color(10, 10, 20)).padding(16.dp)) {
+            Text(
+                "Master a unit to unlock the next one — even in a higher grade band. Gold means mastered.",
+                color = Color.Gray, fontSize = 14.sp
+            )
+            Spacer(Modifier.height(16.dp))
+            LazyVerticalGrid(
+                columns = GridCells.Fixed(2),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.weight(1f)
+            ) {
+                items(FORMULA_UNITS.size) { index ->
+                    val unit = FORMULA_UNITS[index]
+                    val isUnlocked = unit.id in unlockedIds
+                    val isMastered = masteryManager.isUnitMastered(unit)
+                    Box(
+                        modifier = Modifier
+                            .aspectRatio(1.2f)
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(
+                                if (isMastered) Color(150, 120, 0)
+                                else if (isUnlocked) Color(30, 60, 120)
+                                else Color.DarkGray
+                            )
+                            .clickable(enabled = isUnlocked) { if (isUnlocked) onUnitSelected(unit) },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text(
+                                unit.name,
+                                color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp,
+                                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                                modifier = Modifier.padding(horizontal = 8.dp)
+                            )
+                            Spacer(Modifier.height(8.dp))
+                            Text(
+                                if (isMastered) "★ MASTERED"
+                                else if (isUnlocked) "${unit.cardIds.size} cards"
+                                else "LOCKED",
+                                color = if (isMastered) Color.Yellow else Color.Gray,
+                                fontSize = 12.sp, fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
 fun FloorCard(floor: Int, isUnlocked: Boolean, onClick: () -> Unit) {
     Box(
         modifier = Modifier
@@ -510,20 +626,38 @@ fun FloorCard(floor: Int, isUnlocked: Boolean, onClick: () -> Unit) {
 }
 
 @Composable
-fun GamePlayScreen(mode: String, grade: String, floor: Int, isAdjusted: Boolean, progressManager: MathGameProgressManager, onBack: () -> Unit) {
+fun GamePlayScreen(mode: String, grade: String, floor: Int, isAdjusted: Boolean, progressManager: MathGameProgressManager, formulaUnit: FormulaUnit? = null, onBack: () -> Unit) {
     val context = LocalContext.current
     val cardManager = remember { CardManager(context) }
     val monsterManager = remember { PhoneMonsterManager(context) }
-    
+    // Formula battle variant (2026-11-01): when formulaUnit is set, problems
+    // come from that unit's deck only, and answers feed mastery. All other
+    // mechanics (HP, timer, enemies, credit) are the existing ones.
+    val isFormula = formulaUnit != null
+    val formulaMasteryManager = remember { FormulaMasteryManager(context) }
+    val formulaGenerator = remember { FormulaProblemGenerator(isAdjusted) }
+    var currentFormulaCard by remember { mutableStateOf<FormulaCard?>(null) }
+    var currentFormulaForm by remember { mutableStateOf<FormulaForm?>(null) }
+    val formulaUnlockedBefore = remember {
+        if (isFormula) formulaMasteryManager.unlockedUnits(formulaBandForGrade(grade)).map { it.id }.toSet() else emptySet()
+    }
+
     val repository = rememberProblemRepository(grade, floor, isAdjusted)
-    
+
     var currentProblem by remember { mutableStateOf<Problem?>(null) }
     var isLoading by remember { mutableStateOf(false) }
 
     // Initialize first problem
     LaunchedEffect(Unit) {
         isLoading = true
-        currentProblem = repository.getProblem(mode, grade, floor, isAdjusted)
+        if (isFormula) {
+            val fp = formulaGenerator.nextProblem(formulaUnit!!.cards())
+            currentFormulaCard = fp.card
+            currentFormulaForm = fp.form
+            currentProblem = fp.problem
+        } else {
+            currentProblem = repository.getProblem(mode, grade, floor, isAdjusted)
+        }
         isLoading = false
     }
 
@@ -549,6 +683,22 @@ fun GamePlayScreen(mode: String, grade: String, floor: Int, isAdjusted: Boolean,
     val playerOffset = remember { Animatable(0f) }
     val enemyOffset = remember { Animatable(0f) }
     val scope = rememberCoroutineScope()
+
+    /** Next problem from the right source: the unit deck for formula battles, the repository otherwise. */
+    fun requestNextProblem() {
+        scope.launch {
+            isLoading = true
+            if (isFormula) {
+                val fp = formulaGenerator.nextProblem(formulaUnit!!.cards())
+                currentFormulaCard = fp.card
+                currentFormulaForm = fp.form
+                currentProblem = fp.problem
+            } else {
+                currentProblem = repository.getProblem(mode, grade, floor, isAdjusted)
+            }
+            isLoading = false
+        }
+    }
 
     fun loadRandomEnemy() {
         val cardNames = cardManager.listCards()
@@ -589,16 +739,16 @@ fun GamePlayScreen(mode: String, grade: String, floor: Int, isAdjusted: Boolean,
                 timer--
             }
             if (timer == 0 && !isGameOver) {
-                // Timeout = Penalty
+                // Timeout = Penalty (and a formula miss, for mastery + requeue).
                 playerHP -= damagePerWrong
                 mistakes++
                 timer = baseTimer
-                
-                scope.launch {
-                    isLoading = true
-                    currentProblem = repository.getProblem(mode, grade, floor, isAdjusted)
-                    isLoading = false
+
+                if (isFormula && currentFormulaCard != null && currentFormulaForm != null) {
+                    formulaMasteryManager.recordAnswer(currentFormulaCard!!.id, currentFormulaForm!!, false)
+                    formulaGenerator.recordResult(currentFormulaCard!!, false)
                 }
+                requestNextProblem()
                 
                 if (playerHP <= 0) {
                     isGameOver = true
@@ -630,7 +780,13 @@ fun GamePlayScreen(mode: String, grade: String, floor: Int, isAdjusted: Boolean,
 
     fun handleAnswer(isCorrect: Boolean) {
         if (isGameOver) return
-        
+
+        // Formula battles feed mastery + the missed-card requeue on every answer.
+        if (isFormula && currentFormulaCard != null && currentFormulaForm != null) {
+            formulaMasteryManager.recordAnswer(currentFormulaCard!!.id, currentFormulaForm!!, isCorrect)
+            formulaGenerator.recordResult(currentFormulaCard!!, isCorrect)
+        }
+
         if (isCorrect) {
             // Player Attacks
             scope.launch {
@@ -641,7 +797,10 @@ fun GamePlayScreen(mode: String, grade: String, floor: Int, isAdjusted: Boolean,
                 if (enemyHP <= 0) {
                     enemiesDefeated++
                     if (enemiesDefeated >= enemiesPerFloor) {
-                        progressManager.markFloorCleared(mode, grade, floor)
+                        // Formula battles skip the floor key: unit progress is
+                        // mastery, not floors. Credit (trophy + crit bonus)
+                        // is identical to a normal floor clear.
+                        if (!isFormula) progressManager.markFloorCleared(mode, grade, floor)
                         // 2026-09-27: practice floors grant the secret crit-DAMAGE bonus.
                         // Roll 1-5%, minus 1% per mistake on this floor (never below 0).
                         val gain = monsterManager.grantPracticeCritBonus(mistakes)
@@ -649,28 +808,28 @@ fun GamePlayScreen(mode: String, grade: String, floor: Int, isAdjusted: Boolean,
                         // 2026-09-29: education stands in for bracelet missions —
                         // each cleared floor earns a trophy toward evolution.
                         monsterManager.recordLessonCompleted()
-                        Toast.makeText(context, if (gain > 0)
+                        val unlockNote = if (isFormula) {
+                            val unlockedAfter = formulaMasteryManager.unlockedUnits(formulaBandForGrade(grade)).map { it.id }.toSet()
+                            val newly = unlockedAfter - formulaUnlockedBefore
+                            if (newly.isNotEmpty()) {
+                                val names = newly.mapNotNull { id -> FORMULA_UNITS.firstOrNull { it.id == id }?.name }
+                                " You mastered ${formulaUnit!!.name} — ${names.joinToString(", ")} unlocked!"
+                            } else ""
+                        } else ""
+                        Toast.makeText(context, (if (gain > 0)
                             "Secret Crit Damage +$gain%! (total +$total%)"
-                            else "Floor cleared! No crit bonus - too many mistakes.",
+                            else "Floor cleared! No crit bonus - too many mistakes.") + unlockNote,
                             Toast.LENGTH_LONG).show()
                         isWin = true
                         isGameOver = true
                     } else {
                         enemyHP = maxHP
                         loadRandomEnemy()
-                        scope.launch {
-                            isLoading = true
-                            currentProblem = repository.getProblem(mode, grade, floor, isAdjusted)
-                            isLoading = false
-                        }
+                        requestNextProblem()
                         timer = baseTimer
                     }
                 } else {
-                    scope.launch {
-                        isLoading = true
-                        currentProblem = repository.getProblem(mode, grade, floor, isAdjusted)
-                        isLoading = false
-                    }
+                    requestNextProblem()
                     timer = baseTimer
                 }
             }
@@ -686,11 +845,7 @@ fun GamePlayScreen(mode: String, grade: String, floor: Int, isAdjusted: Boolean,
                     isWin = false
                     isGameOver = true
                 } else {
-                    scope.launch {
-                        isLoading = true
-                        currentProblem = repository.getProblem(mode, grade, floor, isAdjusted)
-                        isLoading = false
-                    }
+                    requestNextProblem()
                     timer = baseTimer
                 }
             }
@@ -700,7 +855,7 @@ fun GamePlayScreen(mode: String, grade: String, floor: Int, isAdjusted: Boolean,
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("$mode G$grade F$floor - Enemy ${enemiesDefeated + 1}/$enemiesPerFloor") },
+                title = { Text(if (isFormula) "FORMULA ${formulaUnit!!.name} - Enemy ${enemiesDefeated + 1}/$enemiesPerFloor" else "$mode G$grade F$floor - Enemy ${enemiesDefeated + 1}/$enemiesPerFloor") },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.Default.ArrowBack, "Back")
@@ -772,7 +927,11 @@ fun GamePlayScreen(mode: String, grade: String, floor: Int, isAdjusted: Boolean,
                 }
             } else if (isGameOver) {
                 Spacer(Modifier.height(64.dp))
-                Text(if (isWin) "VICTORY!" else "GAME OVER", color = if (isWin) Color.Green else Color.Red, fontSize = 48.sp, fontWeight = FontWeight.ExtraBold)
+                Text(
+                    if (isWin && isFormula && formulaMasteryManager.isUnitMastered(formulaUnit!!)) "VICTORY! UNIT MASTERED!"
+                    else if (isWin) "VICTORY!" else "GAME OVER",
+                    color = if (isWin) Color.Green else Color.Red, fontSize = 48.sp, fontWeight = FontWeight.ExtraBold
+                )
                 Spacer(Modifier.height(32.dp))
                 Button(onClick = onBack) {
                     Text("Return to Menu")
