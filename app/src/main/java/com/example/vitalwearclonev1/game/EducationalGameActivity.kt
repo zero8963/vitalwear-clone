@@ -54,6 +54,7 @@ fun EducationalGameRoot(mode: String, isLesson: Boolean) {
     var isAdjusted by remember { mutableStateOf(false) }
     var currentFloor by remember { mutableStateOf<Int?>(null) }
     var selectedFormulaUnit by remember { mutableStateOf<FormulaUnit?>(null) }
+    var selectedSpellingUnit by remember { mutableStateOf<SpellingUnit?>(null) }
     val context = LocalContext.current
     val progressManager = remember { MathGameProgressManager(context) }
 
@@ -72,6 +73,14 @@ fun EducationalGameRoot(mode: String, isLesson: Boolean) {
     } else if (mode == "FORMULA") {
         GamePlayScreen(mode, selectedGrade!!, 1, isAdjusted, progressManager, formulaUnit = selectedFormulaUnit) {
             selectedFormulaUnit = null
+        }
+    } else if (mode == "SPELLING" && selectedSpellingUnit == null) {
+        SpellingUnitSelectionScreen(mode, selectedGrade!!) { unit ->
+            selectedSpellingUnit = unit
+        }
+    } else if (mode == "SPELLING") {
+        GamePlayScreen(mode, selectedGrade!!, 1, isAdjusted, progressManager, spellingUnit = selectedSpellingUnit) {
+            selectedSpellingUnit = null
         }
     } else if (currentFloor == null) {
         FloorSelectionScreen(mode, selectedGrade!!, progressManager) { floor ->
@@ -105,6 +114,7 @@ fun InstructionalLessonScreen(mode: String, grade: String, isAdjusted: Boolean, 
     val context = LocalContext.current
     val monsterManager = remember { PhoneMonsterManager(context) }
     val formulaMasteryManager = remember { FormulaMasteryManager(context) }
+    val spellingMasteryManager = remember { SpellingMasteryManager(context) }
     val scope = rememberCoroutineScope()
 
     val repository = rememberProblemRepository(grade, 1, isAdjusted)
@@ -274,6 +284,13 @@ fun InstructionalLessonScreen(mode: String, grade: String, isAdjusted: Boolean, 
                                                                 formulaMasteryManager.recordAnswer(card.id, FormulaForm.NAME, correct)
                                                             }
                                                         }
+                                                        // Spelling lessons: multiple-choice correct feeds
+                                                        // mastery as PICK (last-seen only, like formula NAME).
+                                                        if (mode == "SPELLING") {
+                                                            spellingCardByWord(targetLesson.title)?.let { card ->
+                                                                spellingMasteryManager.recordAnswer(card.id, SpellingForm.PICK, correct)
+                                                            }
+                                                        }
                                                     }
                                                 },
                                                 modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
@@ -314,6 +331,15 @@ fun InstructionalLessonScreen(mode: String, grade: String, isAdjusted: Boolean, 
                                                     "Secret Crit Chance +$gain%! (total +$total%)"
                                                     else "No crit bonus - wrong answer.",
                                                     Toast.LENGTH_LONG).show()
+                                                // Spelling lessons: typed correct feeds mastery as
+                                                // SPELL (levels on two consecutive correct SPELLs,
+                                                // mirroring formula APPLY). This text-input branch
+                                                // is first used by spelling lessons.
+                                                if (mode == "SPELLING") {
+                                                    spellingCardByWord(targetLesson.title)?.let { card ->
+                                                        spellingMasteryManager.recordAnswer(card.id, SpellingForm.SPELL, correct)
+                                                    }
+                                                }
                                             },
                                             modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
                                             enabled = userAnswer == null
@@ -375,6 +401,40 @@ fun InstructionalLessonScreen(mode: String, grade: String, isAdjusted: Boolean, 
                                 Text("★ FORMULA CARD", color = Color.Yellow, fontSize = 14.sp, fontWeight = FontWeight.ExtraBold)
                                 Spacer(Modifier.height(8.dp))
                                 Text(card.formulaSymbols, color = Color.White, fontSize = 28.sp, fontWeight = FontWeight.ExtraBold)
+                                Spacer(Modifier.height(8.dp))
+                                Text("Remember: ${card.memoryTrick}", color = Color.LightGray, fontSize = 16.sp)
+                                Spacer(Modifier.height(8.dp))
+                                Text(
+                                    if (masteryLevel >= 3) "★ MASTERED" else "Mastery level $masteryLevel / 3",
+                                    color = if (masteryLevel >= 3) Color.Yellow else Color.Gray,
+                                    fontSize = 14.sp, fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Spelling Card section (2026-11-01): for SPELLING lessons, show
+            // the card banner + breakdown + memory trick + mastery level
+            // under the lesson card, mirroring the Formula Card banner.
+            if (mode == "SPELLING") {
+                lesson?.let { currentLesson ->
+                    spellingCardByWord(currentLesson.title)?.let { card ->
+                        val masteryLevel = spellingMasteryManager.level(card.id)
+                        Spacer(Modifier.height(16.dp))
+                        Card(
+                            backgroundColor = Color(60, 50, 10),
+                            shape = RoundedCornerShape(16.dp),
+                            elevation = 8.dp,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Column(modifier = Modifier.padding(20.dp)) {
+                                Text("★ SPELLING CARD", color = Color.Yellow, fontSize = 14.sp, fontWeight = FontWeight.ExtraBold)
+                                Spacer(Modifier.height(8.dp))
+                                Text(card.word, color = Color.White, fontSize = 28.sp, fontWeight = FontWeight.ExtraBold)
+                                Spacer(Modifier.height(8.dp))
+                                Text("Breakdown: ${card.breakdown}", color = Color.LightGray, fontSize = 16.sp)
                                 Spacer(Modifier.height(8.dp))
                                 Text("Remember: ${card.memoryTrick}", color = Color.LightGray, fontSize = 16.sp)
                                 Spacer(Modifier.height(8.dp))
@@ -607,6 +667,73 @@ fun FormulaUnitSelectionScreen(mode: String, grade: String, onUnitSelected: (For
 }
 
 @Composable
+fun SpellingUnitSelectionScreen(mode: String, grade: String, onUnitSelected: (SpellingUnit) -> Unit) {
+    val context = LocalContext.current
+    val masteryManager = remember { SpellingMasteryManager(context) }
+    val entryBand = spellingBandForGrade(grade)
+    val unlockedIds = masteryManager.unlockedUnits(entryBand).map { it.id }.toSet()
+
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("Spelling Cards (Grade $grade)") },
+                backgroundColor = Color(0, 50, 100),
+                contentColor = Color.White
+            )
+        }
+    ) { padding ->
+        Column(Modifier.padding(padding).fillMaxSize().background(Color(10, 10, 20)).padding(16.dp)) {
+            Text(
+                "Master a unit to unlock the next one — even in a higher grade band. Gold means mastered.",
+                color = Color.Gray, fontSize = 14.sp
+            )
+            Spacer(Modifier.height(16.dp))
+            LazyVerticalGrid(
+                columns = GridCells.Fixed(2),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.weight(1f)
+            ) {
+                items(SPELLING_UNITS.size) { index ->
+                    val unit = SPELLING_UNITS[index]
+                    val isUnlocked = unit.id in unlockedIds
+                    val isMastered = masteryManager.isUnitMastered(unit)
+                    Box(
+                        modifier = Modifier
+                            .aspectRatio(1.2f)
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(
+                                if (isMastered) Color(150, 120, 0)
+                                else if (isUnlocked) Color(30, 60, 120)
+                                else Color.DarkGray
+                            )
+                            .clickable(enabled = isUnlocked) { if (isUnlocked) onUnitSelected(unit) },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text(
+                                unit.name,
+                                color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp,
+                                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                                modifier = Modifier.padding(horizontal = 8.dp)
+                            )
+                            Spacer(Modifier.height(8.dp))
+                            Text(
+                                if (isMastered) "★ MASTERED"
+                                else if (isUnlocked) "${unit.cardIds.size} cards"
+                                else "LOCKED",
+                                color = if (isMastered) Color.Yellow else Color.Gray,
+                                fontSize = 12.sp, fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
 fun FloorCard(floor: Int, isUnlocked: Boolean, onClick: () -> Unit) {
     Box(
         modifier = Modifier
@@ -625,8 +752,16 @@ fun FloorCard(floor: Int, isUnlocked: Boolean, onClick: () -> Unit) {
     }
 }
 
+/**
+ * Battle-form mapping for spelling mastery: battles have no typed
+ * input, so a battle PICK is the battle's SPELL performance (see the
+ * SpellingMasteryState note). FILL and USE record as themselves.
+ */
+private fun spellingBattleForm(form: SpellingForm): SpellingForm =
+    if (form == SpellingForm.PICK) SpellingForm.SPELL else form
+
 @Composable
-fun GamePlayScreen(mode: String, grade: String, floor: Int, isAdjusted: Boolean, progressManager: MathGameProgressManager, formulaUnit: FormulaUnit? = null, onBack: () -> Unit) {
+fun GamePlayScreen(mode: String, grade: String, floor: Int, isAdjusted: Boolean, progressManager: MathGameProgressManager, formulaUnit: FormulaUnit? = null, spellingUnit: SpellingUnit? = null, onBack: () -> Unit) {
     val context = LocalContext.current
     val cardManager = remember { CardManager(context) }
     val monsterManager = remember { PhoneMonsterManager(context) }
@@ -640,6 +775,19 @@ fun GamePlayScreen(mode: String, grade: String, floor: Int, isAdjusted: Boolean,
     var currentFormulaForm by remember { mutableStateOf<FormulaForm?>(null) }
     val formulaUnlockedBefore = remember {
         if (isFormula) formulaMasteryManager.unlockedUnits(formulaBandForGrade(grade)).map { it.id }.toSet() else emptySet()
+    }
+    // Spelling battle variant (2026-11-01): mirrors the formula variant.
+    // Battles have no typed input, so a correct battle PICK (choosing
+    // the exact spelling among misspellings) is recorded as SPELL —
+    // the battle's spelling performance — while lesson multiple-choice
+    // correct stays PICK (last-seen only).
+    val isSpelling = spellingUnit != null
+    val spellingMasteryManager = remember { SpellingMasteryManager(context) }
+    val spellingGenerator = remember { SpellingProblemGenerator(isAdjusted) }
+    var currentSpellingCard by remember { mutableStateOf<SpellingCard?>(null) }
+    var currentSpellingForm by remember { mutableStateOf<SpellingForm?>(null) }
+    val spellingUnlockedBefore = remember {
+        if (isSpelling) spellingMasteryManager.unlockedUnits(spellingBandForGrade(grade)).map { it.id }.toSet() else emptySet()
     }
 
     val repository = rememberProblemRepository(grade, floor, isAdjusted)
@@ -655,6 +803,11 @@ fun GamePlayScreen(mode: String, grade: String, floor: Int, isAdjusted: Boolean,
             currentFormulaCard = fp.card
             currentFormulaForm = fp.form
             currentProblem = fp.problem
+        } else if (isSpelling) {
+            val sp = spellingGenerator.nextProblem(spellingUnit!!.cards())
+            currentSpellingCard = sp.card
+            currentSpellingForm = sp.form
+            currentProblem = sp.problem
         } else {
             currentProblem = repository.getProblem(mode, grade, floor, isAdjusted)
         }
@@ -684,7 +837,7 @@ fun GamePlayScreen(mode: String, grade: String, floor: Int, isAdjusted: Boolean,
     val enemyOffset = remember { Animatable(0f) }
     val scope = rememberCoroutineScope()
 
-    /** Next problem from the right source: the unit deck for formula battles, the repository otherwise. */
+    /** Next problem from the right source: the unit deck for formula/spelling battles, the repository otherwise. */
     fun requestNextProblem() {
         scope.launch {
             isLoading = true
@@ -693,6 +846,11 @@ fun GamePlayScreen(mode: String, grade: String, floor: Int, isAdjusted: Boolean,
                 currentFormulaCard = fp.card
                 currentFormulaForm = fp.form
                 currentProblem = fp.problem
+            } else if (isSpelling) {
+                val sp = spellingGenerator.nextProblem(spellingUnit!!.cards())
+                currentSpellingCard = sp.card
+                currentSpellingForm = sp.form
+                currentProblem = sp.problem
             } else {
                 currentProblem = repository.getProblem(mode, grade, floor, isAdjusted)
             }
@@ -748,6 +906,10 @@ fun GamePlayScreen(mode: String, grade: String, floor: Int, isAdjusted: Boolean,
                     formulaMasteryManager.recordAnswer(currentFormulaCard!!.id, currentFormulaForm!!, false)
                     formulaGenerator.recordResult(currentFormulaCard!!, false)
                 }
+                if (isSpelling && currentSpellingCard != null && currentSpellingForm != null) {
+                    spellingMasteryManager.recordAnswer(currentSpellingCard!!.id, spellingBattleForm(currentSpellingForm!!), false)
+                    spellingGenerator.recordResult(currentSpellingCard!!, false)
+                }
                 requestNextProblem()
                 
                 if (playerHP <= 0) {
@@ -786,6 +948,11 @@ fun GamePlayScreen(mode: String, grade: String, floor: Int, isAdjusted: Boolean,
             formulaMasteryManager.recordAnswer(currentFormulaCard!!.id, currentFormulaForm!!, isCorrect)
             formulaGenerator.recordResult(currentFormulaCard!!, isCorrect)
         }
+        // Spelling battles feed mastery + the missed-card requeue on every answer.
+        if (isSpelling && currentSpellingCard != null && currentSpellingForm != null) {
+            spellingMasteryManager.recordAnswer(currentSpellingCard!!.id, spellingBattleForm(currentSpellingForm!!), isCorrect)
+            spellingGenerator.recordResult(currentSpellingCard!!, isCorrect)
+        }
 
         if (isCorrect) {
             // Player Attacks
@@ -797,10 +964,10 @@ fun GamePlayScreen(mode: String, grade: String, floor: Int, isAdjusted: Boolean,
                 if (enemyHP <= 0) {
                     enemiesDefeated++
                     if (enemiesDefeated >= enemiesPerFloor) {
-                        // Formula battles skip the floor key: unit progress is
-                        // mastery, not floors. Credit (trophy + crit bonus)
-                        // is identical to a normal floor clear.
-                        if (!isFormula) progressManager.markFloorCleared(mode, grade, floor)
+                        // Formula/spelling battles skip the floor key: unit
+                        // progress is mastery, not floors. Credit (trophy +
+                        // crit bonus) is identical to a normal floor clear.
+                        if (!isFormula && !isSpelling) progressManager.markFloorCleared(mode, grade, floor)
                         // 2026-09-27: practice floors grant the secret crit-DAMAGE bonus.
                         // Roll 1-5%, minus 1% per mistake on this floor (never below 0).
                         val gain = monsterManager.grantPracticeCritBonus(mistakes)
@@ -814,6 +981,13 @@ fun GamePlayScreen(mode: String, grade: String, floor: Int, isAdjusted: Boolean,
                             if (newly.isNotEmpty()) {
                                 val names = newly.mapNotNull { id -> FORMULA_UNITS.firstOrNull { it.id == id }?.name }
                                 " You mastered ${formulaUnit!!.name} — ${names.joinToString(", ")} unlocked!"
+                            } else ""
+                        } else if (isSpelling) {
+                            val unlockedAfter = spellingMasteryManager.unlockedUnits(spellingBandForGrade(grade)).map { it.id }.toSet()
+                            val newly = unlockedAfter - spellingUnlockedBefore
+                            if (newly.isNotEmpty()) {
+                                val names = newly.mapNotNull { id -> SPELLING_UNITS.firstOrNull { it.id == id }?.name }
+                                " You mastered ${spellingUnit!!.name} — ${names.joinToString(", ")} unlocked!"
                             } else ""
                         } else ""
                         Toast.makeText(context, (if (gain > 0)
@@ -855,7 +1029,7 @@ fun GamePlayScreen(mode: String, grade: String, floor: Int, isAdjusted: Boolean,
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(if (isFormula) "FORMULA ${formulaUnit!!.name} - Enemy ${enemiesDefeated + 1}/$enemiesPerFloor" else "$mode G$grade F$floor - Enemy ${enemiesDefeated + 1}/$enemiesPerFloor") },
+                title = { Text(if (isFormula) "FORMULA ${formulaUnit!!.name} - Enemy ${enemiesDefeated + 1}/$enemiesPerFloor" else if (isSpelling) "SPELLING ${spellingUnit!!.name} - Enemy ${enemiesDefeated + 1}/$enemiesPerFloor" else "$mode G$grade F$floor - Enemy ${enemiesDefeated + 1}/$enemiesPerFloor") },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.Default.ArrowBack, "Back")
@@ -929,6 +1103,7 @@ fun GamePlayScreen(mode: String, grade: String, floor: Int, isAdjusted: Boolean,
                 Spacer(Modifier.height(64.dp))
                 Text(
                     if (isWin && isFormula && formulaMasteryManager.isUnitMastered(formulaUnit!!)) "VICTORY! UNIT MASTERED!"
+                    else if (isWin && isSpelling && spellingMasteryManager.isUnitMastered(spellingUnit!!)) "VICTORY! UNIT MASTERED!"
                     else if (isWin) "VICTORY!" else "GAME OVER",
                     color = if (isWin) Color.Green else Color.Red, fontSize = 48.sp, fontWeight = FontWeight.ExtraBold
                 )

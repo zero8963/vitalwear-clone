@@ -1489,7 +1489,9 @@ fun GameMenuScreen(onModeSelected: (String, Boolean) -> Unit) {
             Triple("GEOMETRY", "Geometry", Color(240, 60, 120)),
             Triple("LIFESCIENCE", "Life Science", Color(120, 240, 60)),
             // Formula Cards last (2026-11-01): gamified formula lessons + battles.
-            Triple("FORMULA", "Formula Cards", Color(240, 200, 60))
+            Triple("FORMULA", "Formula Cards", Color(240, 200, 60)),
+            // Spelling Cards last (2026-11-01): gamified spelling lessons + battles.
+            Triple("SPELLING", "Spelling Cards", Color(60, 200, 240))
         )
 
         val scrollState = rememberScrollState()
