@@ -23,16 +23,19 @@ data class LoggedWorkout(
     val reps: Int? = null,
     val weightLb: Float? = null,
     // Fitness (2026-11-01): cardio detail (time + optional distance).
-    // Null on every entry written before this change — decode keeps
-    // those readable, and cardio entries carry no sets/reps/weight.
+    // Cardio v2 adds optional weight (weighted run / loaded carry):
+    // it reuses the weightLb slot, so cardio entries stay in the
+    // existing 9-part shape and decode keeps every older entry
+    // readable (pre-v2 cardio entries simply have blank weight).
     val durationMin: Float? = null,
     val distanceMi: Float? = null
 ) {
-    /** One-line summary of the logged effort, e.g. "3x10 @ 50 lb" or "15 min • 1 mi". */
+    /** One-line summary, e.g. "3x10 @ 50 lb", "15 min • 1 mi", "15 min • 1 mi @ 20 lb". */
     fun effortText(): String? {
         if (durationMin != null) {
             val distance = distanceMi?.let { " • ${formatDecimal(it)} mi" }.orEmpty()
-            return "${formatDecimal(durationMin)} min$distance"
+            val weight = weightLb?.let { " @ ${formatWeightLb(it)} lb" }.orEmpty()
+            return "${formatDecimal(durationMin)} min$distance$weight"
         }
         if (sets == null || reps == null) return null
         val weight = weightLb?.let { " @ ${formatWeightLb(it)} lb" } ?: " (bodyweight)"
@@ -104,13 +107,17 @@ class WorkoutLogStore(private val context: Context) {
      * Fitness (2026-11-01): per-exercise cardio commit from the
      * Exercises tab. Same log + credit path as logExercise, but the
      * entry carries time + optional distance instead of sets/reps.
+     * Cardio v2: optional weight (weighted run / loaded carry) rides
+     * in the weight slot of the same 9-part shape — no new format, so
+     * old 9-part cardio entries (blank weight) still decode.
      */
     fun logCardioExercise(
         date: LocalDate,
         exercise: Exercise,
         muscles: Set<MuscleGroup>,
         durationMin: Float,
-        distanceMi: Float?
+        distanceMi: Float?,
+        weightLb: Float? = null
     ) {
         if (muscles.isEmpty()) return
         val existing = getWorkoutsForDate(date).toMutableList()
@@ -118,7 +125,8 @@ class WorkoutLogStore(private val context: Context) {
             LoggedWorkout(
                 date, exercise.name, muscles, System.currentTimeMillis(),
                 exerciseName = exercise.name,
-                durationMin = durationMin, distanceMi = distanceMi
+                durationMin = durationMin, distanceMi = distanceMi,
+                weightLb = weightLb
             )
         )
         prefs().edit().putString(keyFor(date), encode(existing)).apply()
@@ -250,8 +258,9 @@ class WorkoutLogStore(private val context: Context) {
                 val reps = w.reps?.toString().orEmpty()
                 val weight = w.weightLb?.toString().orEmpty()
                 // Cardio entries ride as the extended 9-part shape
-                // (sets/reps/weight blank, time + distance appended);
-                // strength entries keep the existing 7-part shape.
+                // (sets/reps blank, weight = optional cardio load,
+                // time + distance appended); strength entries keep
+                // the existing 7-part shape.
                 if (w.durationMin != null) {
                     val duration = w.durationMin.toString()
                     val distance = w.distanceMi?.toString().orEmpty()

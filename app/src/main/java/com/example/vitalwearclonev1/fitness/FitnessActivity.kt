@@ -165,21 +165,24 @@ fun FitnessRoot() {
                                 Toast.LENGTH_SHORT
                             ).show()
                         },
-                        onCardioCommit = { exercise, muscles, durationMin, distanceMi ->
+                        onCardioCommit = { exercise, muscles, durationMin, distanceMi, weightLb ->
                             // 2026-11-01: cardio commit — same log +
                             // credit path as the strength commit (one
                             // trophy/VP per exercise, 2h dedup window
                             // via markInAppExerciseLog), but the entry
                             // carries time + optional distance.
+                            // Cardio v2: optional weight (weighted run
+                            // / loaded carry) rides the same path.
                             logStore.logCardioExercise(
                                 LocalDate.now(), exercise, muscles,
-                                durationMin, distanceMi
+                                durationMin, distanceMi, weightLb
                             )
                             logStore.markInAppExerciseLog()
                             PhoneMonsterManager(context).recordExerciseCompleted()
                             logVersion++
                             val effort = "${formatDecimal(durationMin)} min" +
-                                (distanceMi?.let { " • ${formatDecimal(it)} mi" }.orEmpty())
+                                (distanceMi?.let { " • ${formatDecimal(it)} mi" }.orEmpty()) +
+                                (weightLb?.let { " @ ${formatWeightLb(it)} lb" }.orEmpty())
                             Toast.makeText(
                                 context,
                                 "Logged: ${exercise.name} $effort (+1 trophy)",

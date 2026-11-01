@@ -48,9 +48,10 @@ fun ExercisesTabContent(
     logVersion: Int,
     onCommit: (exercise: Exercise, muscles: Set<MuscleGroup>, sets: Int, reps: Int, weightLb: Float?) -> Unit,
     // Fitness (2026-11-01): cardio commits carry time + optional
-    // distance instead of sets/reps/weight. Strength path above is
-    // untouched.
-    onCardioCommit: (exercise: Exercise, muscles: Set<MuscleGroup>, durationMin: Float, distanceMi: Float?) -> Unit
+    // distance instead of sets/reps. Cardio v2: optional weight too
+    // (weighted run / loaded carry) — blank = unweighted. Strength
+    // path above is untouched.
+    onCardioCommit: (exercise: Exercise, muscles: Set<MuscleGroup>, durationMin: Float, distanceMi: Float?, weightLb: Float?) -> Unit
 ) {
     var query by remember { mutableStateOf("") }
     var selected by remember { mutableStateOf<Exercise?>(null) }
@@ -133,8 +134,8 @@ fun ExercisesTabContent(
             CardioLogFormDialog(
                 exercise = exercise,
                 onDismiss = { selected = null },
-                onCommit = { muscles, durationMin, distanceMi ->
-                    onCardioCommit(exercise, muscles, durationMin, distanceMi)
+                onCommit = { muscles, durationMin, distanceMi, weightLb ->
+                    onCardioCommit(exercise, muscles, durationMin, distanceMi, weightLb)
                     selected = null
                 }
             )
@@ -323,18 +324,21 @@ private fun ExerciseLogFormDialog(
 /**
  * Fitness (2026-11-01): cardio commit form — time (minutes, required)
  * + distance (miles, optional; blank = time-only, for stair climber /
- * elliptical / jump rope / swim where miles may not apply). No sets,
- * reps, or weight fields. Muscles default to the exercise's mapping;
+ * elliptical / jump rope / swim where miles may not apply). No sets
+ * or reps fields. Cardio v2: weight (lb, optional; blank =
+ * unweighted) — a Mountain Climber is cardio even when loaded, and
+ * a run can be weighted. Muscles default to the exercise's mapping;
  * tapping a chip toggles that group out, same as the strength form.
  */
 @Composable
 private fun CardioLogFormDialog(
     exercise: Exercise,
     onDismiss: () -> Unit,
-    onCommit: (muscles: Set<MuscleGroup>, durationMin: Float, distanceMi: Float?) -> Unit
+    onCommit: (muscles: Set<MuscleGroup>, durationMin: Float, distanceMi: Float?, weightLb: Float?) -> Unit
 ) {
     var timeText by remember { mutableStateOf("") }
     var distanceText by remember { mutableStateOf("") }
+    var weightText by remember { mutableStateOf("") }
     val allMuscles = remember(exercise) { exercise.primary + exercise.secondary }
     var excluded by remember { mutableStateOf<Set<MuscleGroup>>(emptySet()) }
     val selectedMuscles = allMuscles - excluded
@@ -342,7 +346,9 @@ private fun CardioLogFormDialog(
     val durationMin = timeText.trim().toFloatOrNull()?.takeIf { it > 0 }
     val distanceMi = distanceText.trim().ifBlank { null }?.toFloatOrNull()
     val distanceValid = distanceText.isBlank() || (distanceMi != null && distanceMi > 0)
-    val canCommit = durationMin != null && distanceValid &&
+    val weightLb = weightText.trim().ifBlank { null }?.toFloatOrNull()
+    val weightValid = weightText.isBlank() || (weightLb != null && weightLb > 0)
+    val canCommit = durationMin != null && distanceValid && weightValid &&
         selectedMuscles.isNotEmpty()
 
     Dialog(onDismissRequest = onDismiss) {
@@ -380,11 +386,22 @@ private fun CardioLogFormDialog(
                         placeholder = "Time only",
                         modifier = Modifier.weight(1f)
                     )
+                    NumberField(
+                        label = "Weight (lb)",
+                        value = weightText,
+                        onValueChange = {
+                            weightText = it.filter { c -> c.isDigit() || c == '.' }.take(7)
+                        },
+                        keyboardType = KeyboardType.Decimal,
+                        placeholder = "Unweighted",
+                        modifier = Modifier.weight(1.2f)
+                    )
                 }
                 if (durationMin != null) {
                     Text(
                         "${formatDecimal(durationMin)} min" +
-                            (distanceMi?.let { " • ${formatDecimal(it)} mi" }.orEmpty()),
+                            (distanceMi?.let { " • ${formatDecimal(it)} mi" }.orEmpty()) +
+                            (weightLb?.let { " @ ${formatWeightLb(it)} lb" }.orEmpty()),
                         color = Color.Cyan, fontSize = 14.sp, fontWeight = FontWeight.Bold
                     )
                 }
@@ -433,7 +450,7 @@ private fun CardioLogFormDialog(
                     }
                     Button(
                         onClick = {
-                            onCommit(selectedMuscles, durationMin!!, distanceMi)
+                            onCommit(selectedMuscles, durationMin!!, distanceMi, weightLb)
                         },
                         enabled = canCommit,
                         modifier = Modifier.weight(1f),

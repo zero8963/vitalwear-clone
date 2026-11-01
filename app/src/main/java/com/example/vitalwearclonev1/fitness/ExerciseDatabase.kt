@@ -20,6 +20,10 @@ data class Exercise(
  * Fitness (2026-11-01): cardio exercises get a time + distance commit
  * form in the Exercises tab instead of sets x reps x weight — a run is
  * 15 min / 1 mi, not 3x10. Strength exercises are unaffected.
+ * Fitness (2026-11-01, cardio v2): session-type exercises move here too
+ * — a Mountain Climber is cardio even when loaded, a soccer game is
+ * time, not sets. Weight stays available on the cardio form (optional),
+ * so weighted runs / loaded carries still log their load.
  */
 val CARDIO_EXERCISE_NAMES: Set<String> = setOf(
     "Running",
@@ -36,7 +40,54 @@ val CARDIO_EXERCISE_NAMES: Set<String> = setOf(
     "Swimming (Pool)",
     "Swimming (Open Water)",
     "High-Intensity Interval Training",
-    "Jump Rope"
+    "Jump Rope",
+    // Cardio v2: time-based / session exercises.
+    "Mountain Climber",
+    "Burpee",
+    "Plank",
+    "Side Plank",
+    "Farmer's Carry",
+    "Boot Camp",
+    "Calisthenics",
+    "Yoga",
+    "Pilates",
+    "Stretching",
+    "Basketball",
+    "Soccer",
+    "Tennis",
+    "Badminton",
+    "Squash",
+    "Racquetball",
+    "Table Tennis",
+    "Golf",
+    "Baseball",
+    "Softball",
+    "Volleyball",
+    "Rugby",
+    "American Football",
+    "Hockey",
+    "Ice Skating",
+    "Skiing",
+    "Snowboarding",
+    "Snowshoeing",
+    "Surfing",
+    "Rock Climbing",
+    "Paddling",
+    "Sailing",
+    "Horseback Riding",
+    "Gymnastics",
+    "Dancing",
+    "Boxing",
+    "Kickboxing",
+    "Martial Arts",
+    "Mixed Martial Arts",
+    "Fencing",
+    "Handball",
+    "Cricket",
+    "Frisbee",
+    "Scuba Diving",
+    "Water Polo",
+    "Wheelchair"
 )
 
 fun Exercise.isCardio(): Boolean = name in CARDIO_EXERCISE_NAMES
