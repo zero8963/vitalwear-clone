@@ -46,7 +46,11 @@ import androidx.compose.ui.window.Dialog
 fun ExercisesTabContent(
     store: WorkoutLogStore,
     logVersion: Int,
-    onCommit: (exercise: Exercise, muscles: Set<MuscleGroup>, sets: Int, reps: Int, weightLb: Float?) -> Unit
+    onCommit: (exercise: Exercise, muscles: Set<MuscleGroup>, sets: Int, reps: Int, weightLb: Float?) -> Unit,
+    // Fitness (2026-11-01): cardio commits carry time + optional
+    // distance instead of sets/reps/weight. Strength path above is
+    // untouched.
+    onCardioCommit: (exercise: Exercise, muscles: Set<MuscleGroup>, durationMin: Float, distanceMi: Float?) -> Unit
 ) {
     var query by remember { mutableStateOf("") }
     var selected by remember { mutableStateOf<Exercise?>(null) }
@@ -125,14 +129,25 @@ fun ExercisesTabContent(
     }
 
     selected?.let { exercise ->
-        ExerciseLogFormDialog(
-            exercise = exercise,
-            onDismiss = { selected = null },
-            onCommit = { muscles, sets, reps, weightLb ->
-                onCommit(exercise, muscles, sets, reps, weightLb)
-                selected = null
-            }
-        )
+        if (exercise.isCardio()) {
+            CardioLogFormDialog(
+                exercise = exercise,
+                onDismiss = { selected = null },
+                onCommit = { muscles, durationMin, distanceMi ->
+                    onCardioCommit(exercise, muscles, durationMin, distanceMi)
+                    selected = null
+                }
+            )
+        } else {
+            ExerciseLogFormDialog(
+                exercise = exercise,
+                onDismiss = { selected = null },
+                onCommit = { muscles, sets, reps, weightLb ->
+                    onCommit(exercise, muscles, sets, reps, weightLb)
+                    selected = null
+                }
+            )
+        }
     }
 }
 
@@ -289,6 +304,136 @@ private fun ExerciseLogFormDialog(
                     Button(
                         onClick = {
                             onCommit(selectedMuscles, sets!!, reps!!, weightLb)
+                        },
+                        enabled = canCommit,
+                        modifier = Modifier.weight(1f),
+                        colors = ButtonDefaults.buttonColors(
+                            backgroundColor = Color(0, 150, 100)
+                        ),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Text("Commit", color = Color.White, fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Fitness (2026-11-01): cardio commit form — time (minutes, required)
+ * + distance (miles, optional; blank = time-only, for stair climber /
+ * elliptical / jump rope / swim where miles may not apply). No sets,
+ * reps, or weight fields. Muscles default to the exercise's mapping;
+ * tapping a chip toggles that group out, same as the strength form.
+ */
+@Composable
+private fun CardioLogFormDialog(
+    exercise: Exercise,
+    onDismiss: () -> Unit,
+    onCommit: (muscles: Set<MuscleGroup>, durationMin: Float, distanceMi: Float?) -> Unit
+) {
+    var timeText by remember { mutableStateOf("") }
+    var distanceText by remember { mutableStateOf("") }
+    val allMuscles = remember(exercise) { exercise.primary + exercise.secondary }
+    var excluded by remember { mutableStateOf<Set<MuscleGroup>>(emptySet()) }
+    val selectedMuscles = allMuscles - excluded
+
+    val durationMin = timeText.trim().toFloatOrNull()?.takeIf { it > 0 }
+    val distanceMi = distanceText.trim().ifBlank { null }?.toFloatOrNull()
+    val distanceValid = distanceText.isBlank() || (distanceMi != null && distanceMi > 0)
+    val canCommit = durationMin != null && distanceValid &&
+        selectedMuscles.isNotEmpty()
+
+    Dialog(onDismissRequest = onDismiss) {
+        Card(
+            backgroundColor = Color(0, 30, 60),
+            shape = RoundedCornerShape(20.dp),
+            elevation = 8.dp,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(
+                modifier = Modifier.padding(20.dp).fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Text(
+                    exercise.name,
+                    color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.ExtraBold
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    NumberField(
+                        label = "Time (min)",
+                        value = timeText,
+                        onValueChange = {
+                            timeText = it.filter { c -> c.isDigit() || c == '.' }.take(7)
+                        },
+                        keyboardType = KeyboardType.Decimal,
+                        modifier = Modifier.weight(1f)
+                    )
+                    NumberField(
+                        label = "Distance (mi)",
+                        value = distanceText,
+                        onValueChange = {
+                            distanceText = it.filter { c -> c.isDigit() || c == '.' }.take(7)
+                        },
+                        keyboardType = KeyboardType.Decimal,
+                        placeholder = "Time only",
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+                if (durationMin != null) {
+                    Text(
+                        "${formatDecimal(durationMin)} min" +
+                            (distanceMi?.let { " • ${formatDecimal(it)} mi" }.orEmpty()),
+                        color = Color.Cyan, fontSize = 14.sp, fontWeight = FontWeight.Bold
+                    )
+                }
+                Text(
+                    "Muscles hit — tap to remove one:",
+                    color = Color.Gray, fontSize = 12.sp, fontWeight = FontWeight.Bold
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth()
+                        .horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    allMuscles.sortedBy { it.name }.forEach { muscle ->
+                        val on = selectedMuscles.contains(muscle)
+                        Button(
+                            onClick = {
+                                excluded = if (on) excluded + muscle else excluded - muscle
+                            },
+                            shape = RoundedCornerShape(16.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                backgroundColor = if (on) Color(0, 100, 130)
+                                else Color(60, 60, 70)
+                            )
+                        ) {
+                            Text(
+                                muscle.displayName,
+                                color = Color.White, fontSize = 13.sp,
+                                fontWeight = if (on) FontWeight.Bold else FontWeight.Normal
+                            )
+                        }
+                    }
+                }
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Button(
+                        onClick = onDismiss,
+                        modifier = Modifier.weight(1f),
+                        colors = ButtonDefaults.buttonColors(
+                            backgroundColor = Color(60, 60, 70)
+                        ),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Text("Cancel", color = Color.White)
+                    }
+                    Button(
+                        onClick = {
+                            onCommit(selectedMuscles, durationMin!!, distanceMi)
                         },
                         enabled = canCommit,
                         modifier = Modifier.weight(1f),

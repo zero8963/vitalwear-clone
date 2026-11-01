@@ -16,6 +16,31 @@ data class Exercise(
     val secondary: Set<MuscleGroup>
 )
 
+/**
+ * Fitness (2026-11-01): cardio exercises get a time + distance commit
+ * form in the Exercises tab instead of sets x reps x weight — a run is
+ * 15 min / 1 mi, not 3x10. Strength exercises are unaffected.
+ */
+val CARDIO_EXERCISE_NAMES: Set<String> = setOf(
+    "Running",
+    "Treadmill Running",
+    "Walking",
+    "Hiking",
+    "Biking",
+    "Stationary Bike",
+    "Elliptical",
+    "Rowing",
+    "Rowing Machine",
+    "Stair Climbing",
+    "Stair Climber Machine",
+    "Swimming (Pool)",
+    "Swimming (Open Water)",
+    "High-Intensity Interval Training",
+    "Jump Rope"
+)
+
+fun Exercise.isCardio(): Boolean = name in CARDIO_EXERCISE_NAMES
+
 /** Built-in exercise database (~55 common lifts, bodyweight, machines, bands, core). */
 val EXERCISES: List<Exercise> = listOf(
     // ---- Barbell / dumbbell compounds ----
@@ -316,6 +341,21 @@ val EXERCISES: List<Exercise> = listOf(
         "Crunches",
         setOf(MuscleGroup.ABS),
         emptySet()
+    ),
+    // ---- Core bodyweight (2026-11-01, user's request) ----
+    Exercise(
+        "Floor Leg Raises",
+        setOf(MuscleGroup.ABS),
+        // Same hip-flexor rationale as Sit-Ups: no hip-flexor group
+        // exists in the 12 tracked groups; the rectus femoris (part of
+        // QUADS) is a hip flexor, so QUADS is the closest tracked
+        // group. Distinct from "Hanging Leg Raise" (grip/forearm load).
+        setOf(MuscleGroup.QUADS)
+    ),
+    Exercise(
+        "Reverse Crunches",
+        setOf(MuscleGroup.ABS),
+        setOf(MuscleGroup.OBLIQUES)
     ),
     Exercise(
         "Russian Twists",

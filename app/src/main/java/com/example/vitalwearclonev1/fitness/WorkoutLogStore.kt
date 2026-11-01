@@ -21,15 +21,29 @@ data class LoggedWorkout(
     val exerciseName: String? = null,
     val sets: Int? = null,
     val reps: Int? = null,
-    val weightLb: Float? = null
+    val weightLb: Float? = null,
+    // Fitness (2026-11-01): cardio detail (time + optional distance).
+    // Null on every entry written before this change — decode keeps
+    // those readable, and cardio entries carry no sets/reps/weight.
+    val durationMin: Float? = null,
+    val distanceMi: Float? = null
 ) {
-    /** One-line summary of the logged effort, e.g. "3x10 @ 50 lb". */
+    /** One-line summary of the logged effort, e.g. "3x10 @ 50 lb" or "15 min • 1 mi". */
     fun effortText(): String? {
+        if (durationMin != null) {
+            val distance = distanceMi?.let { " • ${formatDecimal(it)} mi" }.orEmpty()
+            return "${formatDecimal(durationMin)} min$distance"
+        }
         if (sets == null || reps == null) return null
         val weight = weightLb?.let { " @ ${formatWeightLb(it)} lb" } ?: " (bodyweight)"
         return "${sets}x$reps$weight"
     }
 }
+
+/** Number with no trailing ".0" — 15 min / 1 mi, not 15.0 min / 1.0 mi. */
+fun formatDecimal(value: Float): String =
+    if (value == value.toInt().toFloat()) value.toInt().toString()
+    else value.toString()
 
 /** Weight with no trailing ".0" — 50 lb, not 50.0 lb. */
 fun formatWeightLb(weightLb: Float): String =
@@ -78,6 +92,33 @@ class WorkoutLogStore(private val context: Context) {
                 date, exercise.name, muscles, System.currentTimeMillis(),
                 exerciseName = exercise.name, sets = sets, reps = reps,
                 weightLb = weightLb
+            )
+        )
+        prefs().edit().putString(keyFor(date), encode(existing)).apply()
+        val dates = getLoggedDateStrings().toMutableSet()
+        dates.add(date.format(dateFmt))
+        prefs().edit().putString(INDEX_KEY, dates.joinToString(",")).apply()
+    }
+
+    /**
+     * Fitness (2026-11-01): per-exercise cardio commit from the
+     * Exercises tab. Same log + credit path as logExercise, but the
+     * entry carries time + optional distance instead of sets/reps.
+     */
+    fun logCardioExercise(
+        date: LocalDate,
+        exercise: Exercise,
+        muscles: Set<MuscleGroup>,
+        durationMin: Float,
+        distanceMi: Float?
+    ) {
+        if (muscles.isEmpty()) return
+        val existing = getWorkoutsForDate(date).toMutableList()
+        existing.add(
+            LoggedWorkout(
+                date, exercise.name, muscles, System.currentTimeMillis(),
+                exerciseName = exercise.name,
+                durationMin = durationMin, distanceMi = distanceMi
             )
         )
         prefs().edit().putString(keyFor(date), encode(existing)).apply()
@@ -208,7 +249,16 @@ class WorkoutLogStore(private val context: Context) {
                 val sets = w.sets?.toString().orEmpty()
                 val reps = w.reps?.toString().orEmpty()
                 val weight = w.weightLb?.toString().orEmpty()
-                "$base|$safeExercise|$sets|$reps|$weight"
+                // Cardio entries ride as the extended 9-part shape
+                // (sets/reps/weight blank, time + distance appended);
+                // strength entries keep the existing 7-part shape.
+                if (w.durationMin != null) {
+                    val duration = w.durationMin.toString()
+                    val distance = w.distanceMi?.toString().orEmpty()
+                    "$base|$safeExercise|$sets|$reps|$weight|$duration|$distance"
+                } else {
+                    "$base|$safeExercise|$sets|$reps|$weight"
+                }
             }
         }
 
@@ -216,7 +266,7 @@ class WorkoutLogStore(private val context: Context) {
         if (raw.isNullOrBlank()) return emptyList()
         return raw.split(";").mapNotNull { entry ->
             val parts = entry.split("|")
-            if (parts.size != 3 && parts.size != 7) return@mapNotNull null
+            if (parts.size != 3 && parts.size != 7 && parts.size != 9) return@mapNotNull null
             val muscles = parts[1].split(",").mapNotNull { name ->
                 try { MuscleGroup.valueOf(name) } catch (e: Exception) { null }
             }.toSet()
@@ -229,7 +279,9 @@ class WorkoutLogStore(private val context: Context) {
                     exerciseName = parts[3].ifBlank { null },
                     sets = parts[4].toIntOrNull(),
                     reps = parts[5].toIntOrNull(),
-                    weightLb = parts[6].toFloatOrNull()
+                    weightLb = parts[6].toFloatOrNull(),
+                    durationMin = if (parts.size == 9) parts[7].toFloatOrNull() else null,
+                    distanceMi = if (parts.size == 9) parts[8].toFloatOrNull() else null
                 )
             }
         }
